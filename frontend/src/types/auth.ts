@@ -10,10 +10,14 @@ export interface User {
   updated_at?: string;
 }
 
+// Matches the actual envelope returned by shared.RespondSuccess on the Go backend:
+// { "status": "success", "data": { "access_token": "...", "user": {...} } }
 export interface AuthResponse {
-  message: string;
-  access_token?: string;
-  user?: User;
+  status: string;
+  data: {
+    access_token: string;
+    user: User;
+  };
 }
 
 export interface ApiErrorResponse {

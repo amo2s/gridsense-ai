@@ -65,16 +65,33 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 4. Secure Cookie Configuration (Step 4.3 Blueprint Requirement)
-	cookie := &http.Cookie{
+	refreshCookie := &http.Cookie{
 		Name:     "refresh_token",
 		Value:    result.RefreshToken,
 		Path:     "/api/auth/refresh", // Restrict where the browser sends this cookie
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
-		HttpOnly: true, // Hide from JavaScript
-		Secure:   h.secure, // Require HTTPS in production
+		HttpOnly: true,             // Hide from JavaScript
+		Secure:   h.secure,         // Require HTTPS in production
 		SameSite: http.SameSiteStrictMode, // Prevent CSRF attacks
 	}
-	http.SetCookie(w, cookie)
+	http.SetCookie(w, refreshCookie)
+
+	// 4b. Session Cookie for Middleware Auth Checks
+	// Mirrors the access token into a cookie so Next.js middleware (Edge runtime)
+	// can verify session state via jwtVerify() without touching localStorage.
+	// Path is "/" (unlike the refresh cookie) so it's sent on every request,
+	// including /dashboard and /admin. Expires matches the access token's own TTL —
+	// keep this in sync with whatever GenerateTokenPair sets for the access token.
+	sessionCookie := &http.Cookie{
+		Name:     "auth_token",
+		Value:    result.AccessToken,
+		Path:     "/",
+		Expires:  time.Now().Add(15 * time.Minute), // match access token TTL — adjust if GenerateTokenPair uses a different value
+		HttpOnly: true,                              // Hide from JavaScript
+		Secure:   h.secure,                           // Require HTTPS in production
+		SameSite: http.SameSiteLaxMode,                // Lax (not Strict) so it survives the :3000 -> :8081 proxy hop
+	}
+	http.SetCookie(w, sessionCookie)
 
 	// 5. Return Success Response
 	// We return the Access Token and the sanitized User record, omitting the refresh token.

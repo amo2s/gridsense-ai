@@ -1,0 +1,18 @@
+# Web framework and ASGI servers
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+granian>=1.6.0
+
+# Data validation and runtime contracts
+pydantic>=2.8.0
+
+# Numerical and time-series computation
+pandas>=2.2.0
+numpy>=2.0.0
+
+# Environment management
+python-dotenv>=1.0.1
+
+# Testing suite and asynchronous test client
+pytest>=8.3.0
+httpx>=0.27.0

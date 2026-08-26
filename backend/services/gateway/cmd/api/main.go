@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"gateway/bridge"
-	"gateway/internal/config"
 	"gateway/database"
 	"gateway/handlers"
+	"gateway/internal/config"
 	"gateway/middleware"
 )
 
@@ -35,11 +35,22 @@ func main() {
 	log.Println("Database connection pool established successfully.")
 
 	// 3. Initialize Internal Clients
-	engineClient := bridge.NewEngineAClient(cfg.EngineAURL, cfg.InternalServiceKey)
+	engineAClient := bridge.NewEngineAClient(cfg.EngineAURL, cfg.InternalServiceKey)
+
+	// Engine B (outage-risk prediction) has its own self-contained config,
+	// loaded from ENGINE_B_URL -- separate from the main gateway `cfg` since
+	// it's an independent Python microservice with its own resilience
+	// settings (circuit breaker, retries) that don't belong in the gateway's
+	// general config surface.
+	engineBConfig := handlers.LoadConfig()
+	engineBClient := handlers.NewEngineBClient(engineBConfig)
 
 	// 4. Initialize Handlers
-	reliabilityHandler := handlers.NewReliabilityHandler(db, engineClient)
+	reliabilityHandler := handlers.NewReliabilityHandler(db, engineAClient)
 	healthHandler := handlers.NewHealthHandler(db) // Registered health handler
+
+	telemetryRepo := handlers.NewSQLTelemetryRepo(db)
+	predictionHandler := handlers.NewPredictionHandler(telemetryRepo, engineBClient)
 
 	// 5. Setup Router (ServeMux) and apply Middleware
 	mux := http.NewServeMux()
@@ -49,9 +60,11 @@ func main() {
 
 	// Wrap the endpoint with the JWT Authentication Middleware
 	authProtectedReliability := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(reliabilityHandler.Evaluate))
-	
-	// Register the route
 	mux.Handle("/api/v1/reliability/evaluate", enableCORS(authProtectedReliability))
+
+	// Engine B outage-risk prediction, same auth pattern as reliability.
+	authProtectedPrediction := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(predictionHandler.ExecuteInference))
+	mux.Handle("/api/v1/prediction/evaluate", enableCORS(authProtectedPrediction))
 
 	// 6. Configure the HTTP Server with strict timeouts to prevent resource exhaustion (Slowloris attacks)
 	srv := &http.Server{
@@ -72,7 +85,7 @@ func main() {
 	// 8. Graceful Shutdown Implementation
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	
+
 	// Block until a signal is received
 	<-quit
 	log.Println("Shutdown signal received, gracefully terminating...")

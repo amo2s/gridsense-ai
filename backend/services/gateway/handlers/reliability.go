@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -58,7 +59,13 @@ func (h *ReliabilityHandler) Evaluate(w http.ResponseWriter, r *http.Request) {
 		cycleTime = parsedTime.UTC()
 	}
 
-	ctx := r.Context()
+	// Explicit request-scoped timeout budget covering both the DB fetch and
+	// the Engine A dispatch. Without this, a hung Engine A call blocks
+	// indefinitely aside from the server's blunt global WriteTimeout, which
+	// is meant as a last-resort cutoff, not an intentional per-request
+	// deadline. Matches the pattern used by Engine B's prediction handler.
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	defer cancel()
 
 	// 1. Fetch grid asset data and 24-hour interruption history from Supabase
 	payload, err := h.db.FetchOperationalPayload(ctx, feederID, cycleTime)

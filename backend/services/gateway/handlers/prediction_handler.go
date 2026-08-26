@@ -3,7 +3,6 @@ package handlers
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +14,10 @@ import (
 	"os"
 	"time"
 
+	"gateway/database"
+
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sony/gobreaker"
@@ -61,6 +63,7 @@ type PredictionResponse struct {
 
 var (
 	ErrInvalidUUID      = errors.New("invalid feeder_id: must be a valid UUID")
+	ErrFeederNotFound   = errors.New("feeder not found or has no telemetry history")
 	ErrInsufficientData = errors.New("insufficient telemetry history")
 	ErrAIUpstream       = errors.New("ai microservice upstream error")
 	ErrAIValidation     = errors.New("ai microservice rejected payload")
@@ -142,7 +145,12 @@ func NewEngineBClient(cfg Config) AIClient {
 			Interval:    10 * time.Second,
 			Timeout:     30 * time.Second,
 			ReadyToTrip: func(counts gobreaker.Counts) bool {
-				return counts.ConsecutiveFailures > 5
+				// NOTE: each Predict() call already retries internally (up to 3x)
+				// before this counter increments, so a threshold of 3 here means
+				// roughly 3 fully-exhausted-retry request cycles, not 3 raw HTTP
+				// attempts. Tune down further (e.g. > 1) if you want the breaker
+				// to trip faster during an Engine B outage.
+				return counts.ConsecutiveFailures > 3
 			},
 		}),
 	}
@@ -154,7 +162,6 @@ func (c *engineBClient) Predict(ctx context.Context, payloadBytes []byte) (*Pred
 
 	start := time.Now()
 
-	// Circuit breaker execution
 	result, err := c.cb.Execute(func() (interface{}, error) {
 		return c.doWithRetries(ctx, payloadBytes)
 	})
@@ -165,7 +172,6 @@ func (c *engineBClient) Predict(ctx context.Context, payloadBytes []byte) (*Pred
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 
-		// Differentiate circuit breaker open vs downstream error
 		if errors.Is(err, gobreaker.ErrOpenState) {
 			errorCounter.WithLabelValues("circuit_breaker_open").Inc()
 		}
@@ -244,18 +250,23 @@ func (c *engineBClient) doWithRetries(ctx context.Context, payloadBytes []byte) 
 }
 
 // ==========================================
-// 6. DATABASE IMPLEMENTATION
+// 6. DATABASE IMPLEMENTATION (pgx/pgxpool)
 // ==========================================
+//
+// Uses *database.PostgresDB (wrapping *pgxpool.Pool), matching the pattern
+// already established in database/database.go's FetchOperationalPayload --
+// NOT database/sql. pgxpool.Pool methods take ctx as the first argument
+// and have no "Context" suffix (Query, not QueryContext).
 
-type sqlTelemetryRepo struct {
-	db *sql.DB
+type pgxTelemetryRepo struct {
+	db *database.PostgresDB
 }
 
-func NewSQLTelemetryRepo(db *sql.DB) TelemetryRepository {
-	return &sqlTelemetryRepo{db: db}
+func NewSQLTelemetryRepo(db *database.PostgresDB) TelemetryRepository {
+	return &pgxTelemetryRepo{db: db}
 }
 
-func (r *sqlTelemetryRepo) FetchHistoricalTelemetry(ctx context.Context, feederID string) ([]TelemetryReading, error) {
+func (r *pgxTelemetryRepo) FetchHistoricalTelemetry(ctx context.Context, feederID string) ([]TelemetryReading, error) {
 	ctx, span := tracer.Start(ctx, "DB.FetchHistoricalTelemetry")
 	defer span.End()
 
@@ -277,7 +288,7 @@ func (r *sqlTelemetryRepo) FetchHistoricalTelemetry(ctx context.Context, feederI
 		LIMIT 24
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, feederID)
+	rows, err := r.db.Pool.Query(ctx, query, feederID)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
@@ -295,6 +306,11 @@ func (r *sqlTelemetryRepo) FetchHistoricalTelemetry(ctx context.Context, feederI
 		return nil, fmt.Errorf("iteration error: %w", err)
 	}
 
+	if len(readings) == 0 {
+		return nil, fmt.Errorf("%w: %s", ErrFeederNotFound, feederID)
+	}
+
+	// Reverse DESC -> ASC to satisfy Engine B's strictly-ascending Pydantic validator.
 	for i, j := 0, len(readings)-1; i < j; i, j = i+1, j-1 {
 		readings[i], readings[j] = readings[j], readings[i]
 	}
@@ -302,7 +318,7 @@ func (r *sqlTelemetryRepo) FetchHistoricalTelemetry(ctx context.Context, feederI
 	return readings, nil
 }
 
-func (r *sqlTelemetryRepo) PersistPrediction(ctx context.Context, p PredictionResponse) error {
+func (r *pgxTelemetryRepo) PersistPrediction(ctx context.Context, p PredictionResponse) error {
 	ctx, span := tracer.Start(ctx, "DB.PersistPrediction")
 	defer span.End()
 
@@ -317,12 +333,19 @@ func (r *sqlTelemetryRepo) PersistPrediction(ctx context.Context, p PredictionRe
 		return fmt.Errorf("failed to encode factors: %w", err)
 	}
 
-	_, err = r.db.ExecContext(ctx, query,
+	_, err = r.db.Pool.Exec(ctx, query,
 		p.FeederID, p.GeneratedAt, p.HorizonHours,
 		p.RiskScore, p.RiskLevel, p.ModelVersion, factorsJSON,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("insert into risk_predictions failed: %w", err)
+	}
+	return nil
 }
+
+// _ ensures pgx.ErrNoRows stays imported/referenced for callers that need
+// to distinguish "no rows" from other query errors elsewhere in this package.
+var _ = pgx.ErrNoRows
 
 // ==========================================
 // 7. HANDLER EXECUTION
@@ -350,14 +373,12 @@ func (h *PredictionHandler) ExecuteInference(w http.ResponseWriter, r *http.Requ
 
 	feederID := r.URL.Query().Get("feeder_id")
 
-	// UUID validation
 	if _, err := uuid.Parse(feederID); err != nil {
 		span.RecordError(err)
 		http.Error(w, ErrInvalidUUID.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Singleflight protects against thundering herds firing identical requests
 	v, err, shared := h.requestGrp.Do(feederID, func() (interface{}, error) {
 		return h.processInference(ctx, feederID)
 	})
@@ -382,7 +403,10 @@ func (h *PredictionHandler) processInference(ctx context.Context, feederID strin
 	readings, err := h.repo.FetchHistoricalTelemetry(ctx, feederID)
 	if err != nil {
 		slog.Error("telemetry lookup failed", "feeder_id", feederID, "error", err)
-		return nil, fmt.Errorf("database retrieval failed")
+		if errors.Is(err, ErrFeederNotFound) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("database retrieval failed: %w", err)
 	}
 
 	if len(readings) < 24 {
@@ -395,7 +419,7 @@ func (h *PredictionHandler) processInference(ctx context.Context, feederID strin
 	})
 	if err != nil {
 		slog.Error("payload encode failed", "feeder_id", feederID, "error", err)
-		return nil, fmt.Errorf("internal processing error")
+		return nil, fmt.Errorf("internal processing error: %w", err)
 	}
 
 	prediction, err := h.aiClient.Predict(ctx, payloadBytes)
@@ -404,7 +428,8 @@ func (h *PredictionHandler) processInference(ctx context.Context, feederID strin
 		return nil, err
 	}
 
-	// Asynchronous persistence to not block client return or tie response status to DB write success
+	// Asynchronous persistence so the client isn't blocked on the DB write,
+	// and response status isn't tied to persistence success.
 	go func(p PredictionResponse) {
 		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -418,6 +443,8 @@ func (h *PredictionHandler) processInference(ctx context.Context, feederID strin
 
 func (h *PredictionHandler) handleError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, ErrFeederNotFound):
+		http.Error(w, err.Error(), http.StatusNotFound)
 	case errors.Is(err, ErrInsufficientData):
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 	case errors.Is(err, ErrAIValidation):

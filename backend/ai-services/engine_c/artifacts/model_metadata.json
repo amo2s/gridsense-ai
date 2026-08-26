@@ -1,0 +1,21 @@
+{
+    "version": "1.0",
+    "training_records": 697,
+    "statistical_layer": {
+        "threshold": 3.5,
+        "baselines": {
+            "voltage": {
+                "median": 230.0255672832123,
+                "mad": 3.284747822223096
+            },
+            "load": {
+                "median": 101.17952785474137,
+                "mad": 9.74721270148332
+            },
+            "frequency": {
+                "median": 50.00188496229448,
+                "mad": 0.0653724078257909
+            }
+        }
+    }
+}

@@ -240,7 +240,7 @@ def main():
     onx = convert_sklearn(
         iforest_model.model, 
         initial_types=initial_type, 
-        target_opset={'ai.onnx.ml': 3}
+        target_opset={'': 15, 'ai.onnx.ml': 3}
     )
     # =========================================
     

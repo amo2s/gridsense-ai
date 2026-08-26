@@ -37,20 +37,24 @@ func main() {
 	// 3. Initialize Internal Clients
 	engineAClient := bridge.NewEngineAClient(cfg.EngineAURL, cfg.InternalServiceKey)
 
-	// Engine B (outage-risk prediction) has its own self-contained config,
-	// loaded from ENGINE_B_URL -- separate from the main gateway `cfg` since
-	// it's an independent Python microservice with its own resilience
-	// settings (circuit breaker, retries) that don't belong in the gateway's
-	// general config surface.
+	// Engine B (outage-risk prediction) config & client
 	engineBConfig := handlers.LoadConfig()
 	engineBClient := handlers.NewEngineBClient(engineBConfig)
 
-	// 4. Initialize Handlers
+	// Engine C (multivariate anomaly detection) config & client
+	engineCConfig := handlers.LoadEngineCConfig()
+	engineCClient := handlers.NewEngineCClient(engineCConfig)
+
+	// 4. Initialize Handlers and Repositories
 	reliabilityHandler := handlers.NewReliabilityHandler(db, engineAClient)
 	healthHandler := handlers.NewHealthHandler(db) // Registered health handler
 
 	telemetryRepo := handlers.NewSQLTelemetryRepo(db)
 	predictionHandler := handlers.NewPredictionHandler(telemetryRepo, engineBClient)
+
+	// Initialize Engine C specific repositories and handler
+	anomalyRepo := handlers.NewSQLAnomalyRepo(db)
+	anomalyHandler := handlers.NewAnomalyHandler(anomalyRepo, engineCClient)
 
 	// 5. Setup Router (ServeMux) and apply Middleware
 	mux := http.NewServeMux()
@@ -65,6 +69,10 @@ func main() {
 	// Engine B outage-risk prediction, same auth pattern as reliability.
 	authProtectedPrediction := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(predictionHandler.ExecuteInference))
 	mux.Handle("/api/v1/prediction/evaluate", enableCORS(authProtectedPrediction))
+
+	// Engine C anomaly detection, mounted with JWT auth and CORS[cite: 1]
+	authProtectedAnomaly := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(anomalyHandler.DetectAnomaly))
+	mux.Handle("/api/v1/anomaly/detect", enableCORS(authProtectedAnomaly))
 
 	// 6. Configure the HTTP Server with strict timeouts to prevent resource exhaustion (Slowloris attacks)
 	srv := &http.Server{

@@ -39,8 +39,8 @@ def ingest_and_validate(df: pl.DataFrame) -> pl.DataFrame:
 
 def engineer_multivariate_features(df: pl.DataFrame, window_size: int = 6) -> pl.DataFrame:
     """
-    Step 2.1.1: Engineer rolling cross-feature and ratio features.
-    Exposes cross-feature interaction patterns for the ML ensemble.
+    Step 2.1.1 & Step 5.1.1: Engineer rolling cross-feature and ratio features.
+    Applies identical transformations to both historical batch data and live inference payloads.
     """
     # Ensure data is sorted temporally per feeder before applying rolling windows
     df = df.sort(["feeder_id", "timestamp"])
@@ -63,7 +63,7 @@ def engineer_multivariate_features(df: pl.DataFrame, window_size: int = 6) -> pl
 
 def normalize_features(df: pl.DataFrame, feature_cols: list[str]) -> pl.DataFrame:
     """
-    Step 2.1.2: Standardize features to zero mean and unit variance.
+    Step 2.1.2 & Step 5.1.1: Standardize features to zero mean and unit variance.
     Crucial for Isolation Forest and PyOD distance/density computations.
     """
     expressions = []

@@ -19,6 +19,9 @@ from models.seasonal_baseline import SeasonalBaseline
 from features.pipeline import engineer_multivariate_features, normalize_features
 from models.multivariate_ensemble import IsolationForestDetector, PyODEnsembleDetector
 
+# Phase 3 Import (Newly Added)
+from models.anomaly_detector import AnomalyDetector
+
 # Configure structured logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -252,6 +255,43 @@ def main():
     joblib.dump(pyod_model.get_models_for_export(), ARTIFACTS_DIR / "pyod_ensemble.joblib")
         
     logger.info("Phase 1 & 2 execution complete. Models trained and artifacts successfully serialized.")
+
+    # =========================================================================
+    # PHASE 3 TEST BLOCK (Newly appended to verify the Explainability Engine)
+    # =========================================================================
+    logger.info("Executing Phase 3: Explainability Engine Validation...")
+    
+    # Initialize the orchestrator and attach SHAP to our trained model
+    orchestrator = AnomalyDetector()
+    orchestrator.attach_shap_explainer(iforest_model.model)
+    
+    # Simulate a flagged row using synthetic dummy values
+    test_row = {
+        "layer1_flag": True,
+        "layer2_flag": True,
+        "layer3_flag": True,
+        "voltage_is_anomaly": True,
+        "voltage_robust_z_score": 4.1,
+        "voltage_is_seasonal_anomaly": True,
+        "voltage_seasonal_z_score": 3.7
+    }
+    
+    # Extract one row from our engineered features for SHAP evaluation
+    test_feature_vector = df_multi.select(scaled_cols).to_numpy()[0]
+    
+    # Compute the outputs
+    conf_score = orchestrator.compute_confidence(test_row)
+    l1_attr = orchestrator.extract_layer1_attribution(test_row, features)
+    l2_attr = orchestrator.extract_layer2_attribution(test_row, features)
+    l3_attr = orchestrator.extract_layer3_attribution(test_feature_vector, scaled_cols)
+    
+    # Generate the human-readable explanation
+    all_attr = l1_attr + l2_attr + l3_attr
+    ranked_factors, text_reasons = orchestrator.generate_explanation(all_attr)
+    
+    logger.info(f"Phase 3 Confidence Score: {conf_score:.2f}")
+    logger.info(f"Phase 3 Generated Reasons: {text_reasons}")
+    logger.info("Explainability Engine successfully validated.")
 
 if __name__ == "__main__":
     main()

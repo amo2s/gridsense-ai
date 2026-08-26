@@ -1,0 +1,149 @@
+{
+  "feeder_id": "c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33",
+  "readings": [
+    {
+      "timestamp": "2026-08-25T00:00:00Z",
+      "voltage": 220.0,
+      "load": 45.0,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T01:00:00Z",
+      "voltage": 219.25,
+      "load": 46.5,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T02:00:00Z",
+      "voltage": 218.5,
+      "load": 48.0,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T03:00:00Z",
+      "voltage": 217.75,
+      "load": 49.5,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T04:00:00Z",
+      "voltage": 217.0,
+      "load": 51.0,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T05:00:00Z",
+      "voltage": 216.25,
+      "load": 52.5,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T06:00:00Z",
+      "voltage": 215.5,
+      "load": 54.0,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T07:00:00Z",
+      "voltage": 214.75,
+      "load": 55.5,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T08:00:00Z",
+      "voltage": 214.0,
+      "load": 57.0,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T09:00:00Z",
+      "voltage": 213.25,
+      "load": 58.5,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T10:00:00Z",
+      "voltage": 212.5,
+      "load": 60.0,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T11:00:00Z",
+      "voltage": 211.75,
+      "load": 61.5,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T12:00:00Z",
+      "voltage": 211.0,
+      "load": 63.0,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T13:00:00Z",
+      "voltage": 210.25,
+      "load": 64.5,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T14:00:00Z",
+      "voltage": 209.5,
+      "load": 66.0,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T15:00:00Z",
+      "voltage": 208.75,
+      "load": 67.5,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T16:00:00Z",
+      "voltage": 208.0,
+      "load": 69.0,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T17:00:00Z",
+      "voltage": 207.25,
+      "load": 70.5,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T18:00:00Z",
+      "voltage": 206.5,
+      "load": 72.0,
+      "fault_count_recent": 1
+    },
+    {
+      "timestamp": "2026-08-25T19:00:00Z",
+      "voltage": 205.75,
+      "load": 73.5,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T20:00:00Z",
+      "voltage": 205.0,
+      "load": 75.0,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T21:00:00Z",
+      "voltage": 204.25,
+      "load": 76.5,
+      "fault_count_recent": 0
+    },
+    {
+      "timestamp": "2026-08-25T22:00:00Z",
+      "voltage": 203.5,
+      "load": 78.0,
+      "fault_count_recent": 1
+    },
+    {
+      "timestamp": "2026-08-25T23:00:00Z",
+      "voltage": 202.75,
+      "load": 79.5,
+      "fault_count_recent": 0
+    }
+  ]
+}

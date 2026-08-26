@@ -11,6 +11,7 @@ import (
 
 // RegisterRequest dictates the exact JSON structure we expect from the frontend.
 type RegisterRequest struct {
+	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
@@ -43,7 +44,7 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 	// 3. Trigger the Service Layer (Step 3.3 Blueprint Requirement)
 	// We pass r.Context() so if the user closes their browser early, the DB query cancels.
-	user, err := h.service.Register(r.Context(), req.Email, req.Password)
+	user, err := h.service.Register(r.Context(), req.Name, req.Email, req.Password)
 	if err != nil {
 		// Map domain errors to standard HTTP status codes
 		if errors.Is(err, ErrEmailAlreadyExists) {
@@ -52,7 +53,7 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		}
 		
 		// If it's a generic bad request (like missing fields)
-		if err.Error() == "email and password are required" {
+		if err.Error() == "name, email and password are required" {
 			shared.RespondBadRequest(w, err.Error(), err)
 			return
 		}

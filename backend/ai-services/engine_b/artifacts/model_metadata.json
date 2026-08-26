@@ -1,0 +1,13 @@
+{
+    "version": "1.0.0",
+    "horizon_hours": 6,
+    "feature_order": [
+        "voltage",
+        "load",
+        "fault_count_recent",
+        "hour_sin",
+        "hour_cos",
+        "load_volatility_24h",
+        "voltage_mean_12h"
+    ]
+}

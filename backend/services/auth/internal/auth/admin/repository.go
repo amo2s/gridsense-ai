@@ -18,6 +18,7 @@ var (
 // PasswordHash is omitted entirely because admins never need to see it.
 type User struct {
 	ID        string    `json:"id"`
+	Name      string    `json:"name"`
 	Email     string    `json:"email"`
 	Role      string    `json:"role"`
 	Status    string    `json:"status"`
@@ -53,7 +54,7 @@ func NewRepository(db *pgxpool.Pool) Repository {
 func (r *postgresRepository) GetPendingUsers(ctx context.Context) ([]*User, error) {
 	// We only query necessary columns to save bandwidth.
 	query := `
-		SELECT id, email, role, status, created_at, updated_at
+		SELECT id, name, email, role, status, created_at, updated_at
 		FROM users
 		WHERE status = 'Pending'
 		ORDER BY created_at ASC
@@ -70,7 +71,7 @@ func (r *postgresRepository) GetPendingUsers(ctx context.Context) ([]*User, erro
 
 	for rows.Next() {
 		u := &User{}
-		if err := rows.Scan(&u.ID, &u.Email, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, err
 		}
 		users = append(users, u)

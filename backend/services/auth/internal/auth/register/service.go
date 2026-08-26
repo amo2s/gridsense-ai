@@ -16,7 +16,7 @@ import (
 
 // Service defines the strict contract for the registration feature.
 type Service interface {
-	Register(ctx context.Context, email, password string) (*User, error)
+	Register(ctx context.Context, name, email, password string) (*User, error)
 }
 
 type registerService struct {
@@ -33,11 +33,12 @@ func NewService(repo Repository) Service {
 // =========================================================================
 
 // Register sanitizes input, hashes the password, and writes to Supabase via repository.
-func (s *registerService) Register(ctx context.Context, email, password string) (*User, error) {
+func (s *registerService) Register(ctx context.Context, name, email, password string) (*User, error) {
 	// 1. Sanitize Inputs
+	cleanName := strings.TrimSpace(name)
 	cleanEmail := strings.TrimSpace(strings.ToLower(email))
-	if cleanEmail == "" || strings.TrimSpace(password) == "" {
-		return nil, errors.New("email and password are required")
+	if cleanName == "" || cleanEmail == "" || strings.TrimSpace(password) == "" {
+		return nil, errors.New("name, email and password are required")
 	}
 
 	// 2. CPU-Intensive Hashing (Argon2id)
@@ -51,7 +52,7 @@ func (s *registerService) Register(ctx context.Context, email, password string) 
 	status := "Pending" // STRICTLY enforced by Phase 3.2 requirement
 
 	// 4. Delegate to repository for database insertion
-	u, err := s.repo.CreateUser(ctx, cleanEmail, hashedPassword, role, status)
+	u, err := s.repo.CreateUser(ctx, cleanName, cleanEmail, hashedPassword, role, status)
 	if err != nil {
 		if errors.Is(err, ErrEmailAlreadyExists) {
 			return nil, ErrEmailAlreadyExists

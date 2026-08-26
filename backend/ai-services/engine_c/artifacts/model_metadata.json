@@ -17,5 +17,16 @@
                 "mad": 0.0653724078257909
             }
         }
+    },
+    "iforest_layer": {
+        "bootstrap": false,
+        "contamination": 0.06743185078909612,
+        "max_features": 1.0,
+        "max_samples": 0.8634468384176045,
+        "n_estimators": 195,
+        "n_jobs": -1,
+        "random_state": 42,
+        "verbose": 0,
+        "warm_start": false
     }
 }

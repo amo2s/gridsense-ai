@@ -103,8 +103,10 @@ class AnomalyDetector:
         reasons = []
         seen_templates = set()
         
-        # Extract top 3 distinct reasons to keep UI clean
-        for item in ranked:
+        # ======== FIX APPLIED HERE ========
+        # Iterating over ranked_dicts instead of ranked, because ranked_dicts 
+        # actually contains the dictionaries with the "feature" and "source" keys.
+        for item in ranked_dicts:
             if len(reasons) >= 3:
                 break
                 

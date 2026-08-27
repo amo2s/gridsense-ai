@@ -65,7 +65,12 @@ async def lifespan(app: FastAPI):
         onnx_sess.run(None, {"float_input": np.zeros((1, 5), dtype=np.float32)})
         
         # Initialize orchestrator into app.state
-        app.state.detector = AnomalyDetector(metadata, seasonal, pyod, onnx_sess)
+        app.state.detector = AnomalyDetector(
+            metadata=metadata,
+            seasonal_baselines=seasonal,
+            pyod_ensemble=pyod,
+            onnx_session=onnx_sess
+        )
         app.state.metadata = metadata
         
         logger.info("service_startup_completed", model_version=metadata["version"])

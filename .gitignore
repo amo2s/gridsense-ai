@@ -6,3 +6,4 @@ node_modules/
 *.exe
 *.log
 "@ | Out-File -FilePath .gitignore -Encoding utf8
+generate_token.py

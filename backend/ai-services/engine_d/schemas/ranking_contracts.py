@@ -76,6 +76,7 @@ class RankedAsset(BaseModel):
     priority_score: float = Field(..., description="Raw output score from the LambdaMART ranker")
     priority_tier: PriorityTier = Field(..., description="Deterministic category mapped from the priority score")
     explanations: List[ShapAttribution] = Field(..., description="Itemized SHAP values driving this specific rank")
+    base_value: float = Field(..., description="Baseline score at neutral feature values plus any interaction-effect residual; sum(explanations) + base_value == priority_score exactly")
 
 class PrioritizationResponse(BaseModel):
     """

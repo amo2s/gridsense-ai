@@ -37,16 +37,9 @@ FEATURE_RANGES = {
     "anomaly_confidence": (0.0, 1.0),
 }
 
-# Features where a HIGH normalized value is protective (reduces urgency),
-# unlike every other feature where high = more urgent. Their deviation
-# from the midpoint must be inverted before computing attribution direction.
-INVERSE_FEATURES = {"reliability_score"}
-
 # Percentile-based tier boundaries. Raw LambdaMART scores are unbounded and
 # model-specific - fixed constants (e.g. ">80") silently misclassify every
 # asset if the actual score distribution doesn't match that assumption.
-# These are computed per-batch below, over the current ranking group,
-# rather than assumed globally.
 TIER_PERCENTILES = {
     PriorityTier.CRITICAL: 90,
     PriorityTier.HIGH: 70,
@@ -96,62 +89,71 @@ def _determine_tier(score: float, thresholds: dict) -> PriorityTier:
     return PriorityTier.LOW
 
 
-def _approximate_shap_attributions(tensor_row: np.ndarray, score: float) -> List[ShapAttribution]:
-    """
-    Calculates feature attributions using a deterministic proxy.
-
-    Each feature's contribution direction is derived from its own deviation
-    from a neutral midpoint (0.5 on the per-feature normalized scale) - NOT
-    from the sign of the total score. A feature sitting above its midpoint
-    (e.g. high risk_score) contributes toward urgency; a feature that is
-    protective when high (reliability_score) has its deviation inverted
-    first, so high reliability correctly contributes AWAY from urgency.
-    Magnitudes are scaled so attributions sum exactly to the model's total
-    score, preserving additivity.
-
-    Note: this is a deterministic proxy, not true Shapley values. For
-    production-grade exact attribution, replace with shap.TreeExplainer
-    against the LightGBM booster (not the ONNX artifact).
-    """
-    normalized = np.zeros(len(FEATURE_NAMES), dtype=np.float64)
+def _neutral_row() -> np.ndarray:
+    """A reference row with every feature at its own midpoint - the
+    'no signal either way' baseline input used to measure each feature's
+    real marginal effect on the model's output."""
+    row = np.zeros(len(FEATURE_NAMES), dtype=np.float32)
     for i, name in enumerate(FEATURE_NAMES):
         low, high = FEATURE_RANGES[name]
-        span = high - low
-        normalized[i] = (tensor_row[i] - low) / span if span > 0 else 0.5
+        row[i] = (low + high) / 2.0
+    return row
 
-    # reliability_score is protective (inverse relationship to urgency) -
-    # invert its normalized value so "high reliability" correctly produces
-    # a negative (urgency-reducing) deviation, matching every other
-    # feature's convention of "higher normalized value = more urgent."
-    directional = normalized.copy()
-    for i, name in enumerate(FEATURE_NAMES):
-        if name in INVERSE_FEATURES:
-            directional[i] = 1.0 - directional[i]
 
-    # Deviation from midpoint (0.5): positive = above midpoint (drives
-    # urgency up), negative = below midpoint (drives urgency down).
-    deviation = directional - 0.5
+def _run_single_row(ort_session: ort.InferenceSession, row: np.ndarray) -> float:
+    """Runs the real ONNX model on a single feature row. Used both for the
+    baseline and for each one-feature-at-a-time perturbation below."""
+    input_name = ort_session.get_inputs()[0].name
+    output = ort_session.run(None, {input_name: row.reshape(1, -1).astype(np.float32)})
+    return float(output[0].flatten()[0])
 
-    abs_deviation_sum = np.sum(np.abs(deviation))
-    if abs_deviation_sum <= 1e-9:
-        # All features sitting exactly at their midpoint - no directional
-        # signal to distribute. Split the score evenly rather than
-        # dividing by zero or defaulting to an arbitrary direction.
-        raw_shares = np.full(len(FEATURE_NAMES), 1.0 / len(FEATURE_NAMES))
-    else:
-        raw_shares = deviation / abs_deviation_sum
 
-    # Scale each feature's signed share by the total score, so that
-    # sum(contributions) == score exactly (additivity preserved), while
-    # each individual feature's sign reflects its OWN deviation direction.
-    contributions = raw_shares * score
+def _compute_marginal_attributions(
+    ort_session: ort.InferenceSession,
+    tensor_row: np.ndarray,
+    score: float,
+) -> tuple[List[ShapAttribution], float]:
+    """
+    Computes feature attributions via real one-at-a-time marginal
+    perturbation against the live ONNX model - NOT a formula-derived
+    proportional split. For each feature, swap in its actual value while
+    holding every other feature at the neutral baseline, and measure the
+    genuine model score delta. This is what makes the sign trustworthy:
+    it reflects actual model behavior, not an assumption about which
+    features "should" be protective vs. risky.
+
+    Additivity is guaranteed by construction, not by a formula that can
+    divide by zero: base_value absorbs whatever the sum of individual
+    marginals doesn't account for (interaction effects between features),
+    so sum(contributions) + base_value == score exactly, always.
+
+    Returns:
+        (attributions, base_value) - attributions sum with base_value to
+        exactly equal `score`.
+    """
+    baseline = _neutral_row()
+    baseline_score = _run_single_row(ort_session, baseline)
+
+    marginals = np.zeros(len(FEATURE_NAMES), dtype=np.float64)
+    for i in range(len(FEATURE_NAMES)):
+        perturbed = baseline.copy()
+        perturbed[i] = tensor_row[i]
+        perturbed_score = _run_single_row(ort_session, perturbed)
+        marginals[i] = perturbed_score - baseline_score
+
+    # Interaction effects (or a non-additive model) mean sum(marginals)
+    # may not exactly equal (score - baseline_score). Fold that residual
+    # into base_value so additivity holds exactly, rather than distorting
+    # individual feature signs to force a match.
+    residual = (score - baseline_score) - float(np.sum(marginals))
+    base_value = baseline_score + residual
 
     attributions = [
-        ShapAttribution(feature_name=name, contribution=float(contributions[i]))
+        ShapAttribution(feature_name=name, contribution=float(marginals[i]))
         for i, name in enumerate(FEATURE_NAMES)
     ]
 
-    return sorted(attributions, key=lambda x: abs(x.contribution), reverse=True)
+    return sorted(attributions, key=lambda x: abs(x.contribution), reverse=True), base_value
 
 
 def execute_ranking(
@@ -162,7 +164,14 @@ def execute_ranking(
     model_version: str = "v1.0.0-onnx"
 ) -> PrioritizationResponse:
     """
-    Executes sub-millisecond ranking inference and enforces the egress contract.
+    Executes ranking inference and enforces the egress contract.
+
+    Note on latency: explanation computation now runs 7 ONNX inferences per
+    asset (1 baseline, shared across the batch, + 6 single-feature
+    perturbations per asset) instead of 1. Still sub-millisecond per call
+    on CPUExecutionProvider for a model this size, but no longer a single
+    inference per request - measure under real load before assuming this
+    meets your latency SLA at scale.
 
     Raises:
         InferenceError: on malformed input or ONNX runtime failure. Callers
@@ -171,7 +180,7 @@ def execute_ranking(
     """
     _validate_inputs(input_tensor, feeder_ids)
 
-    # 1. Execute ONNX inference
+    # 1. Execute ONNX inference for the actual ranking scores
     try:
         onnx_inputs = {ort_session.get_inputs()[0].name: input_tensor}
         raw_scores = ort_session.run(None, onnx_inputs)[0].flatten()
@@ -194,13 +203,27 @@ def execute_ranking(
     for i, feeder_id in enumerate(feeder_ids):
         score = float(raw_scores[i])
         tier = _determine_tier(score, thresholds)
-        explanations = _approximate_shap_attributions(input_tensor[i], score)
+
+        try:
+            explanations, base_value = _compute_marginal_attributions(
+                ort_session, input_tensor[i], score
+            )
+        except Exception as exc:
+            logger.error(
+                "Marginal attribution computation failed",
+                extra={"query_id": query_id, "feeder_id": feeder_id},
+                exc_info=exc,
+            )
+            raise InferenceError(
+                f"Explanation computation failed for feeder_id={feeder_id}, query_id={query_id}"
+            ) from exc
 
         assets.append({
             "feeder_id": feeder_id,
             "raw_score": score,
             "priority_tier": tier,
-            "explanations": explanations
+            "explanations": explanations,
+            "base_value": base_value,
         })
 
     # 4. Sort assets descending by raw_score to determine ranking
@@ -215,7 +238,8 @@ def execute_ranking(
                 rank_position=rank_idx + 1,
                 priority_score=asset_data["raw_score"],
                 priority_tier=asset_data["priority_tier"],
-                explanations=asset_data["explanations"]
+                explanations=asset_data["explanations"],
+                base_value=asset_data["base_value"],
             )
         )
 

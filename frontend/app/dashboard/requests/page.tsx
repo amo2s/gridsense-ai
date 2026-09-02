@@ -33,6 +33,7 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchPendingUsers = async () => {
     setLoading(true);
@@ -51,55 +52,79 @@ export default function RequestsPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Something went wrong while loading requests."
+          : "Something went wrong while loading requests.",
       );
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-  let cancelled = false;
-
-  const loadRequests = async () => {
-    setLoading(true);
+  const handleApprove = async (userId: string) => {
+    setActionLoading(userId);
     setError("");
 
     try {
-      const response = await fetch("/api/proxy/users/pending");
+      const response = await fetch(`/api/proxy/admin/users/${userId}/approve`, {
+        method: "PATCH",
+      });
+
       const body: ApiResponse = await response.json();
 
       if (!response.ok || body.status !== "success") {
-        throw new Error(body.message || "Failed to fetch pending users");
+        throw new Error(body.message || "Failed to approve user");
       }
 
-      if (!cancelled) {
-        setUsers(body.data ?? []);
-      }
+      setUsers((currentUsers) =>
+        currentUsers.filter((user) => user.id !== userId),
+      );
     } catch (err) {
-      if (!cancelled) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Something went wrong while loading requests."
-        );
-      }
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while approving the user.",
+      );
     } finally {
-      if (!cancelled) {
-        setLoading(false);
-      }
+      setActionLoading(null);
     }
   };
 
-  void loadRequests();
+  const handleDelete = async (userId: string) => {
+    setActionLoading(userId);
+    setError("");
 
-  return () => {
-    cancelled = true;
+    try {
+      const response = await fetch(`/api/proxy/admin/users/${userId}`, {
+        method: "DELETE",
+      });
+
+      const body: ApiResponse = await response.json();
+
+      if (!response.ok || body.status !== "success") {
+        throw new Error(body.message || "Failed to delete user");
+      }
+
+      setUsers((currentUsers) =>
+        currentUsers.filter((user) => user.id !== userId),
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while deleting the user.",
+      );
+    } finally {
+      setActionLoading(null);
+    }
   };
-}, []);
+
+  useEffect(() => {
+    // Initial data fetch requires state updates.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchPendingUsers();
+  }, []);
 
   const filteredUsers = users.filter((user) =>
-    user.email.toLowerCase().includes(search.toLowerCase())
+    user.email.toLowerCase().includes(search.toLowerCase()),
   );
 
   const formatDate = (date: string) => {
@@ -139,9 +164,7 @@ export default function RequestsPage() {
           </div>
 
           <div className="flex h-20 min-w-32 flex-col justify-center rounded-2xl border border-white/20 bg-white/10 px-5 backdrop-blur-xl">
-            <span className="text-xs font-medium text-green-100">
-              Pending
-            </span>
+            <span className="text-xs font-medium text-green-100">Pending</span>
             <span className="text-3xl font-bold">{users.length}</span>
           </div>
         </div>
@@ -243,11 +266,12 @@ export default function RequestsPage() {
       {!loading && !error && filteredUsers.length > 0 && (
         <section className="overflow-hidden rounded-3xl border border-white/80 bg-white/50 shadow-[0_8px_30px_rgba(21,128,61,0.05)] backdrop-blur-2xl">
           {/* Desktop header */}
-          <div className="hidden grid-cols-[minmax(0,1.5fr)_140px_150px_120px] gap-4 border-b border-green-900/5 bg-white/40 px-6 py-4 text-xs font-semibold uppercase tracking-wider text-green-800/50 md:grid">
+          <div className="hidden grid-cols-[minmax(0,1.5fr)_140px_150px_120px_100px] gap-4 border-b border-green-900/5 bg-white/40 px-6 py-4 text-xs font-semibold uppercase tracking-wider text-green-800/50 md:grid">
             <span>Account</span>
             <span>Role</span>
             <span>Requested</span>
             <span>Status</span>
+            <span>Actions</span>
           </div>
 
           <div className="divide-y divide-green-900/5">
@@ -256,7 +280,7 @@ export default function RequestsPage() {
                 key={user.id}
                 className="group px-5 py-5 transition-colors hover:bg-white/50 md:px-6"
               >
-                <div className="grid gap-5 md:grid-cols-[minmax(0,1.5fr)_140px_150px_120px] md:items-center">
+                <div className="grid gap-5 md:grid-cols-[minmax(0,1.5fr)_140px_150px_120px_100px] md:items-center">
                   {/* Account */}
                   <div className="flex min-w-0 items-center gap-4">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-100 text-green-700">
@@ -264,14 +288,12 @@ export default function RequestsPage() {
                     </div>
 
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-semibold text-green-950">
-                          {user.email}
-                        </p>
-                      </div>
+                      <p className="flex items-center gap-2 truncate text-sm font-semibold text-green-950">
+                        <Mail className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{user.email}</span>
+                      </p>
 
-                      <div className="mt-1 flex items-center gap-1.5 text-xs text-green-800/50">
-                        <Mail className="h-3.5 w-3.5" />
+                      <div className="mt-1 text-xs text-green-800/50">
                         <span className="truncate">{user.id}</span>
                       </div>
                     </div>
@@ -302,6 +324,71 @@ export default function RequestsPage() {
                       {user.status.toLowerCase()}
                     </span>
                   </div>
+
+                  {/* Desktop Actions */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleApprove(user.id)}
+                      disabled={actionLoading === user.id}
+                      className="rounded-lg bg-green-600 p-2 text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Approve ${user.email}`}
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(user.id)}
+                      disabled={actionLoading === user.id}
+                      className="rounded-lg bg-red-50 p-2 text-red-500 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Delete ${user.email}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile metadata + actions */}
+                <div className="mt-4 flex items-center justify-between border-t border-green-900/5 pt-4 md:hidden">
+                  <span className="text-xs text-green-800/50">
+                    Requested {formatDate(user.created_at)}
+                  </span>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleApprove(user.id)}
+                      disabled={actionLoading === user.id}
+                      className="rounded-lg bg-green-600 p-2 text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Approve ${user.email}`}
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(user.id)}
+                      disabled={actionLoading === user.id}
+                      className="rounded-lg bg-red-50 p-2 text-red-500 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Delete ${user.email}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleApprove(user.id)}
+                    disabled={actionLoading === user.id}
+                    className="rounded-lg bg-green-600 p-2 text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={`Approve ${user.email}`}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                  </button>
                 </div>
 
                 {/* Mobile metadata */}

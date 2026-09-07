@@ -1674,7 +1674,7 @@ It aims to give them better information, better context, and better tools for ma
 
 # Team
 
-### Sliverboy
+### Nwaka Amos Chika
 **Team Lead · Full-Stack Developer · AI Engineer · Backend Engineer**
 
 Responsible for:
@@ -1707,7 +1707,7 @@ Responsible for:
 - responsive interface development
 - component implementation
 
-### David
+### Echezona Mbuba David
 **Pitch Development & Project Coordination**
 
 Responsible for:
@@ -1717,8 +1717,8 @@ Responsible for:
 - pitch development
 - communication
 
-### Collins
-**Backend Web Developer**
+###  Udeh Collins ChimaObi
+**Backend Web Development Assistnt**
 
 Responsible for:
 
@@ -1761,7 +1761,7 @@ The interface is successful when a user can look at the system and quickly under
 
 This project is currently developed as part of the GridSense AI innovation project.
 
-License information should be added here when the project licensing decision has been finalized.
+License information will be  be added here when the project licensing decision has been finalized.
 
 ---
 

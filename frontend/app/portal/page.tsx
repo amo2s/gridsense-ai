@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 // Stepping out of app/portal/ to reach the root components folder
 import LoginForm from "../../components/auth/login-form";
 import RegisterForm from "../../components/auth/register-form";
@@ -15,9 +16,14 @@ export default function AuthPortal() {
         
         {/* Header Section */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
-            {/* Simple geometric icon representing a grid/leaf */}
-            <div className="h-5 w-5 rounded-sm bg-emerald-600 rotate-45" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-emerald-100/80 shadow-sm">
+            <Image
+              src="/gridsense-logo.png"
+              alt="GridSense AI Logo"
+              width={36}
+              height={36}
+              className="object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-emerald-950">
             GridSense AI

@@ -8,12 +8,16 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 
 from schemas.assistant_contracts import GatewayQueryPayload, AssistantResponse
-from services.context_assembler import assemble_prompt_context, generate_constrained_response
-from services.retrieval import retrieve_hybrid_context
+from orchestrator.context_assembler import assemble_prompt_context, generate_constrained_response
+from retrieval.hybrid_search import execute_hybrid_search
+from retrieval.embedding_pipeline import EmbeddingPipeline
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/assistant", tags=["Assistant"])
+
+# Single shared pipeline instance (holds the HF inference client)
+_embedding_pipeline = EmbeddingPipeline()
 
 # ---------------------------------------------------------
 # Upstash REST & Cache Configuration
@@ -116,13 +120,18 @@ async def handle_assistant_query(
 
     # 2. Hybrid RRF Retrieval & Inference Pipeline
     try:
+        # Generate the query embedding via the shared EmbeddingPipeline
+        query_embedding = await _embedding_pipeline.get_embedding(payload.query)
+
         # Fetch hybrid search context (Phase 3 Database RRF)
-        retrieved_records = await retrieve_hybrid_context(
-            pool=db_pool,
-            query=payload.query,
-            feeder_id=getattr(payload, "feeder_id", None),
-            limit=5
-        )
+        async with db_pool.acquire() as conn:
+            retrieved_records = await execute_hybrid_search(
+                conn=conn,
+                feeder_id=getattr(payload, "feeder_id", None),
+                query_text=payload.query,
+                query_embedding=query_embedding,
+                limit=5
+            )
 
         # Assemble grounded prompt
         messages = assemble_prompt_context(payload, retrieved_records)

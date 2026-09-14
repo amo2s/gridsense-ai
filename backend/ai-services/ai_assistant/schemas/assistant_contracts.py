@@ -63,6 +63,6 @@ class AssistantResponse(BaseModel):
         description="The natural language response addressing the user intent."
     )
     citations: List[Citation] = Field(
-        default_factory=list,
+        ...,
         description="An array of approved data and computed analytics retrieved from the system[cite: 2]."
     )

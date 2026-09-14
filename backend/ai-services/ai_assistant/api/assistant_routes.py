@@ -1,5 +1,4 @@
 import os
-import time
 import json
 import hashlib
 import logging
@@ -87,50 +86,6 @@ async def get_db_pool(request: Request) -> asyncpg.Pool:
     return pool
 
 # ---------------------------------------------------------
-# Option D: Background Telemetry & Cache Worker
-# ---------------------------------------------------------
-async def execute_background_tasks(
-    db_pool: asyncpg.Pool,
-    cache_key: str,
-    payload: GatewayQueryPayload,
-    response: AssistantResponse,
-    latency_ms: float,
-    is_cached: bool
-) -> None:
-    """
-    Offloaded execution: writes telemetry to PostgreSQL and updates Upstash Redis
-    without adding blocking latency to the Go Gateway network response.
-    """
-    # 1. Update Upstash Cache on cache misses
-    if not is_cached:
-        await set_upstash_cache(cache_key, response.model_dump_json())
-
-    # 2. Persist audit telemetry to PostgreSQL
-    try:
-        async with db_pool.acquire() as conn:
-            insert_query = """
-                INSERT INTO assistant_audit_logs (
-                    query_text,
-                    feeder_id,
-                    response_payload,
-                    latency_ms,
-                    is_cached,
-                    created_at
-                ) VALUES ($1, $2, $3, $4, $5, NOW())
-            """
-            feeder_id = getattr(payload, "feeder_id", None)
-            await conn.execute(
-                insert_query,
-                payload.query,
-                feeder_id,
-                response.model_dump_json(),
-                latency_ms,
-                is_cached
-            )
-    except Exception as exc:
-        logger.error(f"Failed to record background audit telemetry: {exc}")
-
-# ---------------------------------------------------------
 # Main Assistant Query Route (Phase 4.2 Egress Routing)
 # ---------------------------------------------------------
 @router.post(
@@ -147,29 +102,15 @@ async def handle_assistant_query(
     """
     Egress boundary: Ingests request from Go Gateway, evaluates Upstash cache,
     executes PostgreSQL hybrid RRF search, delegates to Cerebras Llama 3.1 with
-    Pydantic schema enforcement, and schedules audit persistence asynchronously.
+    Pydantic schema enforcement. Audit logging is deferred to the Go Gateway.
     """
-    start_time = time.perf_counter()
     cache_key = generate_cache_key(payload)
 
     # 1. Option A: Check Upstash Redis Cache
     cached_json = await fetch_upstash_cache(cache_key)
     if cached_json:
         try:
-            cached_response = AssistantResponse.model_validate_json(cached_json)
-            latency_ms = (time.perf_counter() - start_time) * 1000.0
-            
-            # Schedule background telemetry for the cache hit
-            background_tasks.add_task(
-                execute_background_tasks,
-                db_pool=db_pool,
-                cache_key=cache_key,
-                payload=payload,
-                response=cached_response,
-                latency_ms=latency_ms,
-                is_cached=True
-            )
-            return cached_response
+            return AssistantResponse.model_validate_json(cached_json)
         except Exception as parse_error:
             logger.warning(f"Corrupted cache entry ignored: {parse_error}")
 
@@ -198,16 +139,11 @@ async def handle_assistant_query(
             detail="The sovereign assistant service encountered an error processing grid telemetry."
         )
 
-    # 3. Option D: Dispatch Asynchronous Cache & Audit Logging
-    latency_ms = (time.perf_counter() - start_time) * 1000.0
+    # 3. Cache the successful response asynchronously
     background_tasks.add_task(
-        execute_background_tasks,
-        db_pool=db_pool,
+        set_upstash_cache,
         cache_key=cache_key,
-        payload=payload,
-        response=assistant_response,
-        latency_ms=latency_ms,
-        is_cached=False
+        value=assistant_response.model_dump_json()
     )
 
     # 4. Immediate Dispatch to Go Gateway

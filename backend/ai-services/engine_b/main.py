@@ -9,6 +9,7 @@ load_dotenv()
 
 from api.prediction_routes import router as prediction_router
 from models.risk_classifier import RiskClassifier
+from core.events import initialize_redis_pool, close_redis_pool  # Added for stream integration
 
 # Define strict artifact paths
 ARTIFACTS_DIR = os.path.join(os.path.dirname(__file__), "artifacts")
@@ -36,11 +37,20 @@ async def lifespan(app: FastAPI):
         print(f"[FATAL] Failed to initialize artifacts: {str(e)}")
         sys.exit(1)
 
+    # Initialize Upstash Redis connection pool for non-blocking alert stream publishing
+    redis_url = os.getenv("UPSTASH_REDIS_URL")
+    if not redis_url:
+        print("[WARNING] UPSTASH_REDIS_URL is missing. Alert stream publishing will be disabled.")
+    else:
+        initialize_redis_pool(redis_url)
+        print("[INFO] Upstash Redis connection pool established.")
+
     yield  # Yield control to the application to start accepting traffic
 
-    # Shutdown: Clean up memory resources
+    # Shutdown: Clean up memory resources and network pools
     print("[INFO] Shutting down Engine B microservice...")
     app.state.classifier = None
+    close_redis_pool()
 
 # Initialize FastAPI application
 app = FastAPI(

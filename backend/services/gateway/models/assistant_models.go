@@ -28,12 +28,12 @@ type GatewayQueryPayload struct {
 type Citation struct {
 	RecordID    string `json:"record_id"`
 	SourceTable string `json:"source_table"`
-	Snippet     string `json:"snippet"`
+	Snippet     string `json:"metric_snippet"`
 }
 
 // AssistantResponse represents the rigidly constrained JSON schema returned
 // by the LLM and enforced by the Python Pydantic output validation.
 type AssistantResponse struct {
-	ResponseText string     `json:"response_text"`
+	ResponseText string     `json:"answer"`
 	Citations    []Citation `json:"citations"`
 }

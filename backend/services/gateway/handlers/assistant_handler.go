@@ -26,7 +26,7 @@ import (
 // ==========================================
 
 var (
-	ErrEmptyQuery       = errors.New("invalid request: query cannot be empty")
+	ErrEmptyQuery        = errors.New("invalid request: query cannot be empty")
 	ErrAssistantUpstream = errors.New("assistant upstream service error")
 )
 
@@ -77,7 +77,7 @@ func NewSQLAssistantAuditRepo(db *database.PostgresDB) AssistantAuditRepository 
 	return &pgxAssistantAuditRepo{db: db}
 }
 
-// LogInteraction commits the interaction telemetry and serialized payload directly to PostgreSQL[cite: 1].
+// LogInteraction commits the interaction telemetry and serialized payload directly to PostgreSQL.
 func (r *pgxAssistantAuditRepo) LogInteraction(ctx context.Context, queryText, feederID string, responsePayload []byte, latencyMS float64) error {
 	ctx, span := assistantTracer.Start(ctx, "DB.LogInteraction")
 	defer span.End()
@@ -89,7 +89,7 @@ func (r *pgxAssistantAuditRepo) LogInteraction(ctx context.Context, queryText, f
 			response_payload,
 			latency_ms,
 			created_at
-		) VALUES ($1, NULLIF($2, ''), $3, $4, NOW())
+		) VALUES ($1, NULLIF($2, '')::uuid, $3, $4, NOW())
 	`
 
 	_, err := r.db.Pool.Exec(ctx, query, queryText, feederID, responsePayload, latencyMS)
@@ -122,7 +122,7 @@ func NewAssistantHandler(repo AssistantAuditRepository, aiClient AssistantBridge
 }
 
 // HandleQuery processes incoming operator queries from the Next.js frontend, routes them
-// to the Python Assistant microservice, and writes audit telemetry to PostgreSQL[cite: 1].
+// to the Python Assistant microservice, and writes audit telemetry to PostgreSQL.
 func (h *AssistantHandler) HandleQuery(w http.ResponseWriter, r *http.Request) {
 	// Generous 30s timeout budget to account for upstream LLM inference and hybrid RRF search
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
@@ -178,7 +178,7 @@ func (h *AssistantHandler) HandleQuery(w http.ResponseWriter, r *http.Request) {
 	assistantLatency.WithLabelValues("success").Observe(duration)
 	resp := v.(*models.AssistantResponse)
 
-	// 3. Step 5.2: Asynchronously Record Interaction Audit Log to PostgreSQL[cite: 1]
+	// 3. Step 5.2: Asynchronously Record Interaction Audit Log to PostgreSQL
 	latencyMS := float64(time.Since(start).Milliseconds())
 	go func(q, fID string, rPayload *models.AssistantResponse, lat float64) {
 		bgCtx, bgCancel := context.WithTimeout(context.Background(), 5*time.Second)

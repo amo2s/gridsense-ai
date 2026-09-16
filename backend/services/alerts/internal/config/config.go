@@ -9,6 +9,9 @@ import (
 // Config holds all environment-level configuration for the alert microservice.
 type Config struct {
 	Environment          string `env:"APP_ENV" envDefault:"development"`
+	Port                 string `env:"PORT" envDefault:"8001"`
+	DatabaseURL          string `env:"DATABASE_URL,required"`
+	InternalServiceKey   string `env:"INTERNAL_SERVICE_KEY,required"`
 	RedisURL             string `env:"UPSTASH_REDIS_URL,required"`
 	AlertStreamName      string `env:"ALERT_STREAM_NAME" envDefault:"gridsense:alerts:stream"`
 	DeadLetterStreamName string `env:"ALERT_DLQ_NAME" envDefault:"gridsense:alerts:dlq"`

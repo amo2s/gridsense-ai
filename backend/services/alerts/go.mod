@@ -7,6 +7,7 @@ require (
 	github.com/ThreeDotsLabs/watermill-redisstream v1.4.5
 	github.com/bytedance/sonic v1.15.4
 	github.com/caarlos0/env/v11 v11.4.1
+	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-playground/validator/v10 v10.30.4
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/novuhq/go-novu v0.1.2

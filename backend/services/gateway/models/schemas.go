@@ -61,3 +61,34 @@ type EgressPayload struct {
 	VulnerabilityWindows []VulnerabilityWindow `json:"vulnerability_windows"`
 	Audit                AuditMetadata         `json:"audit"`
 }
+
+// ==========================================
+// Alert Microservice Contracts
+// ==========================================
+
+// Alert represents a system alert from the Alert microservice.
+type Alert struct {
+	ID             string                 `json:"id"`
+	Domain         string                 `json:"domain"`
+	EntityType     string                 `json:"entity_type"`
+	EntityID       string                 `json:"entity_id"`
+	FeederID       string                 `json:"feeder_id"`
+	Type           string                 `json:"type"`
+	Severity       string                 `json:"severity"`
+	Message        string                 `json:"message"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	Fingerprint    string                 `json:"fingerprint"`
+	Status         string                 `json:"status"`
+	AcknowledgedAt *time.Time             `json:"acknowledged_at,omitempty"`
+	AcknowledgedBy *string                `json:"acknowledged_by,omitempty"`
+	ResolvedAt     *time.Time             `json:"resolved_at,omitempty"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+}
+
+// AcknowledgePayload is the request body for acknowledging an alert.
+type AcknowledgePayload struct {
+	UserID   string `json:"user_id"`
+	Comment  string `json:"comment,omitempty"`
+	Resolved bool   `json:"resolved"`
+}

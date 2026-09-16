@@ -60,6 +60,17 @@ func main() {
 	}
 	assistantClient := bridge.NewAssistantClient(assistantURL, assistantKey)
 
+	// Alert Microservice config & client
+	alertURL := os.Getenv("ALERT_SERVICE_URL")
+	if alertURL == "" {
+		alertURL = "http://localhost:8001"
+	}
+	alertKey := os.Getenv("ALERT_INTERNAL_KEY")
+	if alertKey == "" {
+		alertKey = "default-fallback-insecure-key"
+	}
+	alertClient := bridge.NewAlertBridgeClient(alertURL, alertKey)
+
 	// 4. Initialize Handlers and Repositories
 	reliabilityHandler := handlers.NewReliabilityHandler(db, engineAClient)
 	healthHandler := handlers.NewHealthHandler(db) // Registered health handler
@@ -78,6 +89,12 @@ func main() {
 	// Initialize AI Assistant specific repositories and handler
 	assistantAuditRepo := handlers.NewSQLAssistantAuditRepo(db)
 	assistantHandler := handlers.NewAssistantHandler(assistantAuditRepo, assistantClient)
+
+	// Initialize Alert specific handler
+	alertHandler, err := handlers.NewAlertHandler(alertClient, alertURL, alertKey)
+	if err != nil {
+		log.Fatalf("FATAL: Could not initialize Alert handler: %v", err)
+	}
 
 	// 5. Setup Router (ServeMux) and apply Middleware
 	mux := http.NewServeMux()
@@ -105,13 +122,23 @@ func main() {
 	authProtectedAssistant := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(assistantHandler.HandleQuery))
 	mux.Handle("/api/v1/assistant/query", enableCORS(authProtectedAssistant))
 
+	// Alert Microservice routes, mounted with JWT auth and CORS
+	authProtectedAlertFetch := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(alertHandler.FetchActive))
+	mux.Handle("/api/v1/alerts/active", enableCORS(authProtectedAlertFetch))
+
+	authProtectedAlertAck := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(alertHandler.Acknowledge))
+	mux.Handle("/api/v1/alerts/{id}/ack", enableCORS(authProtectedAlertAck))
+
+	authProtectedAlertStream := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(alertHandler.StreamSSE))
+	mux.Handle("/api/v1/alerts/stream", enableCORS(authProtectedAlertStream))
+
 	// 6. Configure the HTTP Server with strict timeouts to prevent resource exhaustion (Slowloris attacks)
 	// WriteTimeout increased to accommodate potentially slow LLM responses
 	srv := &http.Server{
 		Addr:         ":" + cfg.GatewayPort,
 		Handler:      mux,
 		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 45 * time.Second, 
+		WriteTimeout: 45 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 
@@ -146,7 +173,7 @@ func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// In production, restrict "*" to your specific Next.js domain (e.g., http://localhost:3000)
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
 
 		// Handle preflight requests

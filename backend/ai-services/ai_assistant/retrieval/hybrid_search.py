@@ -15,9 +15,6 @@ async def execute_hybrid_search(
     cosine similarity (pgvector) and lexical full-text search (tsvector).
     """
     
-    # Format embedding array into PostgreSQL vector literal format
-    vector_literal = f"[{','.join(map(str, query_embedding))}]"
-    
     sql_query = """
     WITH semantic_search AS (
         SELECT 
@@ -55,7 +52,7 @@ async def execute_hybrid_search(
 
     records = await conn.fetch(
         sql_query,
-        vector_literal,
+        query_embedding,
         feeder_id,
         query_text,
         limit,

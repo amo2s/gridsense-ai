@@ -56,7 +56,7 @@ INSTRUCTIONS:
 
 async def generate_constrained_response(
     messages: List[Dict[str, str]], 
-    model_name: str = "llama3.1-8b"
+    model_name: str = "gpt-oss-120b"
 ) -> AssistantResponse:
     """
     Routes the assembled prompt to the Cerebras API.

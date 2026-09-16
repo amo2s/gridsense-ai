@@ -15,6 +15,7 @@ type ChatMessage struct {
 type GatewayQueryPayload struct {
 	Query       string        `json:"query"`
 	FeederID    string        `json:"feeder_id,omitempty"`
+	SessionID   string        `json:"session_id"`
 	ChatHistory []ChatMessage `json:"chat_history"`
 }
 
@@ -31,7 +32,7 @@ type Citation struct {
 }
 
 // AssistantResponse represents the rigidly constrained JSON schema returned
-// by the Cerebras LLM and enforced by the Python Pydantic output validation.
+// by the LLM and enforced by the Python Pydantic output validation.
 type AssistantResponse struct {
 	ResponseText string     `json:"response_text"`
 	Citations    []Citation `json:"citations"`

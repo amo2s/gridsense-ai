@@ -57,7 +57,7 @@ INSTRUCTIONS:
 
 async def generate_constrained_response(
     messages: List[Dict[str, str]], 
-    model_name: str = "command-r-plus"
+    model_name: str = "command-r-plus-08-2024"
 ) -> AssistantResponse:
     """
     Routes the assembled prompt to the Cohere v2 Chat API.

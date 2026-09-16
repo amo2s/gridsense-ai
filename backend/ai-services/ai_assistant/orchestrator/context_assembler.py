@@ -1,6 +1,7 @@
 import os
 import httpx
 import logging
+import json
 from typing import List, Dict, Any
 from schemas.assistant_contracts import GatewayQueryPayload, AssistantResponse
 
@@ -56,58 +57,55 @@ INSTRUCTIONS:
 
 async def generate_constrained_response(
     messages: List[Dict[str, str]], 
-    model_name: str = "gpt-oss-120b"
+    model_name: str = "command-r-plus"
 ) -> AssistantResponse:
     """
-    Routes the assembled prompt to the Cerebras API.
+    Routes the assembled prompt to the Cohere v2 Chat API.
     Implements failover key rotation and strictly enforces the JSON schema.
     """
     # 1. Load Keys and Initialize Rotation
     keys = [
-        os.getenv("CEREBRAS_API_KEY_1"),
-        os.getenv("CEREBRAS_API_KEY_2")
+        os.getenv("COHERE_API_KEY_1"),
+        os.getenv("COHERE_API_KEY_2")
     ]
     valid_keys = [k for k in keys if k]
     
     if not valid_keys:
-        raise ValueError("Critical: No Cerebras API keys found in environment variables.")
+        raise ValueError("Critical: No Cohere API keys found in environment variables.")
 
-    # 2. Extract Pydantic Schema for OpenAI-compatible payload
+    # 2. Extract Pydantic Schema for payload
     schema = AssistantResponse.model_json_schema()
     
+    # 3. Format Payload for Cohere v2 API
     payload = {
         "model": model_name,
         "messages": messages,
         "temperature": 0.0,
         "response_format": {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "AssistantResponseSchema",
-                "schema": schema,
-                "strict": True
-            }
+            "type": "json_object",
+            "schema": schema
         }
     }
     
     last_exception = None
     
-    # 3. Execute HTTP Post with Failover Loop
+    # 4. Execute HTTP Post with Failover Loop
     async with httpx.AsyncClient() as client:
         for attempt, api_key in enumerate(valid_keys):
             try:
                 response = await client.post(
-                    "https://api.cerebras.ai/v1/chat/completions",
+                    "https://api.cohere.com/v2/chat",
                     json=payload,
                     headers={"Authorization": f"Bearer {api_key}"},
                     timeout=30.0
                 )
                 response.raise_for_status()
                 
-                # 4. Extract Output
+                # 5. Extract Output from Cohere v2 response structure
                 data = response.json()
-                raw_content = data.get("choices", [{}])[0].get("message", {}).get("content", "{}")
+                raw_content = data.get("message", {}).get("content", [{}])[0].get("text", "{}")
                 
-                # 5. Validate against Pydantic contract
+                # 6. Validate against Pydantic contract
                 return AssistantResponse.model_validate_json(raw_content)
                 
             except httpx.HTTPStatusError as e:
@@ -124,4 +122,4 @@ async def generate_constrained_response(
                     continue
                 break
                 
-    raise RuntimeError(f"Cerebras API inference failed across all keys. Last error: {str(last_exception)}")
+    raise RuntimeError(f"Cohere API inference failed across all keys. Last error: {str(last_exception)}")

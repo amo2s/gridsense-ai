@@ -1,3 +1,4 @@
+import os
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -8,6 +9,7 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
 from api.reliability_routes import router as reliability_router
+from core.events import initialize_redis_pool, close_redis_pool
 
 # Initialize structured logging for execution latencies and system tracking
 logging.basicConfig(
@@ -20,9 +22,19 @@ logger = logging.getLogger("engine_a")
 async def lifespan(app: FastAPI):
     """Manages application startup and shutdown lifecycle events."""
     logger.info("GridSense AI: Engine A initializing...")
-    # Future dependency initializations (e.g., loading config/scoring_weights.json) can occur here
+    
+    # Initialize Upstash Redis connection pool for non-blocking alert stream publishing
+    redis_url = os.getenv("UPSTASH_REDIS_URL")
+    if not redis_url:
+        logger.warning("UPSTASH_REDIS_URL is missing. Alert stream publishing will be disabled.")
+    else:
+        initialize_redis_pool(redis_url)
+        logger.info("Upstash Redis connection pool established.")
+        
     yield
+    
     logger.info("GridSense AI: Engine A shutting down.")
+    close_redis_pool()
 
 # Instantiate FastAPI with explicit metadata for automatic OpenAPI schema generation
 app = FastAPI(

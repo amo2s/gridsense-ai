@@ -2,25 +2,36 @@ package events
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
 	"github.com/ThreeDotsLabs/watermill/message/router/plugin"
+	"github.com/bytedance/sonic"
 	"go.uber.org/zap"
 
 	"github.com/gridsense-ai/alerts/internal/config"
+	"github.com/gridsense-ai/alerts/internal/domain"
 )
+
+// Evaluator defines the contract for the rule and severity evaluation core (Phase 4).
+type Evaluator interface {
+	ProcessAuthEvent(ctx context.Context, event *domain.AuthPayload) error
+	ProcessErrorEvent(ctx context.Context, event *domain.ErrorPayload) error
+	ProcessAnomalyEvent(ctx context.Context, event *domain.AnomalyPayload) error
+}
 
 // Router defines the orchestration pipeline for incoming event streams.
 type Router struct {
-	engine *message.Router
-	logger *zap.Logger
+	engine    *message.Router
+	evaluator Evaluator
+	logger    *zap.Logger
 }
 
 // NewRouter initializes the routing engine with fault-tolerant middlewares.
-func NewRouter(logger *zap.Logger, pub message.Publisher, cfg *config.Config) (*Router, error) {
+func NewRouter(logger *zap.Logger, pub message.Publisher, cfg *config.Config, eval Evaluator) (*Router, error) {
 	adapter := &zapLoggerAdapter{logger: logger}
 
 	engine, err := message.NewRouter(message.RouterConfig{}, adapter)
@@ -59,9 +70,67 @@ func NewRouter(logger *zap.Logger, pub message.Publisher, cfg *config.Config) (*
 	engine.AddMiddleware(retry.Middleware)
 
 	return &Router{
-		engine: engine,
-		logger: logger,
+		engine:    engine,
+		evaluator: eval,
+		logger:    logger,
 	}, nil
+}
+
+// ProcessEvent is the concurrent worker function that decodes, validates, and routes events.
+// This is the handlerFunc you will pass into RegisterHandler.
+func (r *Router) ProcessEvent(msg *message.Message) error {
+	// 1. Fast partial parse to determine the routing type using SIMD JSON
+	var base domain.BaseEvent
+	if err := sonic.Unmarshal(msg.Payload, &base); err != nil {
+		r.logger.Error("Failed to unmarshal base event", zap.Error(err), zap.String("msg_uuid", msg.UUID))
+		// Return nil to ack the message; permanently malformed junk should not block the queue
+		return nil
+	}
+
+	// 2. Validate the base envelope structure
+	if err := domain.Validate.Struct(base); err != nil {
+		r.logger.Error("Base event validation failed", zap.Error(err), zap.String("trace_id", base.TraceID))
+		return nil
+	}
+
+	ctx := msg.Context()
+
+	// 3. Demultiplex based on EventType and validate specific payload
+	switch base.Type {
+	case domain.EventTypeAuth:
+		var payload domain.AuthPayload
+		if err := sonic.Unmarshal(msg.Payload, &payload); err != nil {
+			return err
+		}
+		if err := domain.Validate.Struct(payload); err != nil {
+			return err
+		}
+		return r.evaluator.ProcessAuthEvent(ctx, &payload)
+
+	case domain.EventTypeError:
+		var payload domain.ErrorPayload
+		if err := sonic.Unmarshal(msg.Payload, &payload); err != nil {
+			return err
+		}
+		if err := domain.Validate.Struct(payload); err != nil {
+			return err
+		}
+		return r.evaluator.ProcessErrorEvent(ctx, &payload)
+
+	case domain.EventTypeAnomaly:
+		var payload domain.AnomalyPayload
+		if err := sonic.Unmarshal(msg.Payload, &payload); err != nil {
+			return err
+		}
+		if err := domain.Validate.Struct(payload); err != nil {
+			return err
+		}
+		return r.evaluator.ProcessAnomalyEvent(ctx, &payload)
+
+	default:
+		r.logger.Warn("Unknown event type received", zap.String("type", string(base.Type)))
+		return errors.New("unknown event type")
+	}
 }
 
 // RegisterHandler binds a processing function to a stream topic enforcing concurrency contexts.

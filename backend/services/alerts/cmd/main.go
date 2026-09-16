@@ -67,7 +67,8 @@ func main() {
 	defer sub.Close()
 
 	// Phase 1.2: Initialize Router Pipeline
-	router, err := events.NewRouter(logger, pub, cfg)
+	// TODO: Implement Evaluator interface for rule and severity evaluation (Phase 4)
+	router, err := events.NewRouter(logger, pub, cfg, nil)
 	if err != nil {
 		logger.Fatal("Router initialization failed", zap.Error(err))
 	}

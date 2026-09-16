@@ -9,6 +9,7 @@ require (
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/go-playground/validator/v10 v10.30.4
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/novuhq/go-novu v0.1.2
 	github.com/redis/go-redis/v9 v9.22.0
 	go.uber.org/zap v1.28.0
 )

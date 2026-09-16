@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 
 from api.anomaly_routes import router as anomaly_router
 from models.anomaly_detector import AnomalyDetector
+from core.events import initialize_redis_pool, close_redis_pool
 
 # Load Environment Variables
 load_dotenv()
@@ -72,6 +73,14 @@ async def lifespan(app: FastAPI):
             onnx_session=onnx_sess
         )
         app.state.metadata = metadata
+
+        # Initialize Upstash Redis connection pool for non-blocking alert stream publishing
+        redis_url = os.getenv("UPSTASH_REDIS_URL")
+        if not redis_url:
+            logger.warning("redis_pool_disabled", reason="UPSTASH_REDIS_URL is missing")
+        else:
+            initialize_redis_pool(redis_url)
+            logger.info("redis_pool_established")
         
         logger.info("service_startup_completed", model_version=metadata["version"])
         yield
@@ -79,6 +88,7 @@ async def lifespan(app: FastAPI):
         logger.error("service_startup_failed", error=str(e))
         raise RuntimeError("Failed to load artifacts during startup") from e
     finally:
+        close_redis_pool()
         logger.info("service_shutdown_completed")
 
 app = FastAPI(

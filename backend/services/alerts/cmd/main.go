@@ -10,8 +10,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
@@ -32,6 +34,11 @@ func main() {
 	}
 	// Flushes buffer, if any, before application exit
 	defer logger.Sync()
+
+	// Load .env file into the OS environment before parsing configuration
+	if err := godotenv.Load(); err != nil {
+		logger.Info("No .env file found; falling back to system environment variables")
+	}
 
 	// Load and validate environment configuration
 	cfg, err := config.Load()
@@ -124,6 +131,12 @@ func main() {
 	if err != nil {
 		logger.Fatal("Router initialization failed", zap.Error(err))
 	}
+
+	// Bind the event processing logic to the Redis stream before running
+	// Note: Wrapped the handler inline to satisfy Watermill's required signature without modifying router.go
+	router.RegisterHandler("main_alert_consumer", cfg.AlertStreamName, pub, sub, func(msg *message.Message) ([]*message.Message, error) {
+		return nil, router.ProcessEvent(msg)
+	})
 
 	// Execute the routing engine. This blocks until the context is canceled via OS signal.
 	if err := router.Run(ctx); err != nil {

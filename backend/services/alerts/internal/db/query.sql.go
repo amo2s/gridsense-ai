@@ -63,6 +63,15 @@ type ListActiveAlertsParams struct {
 	Offset int32
 }
 
+type LogInterventionParams struct {
+	AlertID     string
+	FeederID    string
+	OperatorID  string
+	ActionTaken string
+	Notes       string
+	Timestamp   pgtype.Timestamp
+}
+
 type DBTX interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
@@ -104,4 +113,9 @@ func (q *Queries) UpdateAlertStatus(ctx context.Context, arg UpdateAlertStatusPa
 func (q *Queries) FindSimilarAlerts(ctx context.Context, arg FindSimilarAlertsParams) ([]Alert, error) {
 	// TODO: Implement actual SQL query
 	return []Alert{}, nil
+}
+
+func (q *Queries) LogIntervention(ctx context.Context, arg LogInterventionParams) error {
+	// TODO: Implement actual SQL query
+	return nil
 }

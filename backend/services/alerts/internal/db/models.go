@@ -31,3 +31,13 @@ type Alert struct {
 	SearchText     sql.NullString        `json:"search_text"`
 	Embedding      interface{}           `json:"embedding"`
 }
+
+type OperatorIntervention struct {
+	ID          uuid.UUID      `json:"id"`
+	AlertID     uuid.UUID      `json:"alert_id"`
+	FeederID    string         `json:"feeder_id"`
+	OperatorID  string         `json:"operator_id"`
+	ActionTaken string         `json:"action_taken"`
+	Notes       sql.NullString `json:"notes"`
+	Timestamp   time.Time      `json:"timestamp"`
+}

@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS alerts CASCADE;
+DROP TABLE IF EXISTS operator_interventions CASCADE;
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -38,3 +39,17 @@ CREATE INDEX idx_alerts_status ON alerts(status);
 CREATE INDEX idx_alerts_fingerprint ON alerts(fingerprint);
 CREATE INDEX idx_alerts_created_at ON alerts(created_at DESC);
 CREATE INDEX idx_alerts_embedding ON alerts USING hnsw (embedding vector_cosine_ops);
+
+-- Step 9.2: Operator Intervention Telemetry for RL Feedback Loop
+CREATE TABLE operator_interventions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    alert_id UUID NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+    feeder_id VARCHAR(255) NOT NULL,
+    operator_id VARCHAR(255) NOT NULL,
+    action_taken VARCHAR(128) NOT NULL,
+    notes TEXT,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_operator_interventions_feeder ON operator_interventions (feeder_id);
+CREATE INDEX idx_operator_interventions_alert ON operator_interventions (alert_id);

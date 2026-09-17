@@ -1,12 +1,13 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	// Note: Adjust module path if your go.mod is not named "alerts"
@@ -78,15 +79,29 @@ func (c *AlertController) Acknowledge(w http.ResponseWriter, r *http.Request) {
 
 	// Update status in the repository using the sqlc-generated params struct
 	now := time.Now()
-	var uuidBytes [16]byte
-	copy(uuidBytes[:], alertID) // Truncate or pad to 16 bytes for stub
-	updateParams := db.UpdateAlertStatusParams{
-		Status:         pgtype.Text{String: "RESOLVED", Valid: true},
-		AcknowledgedBy: pgtype.Text{String: req.UserID, Valid: true},
-		ResolvedAt:     pgtype.Timestamp{Time: now, Valid: true},
-		ID:             pgtype.UUID{Bytes: uuidBytes, Valid: true},
+	alertUUID, err := uuid.Parse(alertID)
+	if err != nil {
+		http.Error(w, "Invalid alert ID format", http.StatusBadRequest)
+		return
 	}
-	_, err := c.repo.UpdateStatus(ctx, updateParams)
+
+	// Convert to sql.Null types for nullable fields
+	var acknowledgedBy uuid.NullUUID
+	if req.UserID != "" {
+		uid, err := uuid.Parse(req.UserID)
+		if err == nil {
+			acknowledgedBy = uuid.NullUUID{UUID: uid, Valid: true}
+		}
+	}
+
+	updateParams := db.UpdateAlertStatusParams{
+		Status:         "RESOLVED",
+		AcknowledgedAt: sql.NullTime{Time: now, Valid: true},
+		AcknowledgedBy: acknowledgedBy,
+		ResolvedAt:     sql.NullTime{Time: now, Valid: true},
+		ID:             alertUUID,
+	}
+	_, err = c.repo.UpdateStatus(ctx, updateParams)
 	if err != nil {
 		c.logger.Error("Failed to acknowledge alert", zap.Error(err), zap.String("alert_id", alertID))
 		http.Error(w, "Failed to update alert status", http.StatusInternalServerError)

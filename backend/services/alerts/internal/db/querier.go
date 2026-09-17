@@ -12,9 +12,12 @@ import (
 
 type Querier interface {
 	CreateAlert(ctx context.Context, arg CreateAlertParams) (Alert, error)
+	// Uses the pgvector HNSW index to find semantically similar past alerts
 	FindSimilarAlerts(ctx context.Context, arg FindSimilarAlertsParams) ([]Alert, error)
 	GetAlertByID(ctx context.Context, id uuid.UUID) (Alert, error)
 	ListActiveAlerts(ctx context.Context, arg ListActiveAlertsParams) ([]Alert, error)
+	// Captures operator actions for Engine D's reinforcement learning baseline
+	LogIntervention(ctx context.Context, arg LogInterventionParams) error
 	UpdateAlertStatus(ctx context.Context, arg UpdateAlertStatusParams) (Alert, error)
 }
 

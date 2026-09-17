@@ -32,3 +32,11 @@ SELECT * FROM alerts
 WHERE embedding IS NOT NULL
 ORDER BY embedding <-> $1
 LIMIT $2;
+
+-- name: LogIntervention :exec
+-- Captures operator actions for Engine D's reinforcement learning baseline
+INSERT INTO operator_interventions (
+    alert_id, feeder_id, operator_id, action_taken, notes, timestamp
+) VALUES (
+    $1, $2, $3, $4, $5, $6
+);

@@ -59,7 +59,7 @@ def close_redis_pool() -> None:
     wait=wait_exponential(multiplier=0.5, min=1, max=5),
     retry=retry_if_exception_type((redis.ConnectionError, redis.TimeoutError))
 )
-async def _xadd_with_retry(stream_name: str, payload: dict) -> str:
+async def _xadd_with_retry(stream_name: str, event_id: str, payload_dict: dict) -> str:
     """
     Executes XADD with exponential backoff for network resilience.
     If Upstash rate limits or drops packets, it automatically retries with jitter.
@@ -67,9 +67,13 @@ async def _xadd_with_retry(stream_name: str, payload: dict) -> str:
     if not _redis_client:
         raise RuntimeError("Redis client not initialized in global state.")
     
-    # Redis XADD accepts a flat dictionary. We use orjson to instantly dump the nested dict.
-    event_dict = {"payload": orjson.dumps(payload).decode("utf-8")}
-    return await _redis_client.xadd(stream_name, event_dict)
+    # Format explicitly for Watermill's redisstream.DefaultMarshallerUnmarshaller envelope
+    watermill_envelope = {
+        "uuid": event_id,
+        "payload": orjson.dumps(payload_dict).decode("utf-8"),
+        "metadata": "{}"
+    }
+    return await _redis_client.xadd(stream_name, watermill_envelope)
 
 
 async def evaluate_and_publish_alert(engine_name: str, request_payload: Any, response_payload: Any) -> None:
@@ -78,26 +82,28 @@ async def evaluate_and_publish_alert(engine_name: str, request_payload: Any, res
     If breached, publishes the event via a background ASGI thread so the gateway is never blocked.
     """
     is_critical = False
+    risk_score = 0.0
     
     # 1. Zero-latency dynamic threshold evaluation using structural pattern matching
     match engine_name:
         case "Engine A":
-            # Engine A: Publish if reliability score crashes below 50.0
-            if getattr(response_payload, "reliability_score", 100.0) < 50.0:
+            rel_score = getattr(response_payload, "reliability_score", 100.0)
+            if rel_score < 50.0:
                 is_critical = True
+                risk_score = 100.0 - rel_score
         case "Engine B":
-            # Engine B: Publish if risk failure probability spikes above 75%
-            if getattr(response_payload, "risk_score", 0.0) > 75.0:
+            risk_score = getattr(response_payload, "risk_score", 0.0)
+            if risk_score > 75.0:
                 is_critical = True
         case "Engine C":
-            # Engine C: Publish if the PyOD/ONNX ensemble detects an anomaly
             if getattr(response_payload, "is_anomaly", False):
                 is_critical = True
+                risk_score = 95.0
         case "Engine D":
-            # Engine D: Publish if the #1 ranked asset is marked CRITICAL urgency
             ranked_assets = getattr(response_payload, "ranked_assets", [])
             if ranked_assets and getattr(ranked_assets[0], "priority_tier", "") == "CRITICAL":
                 is_critical = True
+                risk_score = 90.0
         case _:
             logger.warning(f"Unmapped engine origin passed to event publisher: {engine_name}")
 
@@ -105,18 +111,27 @@ async def evaluate_and_publish_alert(engine_name: str, request_payload: Any, res
     if not is_critical:
         return 
         
-    # 3. Construct unified Alert Event Payload dynamically extracting Pydantic fields
-    event_payload = {
-        "event_id": getattr(response_payload, "event_id", str(uuid.uuid4())),
+    event_id = getattr(response_payload, "event_id", str(uuid.uuid4()))
+    
+    # 3. Construct strict Go domain.AnomalyPayload JSON schema
+    anomaly_payload = {
+        "event_id": event_id,
+        "trace_id": str(uuid.uuid4()),  # Injecting required trace context
+        "type": "FEEDER_ANOMALY",       # Must exactly match Go validation enum
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "source": engine_name,
-        "request_context": request_payload.model_dump() if hasattr(request_payload, "model_dump") else {},
-        "inference_result": response_payload.model_dump() if hasattr(response_payload, "model_dump") else {}
+        "feeder_id": getattr(request_payload, "feeder_id", "FDR-UNKNOWN"),
+        "risk_score": float(risk_score),
+        "severity": "CRITICAL",
+        "metrics_snapshot": {
+            "request_context": request_payload.model_dump() if hasattr(request_payload, "model_dump") else {},
+            "inference_result": response_payload.model_dump() if hasattr(response_payload, "model_dump") else {}
+        }
     }
     
     # 4. Fire-and-forget to Redis with tenacity network resilience
     try:
-        message_id = await _xadd_with_retry(STREAM_KEY, event_payload)
+        message_id = await _xadd_with_retry(STREAM_KEY, event_id, anomaly_payload)
         logger.info(f"Critical alert published to {STREAM_KEY}. Message ID: {message_id}")
     except Exception as e:
         logger.error(f"Failed to publish alert to {STREAM_KEY} after retries. Error: {e}")

@@ -19,7 +19,7 @@ import (
 
 // maxAlertResponseBodyBytes sets a 5 MiB cap to accommodate large active alert arrays
 // during grid failure events while preventing unbounded memory consumption.
-const maxAlertResponseBodyBytes = 5 << 20 
+const maxAlertResponseBodyBytes = 5 << 20
 
 // AlertBridgeClient manages resilient HTTP communication with the Phase 6 Alert Microservice.
 type AlertBridgeClient struct {
@@ -107,6 +107,28 @@ func (c *AlertBridgeClient) AcknowledgeAlert(ctx context.Context, alertID string
 	return nil
 }
 
+// LogIntervention executes a POST request to record operator actions for RL feedback.
+func (c *AlertBridgeClient) LogIntervention(ctx context.Context, payload *models.InterventionPayload) error {
+	endpoint := fmt.Sprintf("%s/api/v1/alerts/interventions", c.baseURL)
+
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal intervention payload: %w", err)
+	}
+
+	_, err = c.cb.Execute(func() (interface{}, error) {
+		return c.doWithRetries(ctx, http.MethodPost, endpoint, bodyBytes)
+	})
+	if err != nil {
+		if err == gobreaker.ErrOpenState || err == gobreaker.ErrTooManyRequests {
+			return fmt.Errorf("alert circuit breaker open, refusing request: %w", err)
+		}
+		return err
+	}
+
+	return nil
+}
+
 // doWithRetries performs the actual HTTP dispatch with exponential backoff and jitter.
 // It is method-agnostic, handling both GET and POST/PATCH payloads.
 func (c *AlertBridgeClient) doWithRetries(ctx context.Context, method, endpoint string, bodyBytes []byte) ([]byte, error) {
@@ -133,11 +155,11 @@ func (c *AlertBridgeClient) doWithRetries(ctx context.Context, method, endpoint 
 		} else {
 			req, err = http.NewRequestWithContext(ctx, method, endpoint, nil)
 		}
-		
+
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
-		
+
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Gateway-Token", c.serviceKey)
 

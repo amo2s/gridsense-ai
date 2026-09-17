@@ -21,8 +21,8 @@ STREAM_KEY = "gridsense:alerts:stream"
 
 def initialize_redis_pool(redis_url: str) -> None:
     """
-    Initializes a high-performance, blocking Redis connection pool utilizing 
-    the hiredis C-extension parser for ultra-low latency protocol parsing.
+    Initializes a high-performance, blocking Redis connection pool.
+    Automatically utilizes the hiredis C-extension parser if installed in the environment.
     """
     global _redis_client
     
@@ -31,11 +31,10 @@ def initialize_redis_pool(redis_url: str) -> None:
         redis_url,
         max_connections=50,
         timeout=20,
-        decode_responses=True,
-        hiredis_parser=True  # Enforces C-level hiredis parser
+        decode_responses=True
     )
     _redis_client = redis.Redis(connection_pool=pool)
-    logger.info("Advanced Upstash Redis pool initialized with hiredis parser.")
+    logger.info("Advanced Upstash Redis pool initialized.")
 
 
 def close_redis_pool() -> None:

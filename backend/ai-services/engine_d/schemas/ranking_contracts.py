@@ -1,9 +1,10 @@
 """
 Phase 2: Data Contracts for Intelligence Engine D (Intervention Prioritization)
 Enforces strict ingress boundary checks for Engine A, B, and C payloads,
-and standardizes the egress ranking response for downstream consumers.
+and standardizes the egress ranking response for downstream consumers and the Alert Stream.
 """
 
+import uuid
 from enum import Enum
 from datetime import datetime, timezone
 from typing import List
@@ -81,9 +82,16 @@ class RankedAsset(BaseModel):
 class PrioritizationResponse(BaseModel):
     """
     Standardized payload sent back to the Go Gateway for UI rendering and DB persistence.
+    Designed to natively mirror the Alert Watermill Stream contract for stateless egress.
     """
     model_config = ConfigDict(frozen=True, extra="forbid")
 
+    # Injected stream-compatible alerting headers
+    event_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Unique identifier for the Watermill event stream")
+    source_engine: str = Field(default="engine_d_prioritization", description="Microservice originating the event")
+    event_type: str = Field(default="critical_asset_ranking", description="Classification of the alert event payload")
+    
+    # Core domain payload
     query_id: str = Field(..., description="The original operational group ID")
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Inference timestamp")
     model_version: str = Field(..., description="Version tag of the ONNX artifact used")

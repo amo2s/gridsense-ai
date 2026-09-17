@@ -6,19 +6,20 @@ data to the inference class.
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, BackgroundTasks
 from pydantic import ValidationError
 
 from schemas.ranking_contracts import PrioritizationRequest, PrioritizationResponse
 from features.fusion_pipeline import vectorize_payload_to_tensor
 from models.hybrid_ranker import execute_ranking, InferenceError
+from core.events import evaluate_and_publish_alert
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.post("/rank", response_model=PrioritizationResponse)
-async def rank_interventions(payload: PrioritizationRequest, request: Request) -> PrioritizationResponse:
+async def rank_interventions(payload: PrioritizationRequest, request: Request, background_tasks: BackgroundTasks) -> PrioritizationResponse:
     """
     Receives multi-engine signals, executes ONNX ranking inference,
     and returns a strictly sorted priority list.
@@ -60,6 +61,11 @@ async def rank_interventions(payload: PrioritizationRequest, request: Request) -
             feeder_ids=feeder_ids,
             query_id=payload.query_id,
         )
+        
+        # Offload the threshold check and Redis Stream publication to a background task.
+        # This prevents blocking the gateway and ensures zero inference latency impact.
+        background_tasks.add_task(evaluate_and_publish_alert, "Engine D", payload, response)
+        
         return response
 
     except InferenceError as exc:

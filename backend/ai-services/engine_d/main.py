@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 
 from api.prioritization_routes import router as prioritization_router
+from core.events import initialize_redis_pool, close_redis_pool
 
 # ==========================================
 # LOGGING
@@ -72,10 +73,21 @@ async def lifespan(app: FastAPI):
 
     logger.info("Successfully loaded ONNX artifact from %s", ARTIFACT_PATH)
 
+    # Initialize Upstash Redis connection pool for non-blocking alert stream publishing
+    redis_url = os.getenv("UPSTASH_REDIS_URL")
+    if not redis_url:
+        logger.warning("UPSTASH_REDIS_URL is missing. Alert stream publishing will be disabled.")
+    else:
+        initialize_redis_pool(redis_url)
+        logger.info("Upstash Redis connection pool established.")
+
     yield
 
     app.state.ort_session = None
     logger.info("ONNX session terminated.")
+    
+    close_redis_pool()
+    logger.info("Redis connection pool closed.")
 
 
 app = FastAPI(

@@ -68,9 +68,9 @@ async def _xadd_with_retry(stream_name: str, event_id: str, payload_dict: dict) 
     
     # Format explicitly for Watermill's redisstream.DefaultMarshallerUnmarshaller envelope
     watermill_envelope = {
-        "uuid": event_id,
-        "payload": orjson.dumps(payload_dict).decode("utf-8"),
-        "metadata": "{}"
+        "_watermill_message_uuid": event_id,
+        "_watermill_message_payload": orjson.dumps(payload_dict).decode("utf-8"),
+        "_watermill_message_metadata": "{}"
     }
     return await _redis_client.xadd(stream_name, watermill_envelope)
 
@@ -123,8 +123,9 @@ async def evaluate_and_publish_alert(engine_name: str, request_payload: Any, res
         "risk_score": float(risk_score),
         "severity": "CRITICAL",
         "metrics_snapshot": {
-            "request_context": request_payload.model_dump() if hasattr(request_payload, "model_dump") else {},
-            "inference_result": response_payload.model_dump() if hasattr(response_payload, "model_dump") else {}
+            # mode="json" prevents datetime serialization crashes when passed to orjson
+            "request_context": request_payload.model_dump(mode="json") if hasattr(request_payload, "model_dump") else {},
+            "inference_result": response_payload.model_dump(mode="json") if hasattr(response_payload, "model_dump") else {}
         }
     }
     

@@ -1,11 +1,18 @@
 import os
 import sys
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from dotenv import load_dotenv
 
 # Enforce environment variable loading before any application logic executes
 load_dotenv()
+
+# Configure root logger to capture INFO level logs across all modules (including core.events)
+logging.basicConfig(
+    level=logging.INFO, 
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
 from api.prediction_routes import router as prediction_router
 from models.risk_classifier import RiskClassifier
@@ -25,30 +32,30 @@ async def lifespan(app: FastAPI):
     of truth for how the model is initialized — both here and anywhere else
     the classifier might be constructed (e.g. offline evaluation scripts).
     """
-    print("[INFO] Initializing Engine B microservice...")
+    logging.info("Initializing Engine B microservice...")
 
     try:
         # RiskClassifier internally validates that risk_model.onnx,
         # model_metadata.json, and champion_model.txt all exist, and
         # raises FileNotFoundError with a clear message if any are missing.
         app.state.classifier = RiskClassifier(ARTIFACTS_DIR)
-        print(f"[INFO] ONNX Model v{app.state.classifier.model_version} loaded into global state.")
+        logging.info(f"ONNX Model v{app.state.classifier.model_version} loaded into global state.")
     except Exception as e:
-        print(f"[FATAL] Failed to initialize artifacts: {str(e)}")
+        logging.error(f"Failed to initialize artifacts: {str(e)}")
         sys.exit(1)
 
     # Initialize Upstash Redis connection pool for non-blocking alert stream publishing
     redis_url = os.getenv("UPSTASH_REDIS_URL")
     if not redis_url:
-        print("[WARNING] UPSTASH_REDIS_URL is missing. Alert stream publishing will be disabled.")
+        logging.warning("UPSTASH_REDIS_URL is missing. Alert stream publishing will be disabled.")
     else:
         initialize_redis_pool(redis_url)
-        print("[INFO] Upstash Redis connection pool established.")
+        logging.info("Upstash Redis connection pool established.")
 
     yield  # Yield control to the application to start accepting traffic
 
     # Shutdown: Clean up memory resources and network pools
-    print("[INFO] Shutting down Engine B microservice...")
+    logging.info("Shutting down Engine B microservice...")
     app.state.classifier = None
     close_redis_pool()
 

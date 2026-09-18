@@ -5,6 +5,7 @@ data to the inference class.
 """
 
 import logging
+import asyncio
 
 from fastapi import APIRouter, HTTPException, Request, BackgroundTasks
 from pydantic import ValidationError
@@ -40,8 +41,11 @@ async def rank_interventions(payload: PrioritizationRequest, request: Request, b
         )
 
     # 2. Vectorize the validated Pydantic payload using Polars
+    # Offload CPU-bound vectorization to a worker thread
     try:
-        input_tensor, feeder_ids = vectorize_payload_to_tensor(payload)
+        input_tensor, feeder_ids = await asyncio.to_thread(
+            vectorize_payload_to_tensor, payload
+        )
     except Exception as exc:
         logger.error(
             "Payload vectorization failed",
@@ -54,8 +58,10 @@ async def rank_interventions(payload: PrioritizationRequest, request: Request, b
         ) from exc
 
     # 3. Execute inference and generate XAI explanations
+    # Offload CPU-bound ONNX execution and SHAP calculations to a worker thread
     try:
-        response = execute_ranking(
+        response = await asyncio.to_thread(
+            execute_ranking,
             ort_session=ort_session,
             input_tensor=input_tensor,
             feeder_ids=feeder_ids,

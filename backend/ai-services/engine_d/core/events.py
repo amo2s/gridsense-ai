@@ -82,7 +82,16 @@ async def evaluate_and_publish_alert(engine_name: str, request_payload: Any, res
     """
     is_critical = False
     risk_score = 0.0
-    
+    resolved_feeder_id = "FDR-UNKNOWN"
+
+    def _extract_feeder(req: Any, res: Any) -> str:
+        """Safely extracts feeder_id from standard request/response payloads."""
+        fid = getattr(req, "feeder_id", getattr(res, "feeder_id", None))
+        if fid: return str(fid)
+        if isinstance(req, dict) and "feeder_id" in req: return str(req["feeder_id"])
+        if isinstance(res, dict) and "feeder_id" in res: return str(res["feeder_id"])
+        return "FDR-UNKNOWN"
+
     # 1. Zero-latency dynamic threshold evaluation using structural pattern matching
     match engine_name:
         case "Engine A":
@@ -90,19 +99,24 @@ async def evaluate_and_publish_alert(engine_name: str, request_payload: Any, res
             if rel_score < 50.0:
                 is_critical = True
                 risk_score = 100.0 - rel_score
+                resolved_feeder_id = _extract_feeder(request_payload, response_payload)
         case "Engine B":
             risk_score = getattr(response_payload, "risk_score", 0.0)
             if risk_score > 75.0:
                 is_critical = True
+                resolved_feeder_id = _extract_feeder(request_payload, response_payload)
         case "Engine C":
             if getattr(response_payload, "is_anomaly", False):
                 is_critical = True
                 risk_score = 95.0
+                resolved_feeder_id = _extract_feeder(request_payload, response_payload)
         case "Engine D":
             ranked_assets = getattr(response_payload, "ranked_assets", [])
             if ranked_assets and getattr(ranked_assets[0], "priority_tier", "") == "CRITICAL":
                 is_critical = True
                 risk_score = 90.0
+                # Engine D ranks multiple assets; the alert maps to the top-ranked critical asset
+                resolved_feeder_id = getattr(ranked_assets[0], "feeder_id", "FDR-UNKNOWN")
         case _:
             logger.warning(f"Unmapped engine origin passed to event publisher: {engine_name}")
 
@@ -119,7 +133,7 @@ async def evaluate_and_publish_alert(engine_name: str, request_payload: Any, res
         "type": "FEEDER_ANOMALY",       # Must exactly match Go validation enum
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "source": engine_name,
-        "feeder_id": getattr(request_payload, "feeder_id", "FDR-UNKNOWN"),
+        "feeder_id": resolved_feeder_id,
         "risk_score": float(risk_score),
         "severity": "CRITICAL",
         "metrics_snapshot": {
@@ -132,6 +146,6 @@ async def evaluate_and_publish_alert(engine_name: str, request_payload: Any, res
     # 4. Fire-and-forget to Redis with tenacity network resilience
     try:
         message_id = await _xadd_with_retry(STREAM_KEY, event_id, anomaly_payload)
-        logger.info(f"Critical alert published to {STREAM_KEY}. Message ID: {message_id}")
+        logger.info(f"Critical alert published to {STREAM_KEY}. Message ID: {message_id}, Feeder ID: {resolved_feeder_id}")
     except Exception as e:
         logger.error(f"Failed to publish alert to {STREAM_KEY} after retries. Error: {e}")

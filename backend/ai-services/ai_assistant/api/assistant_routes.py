@@ -2,6 +2,7 @@ import os
 import json
 import hashlib
 import logging
+import uuid
 from typing import List, Dict, Any, Optional
 import httpx
 import asyncpg
@@ -30,7 +31,7 @@ def generate_cache_key(payload: GatewayQueryPayload) -> str:
     """
     Constructs a deterministic SHA-256 cache key based on the query and contextual state.
     """
-    feeder_id = getattr(payload, "feeder_id", "global")
+    feeder_id = getattr(payload, "feeder_id", "global") or "global"
     raw_key = f"gridsense:assistant:{feeder_id}:{payload.query.strip().lower()}"
     digest = hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
     return f"assistant_cache:{digest}"
@@ -104,9 +105,9 @@ async def handle_assistant_query(
     db_pool: asyncpg.Pool = Depends(get_db_pool)
 ) -> AssistantResponse:
     """
-    Egress boundary: Ingests request from Go Gateway, evaluates Upstash cache,
-    executes PostgreSQL hybrid RRF search, delegates to Cerebras Llama 3.1 with
-    Pydantic schema enforcement. Audit logging is deferred to the Go Gateway.
+    Egress boundary: Ingests request from Go Gateway, resolves optional feeder context,
+    executes PostgreSQL hybrid RRF search, and delegates to Cerebras Llama 3.1 
+    with domain-constrained LLM guards.
     """
     cache_key = generate_cache_key(payload)
 
@@ -123,20 +124,66 @@ async def handle_assistant_query(
         # Generate the query embedding via the shared EmbeddingPipeline
         query_embedding = await _embedding_pipeline.get_embedding(payload.query)
 
-        # Fetch hybrid search context (Phase 3 Database RRF)
+        # Context Variables
+        resolved_feeder_id = None
+        feeder_status = "global"
+        feeder_suggestions = []
+
         async with db_pool.acquire() as conn:
-            retrieved_records = await execute_hybrid_search(
-                conn=conn,
-                feeder_id=getattr(payload, "feeder_id", None),
-                query_text=payload.query,
-                query_embedding=query_embedding,
-                limit=5
-            )
+            # --- Feeder Resolution Guardrail ---
+            raw_feeder = payload.feeder_id.strip() if payload.feeder_id else None
+            
+            if raw_feeder:
+                try:
+                    # Attempt safe UUID parse; if valid, query exact match
+                    uuid_val = uuid.UUID(raw_feeder)
+                    row = await conn.fetchrow("SELECT id::text FROM feeders WHERE id = $1", uuid_val)
+                    if row:
+                        resolved_feeder_id = row["id"]
+                        feeder_status = "resolved_exact"
+                    else:
+                        feeder_status = "not_found"
+                except ValueError:
+                    # If not a UUID, try a fuzzy match by name or string ID
+                    try:
+                        rows = await conn.fetch(
+                            "SELECT id::text, name FROM feeders WHERE name ILIKE $1 OR id::text ILIKE $1 LIMIT 3",
+                            f"%{raw_feeder}%"
+                        )
+                        if len(rows) == 1:
+                            resolved_feeder_id = rows[0]["id"]
+                            feeder_status = "resolved_fuzzy"
+                        elif len(rows) > 1:
+                            feeder_status = "multiple_matches"
+                            feeder_suggestions = [{"id": r["id"], "name": r.get("name", "Unknown")} for r in rows]
+                        else:
+                            feeder_status = "not_found"
+                    except Exception as e:
+                        logger.warning(f"Fuzzy feeder lookup failed, bypassing constraint: {e}")
+                        feeder_status = "unverified"
+                        resolved_feeder_id = raw_feeder
 
-        # Assemble grounded prompt
-        messages = assemble_prompt_context(payload, retrieved_records)
+            # --- Execute Hybrid Search ---
+            # If the feeder was totally invalid, we bypass hybrid search to save DB cycles and rely on the guardrail
+            retrieved_records = []
+            if feeder_status in ["global", "resolved_exact", "resolved_fuzzy", "unverified"]:
+                retrieved_records = await execute_hybrid_search(
+                    conn=conn,
+                    feeder_id=resolved_feeder_id,
+                    query_text=payload.query,
+                    query_embedding=query_embedding,
+                    limit=5
+                )
 
-        # Execute constrained inference via Cerebras API with key rotation
+        # 3. Assemble grounded prompt with domain guardrails injected
+        messages = assemble_prompt_context(
+            payload=payload, 
+            retrieved_records=retrieved_records,
+            feeder_status=feeder_status,
+            feeder_suggestions=feeder_suggestions
+        )
+
+        # 4. Execute constrained inference via Cerebras API with key rotation
         assistant_response = await generate_constrained_response(messages)
 
     except HTTPException:
@@ -148,12 +195,13 @@ async def handle_assistant_query(
             detail="The sovereign assistant service encountered an error processing grid telemetry."
         )
 
-    # 3. Cache the successful response asynchronously
-    background_tasks.add_task(
-        set_upstash_cache,
-        cache_key=cache_key,
-        value=assistant_response.model_dump_json()
-    )
+    # 5. Cache the successful response asynchronously (only if it wasn't a guardrail correction)
+    if feeder_status in ["global", "resolved_exact", "resolved_fuzzy"]:
+        background_tasks.add_task(
+            set_upstash_cache,
+            cache_key=cache_key,
+            value=assistant_response.model_dump_json()
+        )
 
-    # 4. Immediate Dispatch to Go Gateway
+    # 6. Immediate Dispatch to Go Gateway
     return assistant_response

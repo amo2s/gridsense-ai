@@ -1,4 +1,4 @@
-from typing import List, Literal
+from typing import List, Literal, Optional
 from pydantic import BaseModel, Field, UUID4
 
 class ChatMessage(BaseModel):
@@ -15,8 +15,8 @@ class ChatMessage(BaseModel):
 
 class GatewayQueryPayload(BaseModel):
     """
-    Defines the exact JSON contract expected from the Golang gateway[cite: 2].
-    Enforces rigid validation on user intent, session state, and target feeder[cite: 2].
+    Defines the exact JSON contract expected from the Golang gateway.
+    Enforces rigid validation on user intent and session state, with flexible feeder targeting.
     """
     query: str = Field(
         ..., 
@@ -24,9 +24,9 @@ class GatewayQueryPayload(BaseModel):
         max_length=2000, 
         description="The natural language question or command from the frontend user."
     )
-    feeder_id: UUID4 = Field(
-        ..., 
-        description="The UUID of the selected target feeder."
+    feeder_id: Optional[str] = Field(
+        default=None,
+        description="The string identifier of the selected target feeder. Can be a UUID, partial name, or null for global queries."
     )
     session_id: UUID4 = Field(
         ..., 
@@ -55,8 +55,8 @@ class Citation(BaseModel):
 
 class AssistantResponse(BaseModel):
     """
-    Standardizes the output payload schema[cite: 2].
-    Forms the exact JSON schema that Ollama will be strictly constrained to generate[cite: 2].
+    Standardizes the output payload schema.
+    Forms the exact JSON schema that the LLM will be strictly constrained to generate.
     """
     answer: str = Field(
         ...,
@@ -64,5 +64,5 @@ class AssistantResponse(BaseModel):
     )
     citations: List[Citation] = Field(
         ...,
-        description="An array of approved data and computed analytics retrieved from the system[cite: 2]."
+        description="An array of approved data and computed analytics retrieved from the system."
     )

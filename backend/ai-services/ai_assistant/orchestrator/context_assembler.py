@@ -162,7 +162,7 @@ async def generate_constrained_response(
                         "response_format": {"type": "json_object"}
                     }
                     response = await client.post(
-                        "[https://api.cerebras.ai/v1/chat/completions](https://api.cerebras.ai/v1/chat/completions)",
+                        "https://api.cerebras.ai/v1/chat/completions",
                         json=payload,
                         headers={
                             "Authorization": f"Bearer {api_key}",
@@ -196,7 +196,7 @@ async def generate_constrained_response(
                         }
                     }
                     response = await client.post(
-                        "[https://api.cohere.com/v2/chat](https://api.cohere.com/v2/chat)",
+                        "https://api.cohere.com/v2/chat",
                         json=payload,
                         headers={
                             "Authorization": f"Bearer {api_key}",

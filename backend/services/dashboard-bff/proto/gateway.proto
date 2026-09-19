@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package gridsense.gateway.v1;
+
+option go_package = "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1;gatewayv1";
+
+service GatewayService {
+  rpc GetDashboardSummary(DashboardSummaryRequest) returns (DashboardSummaryResponse);
+  rpc GetReliabilityMetrics(ReliabilityMetricsRequest) returns (ReliabilityMetricsResponse);
+  rpc StreamOperationalEvents(StreamEventsRequest) returns (stream OperationalEvent);
+}
+
+message DashboardSummaryRequest {
+  string time_range = 1;
+}
+
+message DashboardSummaryResponse {
+  double overall_reliability_score = 1;
+  int32 active_high_risk_areas = 2;
+  int32 total_active_alerts = 3;
+}
+
+message ReliabilityMetricsRequest {
+  string area_id = 1;
+  string time_range = 2;
+}
+
+message ReliabilityMetricsResponse {
+  string area_id = 1;
+  double current_risk_score = 2;
+  repeated TrendDataPoint trend = 3;
+}
+
+message TrendDataPoint {
+  string timestamp = 1;
+  double value = 2;
+}
+
+message StreamEventsRequest {
+  repeated string area_ids = 1;
+}
+
+message OperationalEvent {
+  string event_id = 1;
+  string area_id = 2;
+  string event_type = 3;
+  string severity = 4;
+  string timestamp = 5;
+  string description = 6;
+}

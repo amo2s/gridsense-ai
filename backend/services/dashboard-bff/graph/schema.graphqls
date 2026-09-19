@@ -1,0 +1,67 @@
+type Query {
+  dashboardSummary(timeRange: String!): DashboardSummary!
+  priorityAreas: [PriorityArea!]!
+  reliabilityTrend(timeRange: String!): [TrendDataPoint!]!
+  areaDetail(id: ID!): AreaDetail!
+  anomalyTimeline(areaId: ID!): [AnomalyEvent!]!
+  riskForecast(areaId: ID!): [RiskForecastPoint!]!
+  intelligenceInsight(anomalyId: ID!): IntelligenceInsight!
+}
+
+type Subscription {
+  operationalEventStream: AnomalyEvent!
+}
+
+type DashboardSummary {
+  overallReliabilityScore: Float!
+  activeHighRiskAreas: Int!
+  totalActiveAlerts: Int!
+}
+
+type PriorityArea {
+  id: ID!
+  name: String!
+  urgencyRank: Int!
+  riskScore: Float!
+  status: String!
+}
+
+type TrendDataPoint {
+  timestamp: String!
+  value: Float!
+}
+
+type AreaDetail {
+  id: ID!
+  name: String!
+  currentRiskScore: Float!
+  status: String!
+}
+
+type AnomalyEvent {
+  id: ID!
+  areaId: String!
+  eventType: String!
+  severity: String!
+  timestamp: String!
+  description: String!
+}
+
+type RiskForecastPoint {
+  timestamp: String!
+  predictedRiskScore: Float!
+  isHistorical: Boolean!
+}
+
+type IntelligenceInsight {
+  anomalyId: ID!
+  confidenceScore: Float!
+  reasons: [String!]!
+  featureDeviations: [FeatureDeviation!]!
+}
+
+type FeatureDeviation {
+  featureName: String!
+  shapAttribution: Float!
+  deviationDescription: String!
+}

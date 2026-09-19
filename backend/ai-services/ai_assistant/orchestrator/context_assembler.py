@@ -128,19 +128,12 @@ async def generate_constrained_response(
     Implements key rotation, structured JSON parsing, and schema validation.
     """
     # 1. Collect and prioritize API credentials
-    cerebras_keys = [
-        k for k in [
-            os.getenv("CEREBRAS_API_KEY"),
-            os.getenv("CEREBRAS_API_KEY_1"),
-            os.getenv("CEREBRAS_API_KEY_2")
-        ] if k
-    ]
-    
     cohere_keys = [
         k for k in [
             os.getenv("COHERE_API_KEY"),
             os.getenv("COHERE_API_KEY_1"),
-            os.getenv("COHERE_API_KEY_2")
+            os.getenv("COHERE_API_KEY_2"),
+            os.getenv("COHERE_API_KEY_3")
         ] if k
     ]
 
@@ -149,38 +142,7 @@ async def generate_constrained_response(
 
     async with httpx.AsyncClient(timeout=35.0) as client:
         # -------------------------------------------------------------
-        # Primary Engine: Cerebras Llama 3.1 High-Speed Inference
-        # -------------------------------------------------------------
-        if cerebras_keys:
-            target_model = model_name or os.getenv("CEREBRAS_MODEL", "llama3.1-70b")
-            for idx, api_key in enumerate(cerebras_keys):
-                try:
-                    payload = {
-                        "model": target_model,
-                        "messages": messages,
-                        "temperature": 0.1,
-                        "response_format": {"type": "json_object"}
-                    }
-                    response = await client.post(
-                        "https://api.cerebras.ai/v1/chat/completions",
-                        json=payload,
-                        headers={
-                            "Authorization": f"Bearer {api_key}",
-                            "Content-Type": "application/json"
-                        }
-                    )
-                    response.raise_for_status()
-                    data = response.json()
-                    raw_text = data["choices"][0]["message"]["content"]
-                    cleaned_json = _clean_json_output(raw_text)
-                    return AssistantResponse.model_validate_json(cleaned_json)
-
-                except Exception as exc:
-                    last_exception = exc
-                    logger.warning(f"Cerebras key {idx + 1} failed: {exc}. Rotating...")
-
-        # -------------------------------------------------------------
-        # Secondary Engine: Cohere Command R+ Failover
+        # Cohere Command R+ with key rotation
         # -------------------------------------------------------------
         if cohere_keys:
             target_model = os.getenv("COHERE_MODEL", "command-r-plus-08-2024")
@@ -214,6 +176,6 @@ async def generate_constrained_response(
                     logger.warning(f"Cohere key {idx + 1} failed: {exc}. Rotating...")
 
     raise RuntimeError(
-        f"All sovereign LLM endpoints exhausted. Check CEREBRAS_API_KEY / COHERE_API_KEY configuration. "
+        f"All sovereign LLM endpoints exhausted. Check COHERE_API_KEY configuration. "
         f"Underlying error: {last_exception}"
     )

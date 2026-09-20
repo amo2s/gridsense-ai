@@ -8,6 +8,13 @@ service GatewayService {
   rpc GetDashboardSummary(DashboardSummaryRequest) returns (DashboardSummaryResponse);
   rpc GetReliabilityMetrics(ReliabilityMetricsRequest) returns (ReliabilityMetricsResponse);
   rpc StreamOperationalEvents(StreamEventsRequest) returns (stream OperationalEvent);
+  
+  // Newly added to satisfy GraphQL Schema requirements
+  rpc GetPriorityAreas(PriorityAreasRequest) returns (PriorityAreasResponse);
+  rpc GetAreaDetail(AreaDetailRequest) returns (AreaDetailResponse);
+  rpc GetAnomalyTimeline(AnomalyTimelineRequest) returns (AnomalyTimelineResponse);
+  rpc GetRiskForecast(RiskForecastRequest) returns (RiskForecastResponse);
+  rpc GetIntelligenceInsight(IntelligenceInsightRequest) returns (IntelligenceInsightResponse);
 }
 
 message DashboardSummaryRequest {
@@ -47,4 +54,70 @@ message OperationalEvent {
   string severity = 4;
   string timestamp = 5;
   string description = 6;
+}
+
+// New message definitions
+
+message PriorityAreasRequest {}
+
+message PriorityAreasResponse {
+  repeated PriorityArea areas = 1;
+}
+
+message PriorityArea {
+  string id = 1;
+  string name = 2;
+  int32 urgency_rank = 3;
+  double risk_score = 4;
+  string status = 5;
+}
+
+message AreaDetailRequest {
+  string id = 1;
+}
+
+message AreaDetailResponse {
+  string id = 1;
+  string name = 2;
+  double current_risk_score = 3;
+  string status = 4;
+}
+
+message AnomalyTimelineRequest {
+  string area_id = 1;
+}
+
+message AnomalyTimelineResponse {
+  repeated OperationalEvent events = 1;
+}
+
+message RiskForecastRequest {
+  string area_id = 1;
+}
+
+message RiskForecastResponse {
+  repeated RiskForecastPoint points = 1;
+}
+
+message RiskForecastPoint {
+  string timestamp = 1;
+  double predicted_risk_score = 2;
+  bool is_historical = 3;
+}
+
+message IntelligenceInsightRequest {
+  string anomaly_id = 1;
+}
+
+message IntelligenceInsightResponse {
+  string anomaly_id = 1;
+  double confidence_score = 2;
+  repeated string reasons = 3;
+  repeated FeatureDeviation feature_deviations = 4;
+}
+
+message FeatureDeviation {
+  string feature_name = 1;
+  double shap_attribution = 2;
+  string deviation_description = 3;
 }

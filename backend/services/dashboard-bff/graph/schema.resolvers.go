@@ -10,48 +10,146 @@ import (
 	"fmt"
 	"gridsense-ai/backend/services/dashboard-bff/graph/generated"
 	"gridsense-ai/backend/services/dashboard-bff/graph/model"
+	pb "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1/proto"
 )
 
 // DashboardSummary is the resolver for the dashboardSummary field.
 func (r *queryResolver) DashboardSummary(ctx context.Context, timeRange string) (*model.DashboardSummary, error) {
-	// TODO: Phase 3 - Inject gRPC Gateway client and map DashboardSummaryRequest
-	panic(fmt.Errorf("not implemented: DashboardSummary - gRPC Gateway call pending"))
+	req := &pb.DashboardSummaryRequest{TimeRange: timeRange}
+	res, err := r.GatewayClient.Client.GetDashboardSummary(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get dashboard summary: %w", err)
+	}
+
+	return &model.DashboardSummary{
+		OverallReliabilityScore: res.OverallReliabilityScore,
+		ActiveHighRiskAreas:     int(res.ActiveHighRiskAreas),
+		TotalActiveAlerts:       int(res.TotalActiveAlerts),
+	}, nil
 }
 
 // PriorityAreas is the resolver for the priorityAreas field.
 func (r *queryResolver) PriorityAreas(ctx context.Context) ([]*model.PriorityArea, error) {
-	// TODO: Phase 3 - Inject gRPC Gateway client and map request
-	panic(fmt.Errorf("not implemented: PriorityAreas - gRPC Gateway call pending"))
+	req := &pb.PriorityAreasRequest{}
+	res, err := r.GatewayClient.Client.GetPriorityAreas(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get priority areas: %w", err)
+	}
+
+	var areas []*model.PriorityArea
+	for _, a := range res.Areas {
+		areas = append(areas, &model.PriorityArea{
+			ID:          a.Id,
+			Name:        a.Name,
+			UrgencyRank: int(a.UrgencyRank),
+			RiskScore:   a.RiskScore,
+			Status:      a.Status,
+		})
+	}
+	return areas, nil
 }
 
 // ReliabilityTrend is the resolver for the reliabilityTrend field.
 func (r *queryResolver) ReliabilityTrend(ctx context.Context, timeRange string) ([]*model.TrendDataPoint, error) {
-	// TODO: Phase 3 - Inject gRPC Gateway client and map request
-	panic(fmt.Errorf("not implemented: ReliabilityTrend - gRPC Gateway call pending"))
+	req := &pb.ReliabilityMetricsRequest{
+		AreaId:    "global", // Defaulting to global for the system-wide trend
+		TimeRange: timeRange,
+	}
+	res, err := r.GatewayClient.Client.GetReliabilityMetrics(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get reliability trend: %w", err)
+	}
+
+	var trend []*model.TrendDataPoint
+	for _, p := range res.Trend {
+		trend = append(trend, &model.TrendDataPoint{
+			Timestamp: p.Timestamp,
+			Value:     p.Value,
+		})
+	}
+	return trend, nil
 }
 
 // AreaDetail is the resolver for the areaDetail field.
 func (r *queryResolver) AreaDetail(ctx context.Context, id string) (*model.AreaDetail, error) {
-	// TODO: Phase 3 - Inject gRPC Gateway client and map request
-	panic(fmt.Errorf("not implemented: AreaDetail - gRPC Gateway call pending"))
+	req := &pb.AreaDetailRequest{Id: id}
+	res, err := r.GatewayClient.Client.GetAreaDetail(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get area detail: %w", err)
+	}
+
+	return &model.AreaDetail{
+		ID:               res.Id,
+		Name:             res.Name,
+		CurrentRiskScore: res.CurrentRiskScore,
+		Status:           res.Status,
+	}, nil
 }
 
 // AnomalyTimeline is the resolver for the anomalyTimeline field.
 func (r *queryResolver) AnomalyTimeline(ctx context.Context, areaID string) ([]*model.AnomalyEvent, error) {
-	// TODO: Phase 3 - Inject gRPC Gateway client and map request
-	panic(fmt.Errorf("not implemented: AnomalyTimeline - gRPC Gateway call pending"))
+	req := &pb.AnomalyTimelineRequest{AreaId: areaID}
+	res, err := r.GatewayClient.Client.GetAnomalyTimeline(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get anomaly timeline: %w", err)
+	}
+
+	var events []*model.AnomalyEvent
+	for _, e := range res.Events {
+		events = append(events, &model.AnomalyEvent{
+			ID:          e.EventId,
+			AreaID:      e.AreaId,
+			EventType:   e.EventType,
+			Severity:    e.Severity,
+			Timestamp:   e.Timestamp,
+			Description: e.Description,
+		})
+	}
+	return events, nil
 }
 
 // RiskForecast is the resolver for the riskForecast field.
 func (r *queryResolver) RiskForecast(ctx context.Context, areaID string) ([]*model.RiskForecastPoint, error) {
-	// TODO: Phase 3 - Inject gRPC Gateway client and map request
-	panic(fmt.Errorf("not implemented: RiskForecast - gRPC Gateway call pending"))
+	req := &pb.RiskForecastRequest{AreaId: areaID}
+	res, err := r.GatewayClient.Client.GetRiskForecast(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get risk forecast: %w", err)
+	}
+
+	var points []*model.RiskForecastPoint
+	for _, p := range res.Points {
+		points = append(points, &model.RiskForecastPoint{
+			Timestamp:          p.Timestamp,
+			PredictedRiskScore: p.PredictedRiskScore,
+			IsHistorical:       p.IsHistorical,
+		})
+	}
+	return points, nil
 }
 
 // IntelligenceInsight is the resolver for the intelligenceInsight field.
 func (r *queryResolver) IntelligenceInsight(ctx context.Context, anomalyID string) (*model.IntelligenceInsight, error) {
-	// TODO: Phase 3 - Inject gRPC Gateway client and map request
-	panic(fmt.Errorf("not implemented: IntelligenceInsight - gRPC Gateway call pending"))
+	req := &pb.IntelligenceInsightRequest{AnomalyId: anomalyID}
+	res, err := r.GatewayClient.Client.GetIntelligenceInsight(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get intelligence insight: %w", err)
+	}
+
+	var deviations []*model.FeatureDeviation
+	for _, d := range res.FeatureDeviations {
+		deviations = append(deviations, &model.FeatureDeviation{
+			FeatureName:          d.FeatureName,
+			ShapAttribution:      d.ShapAttribution,
+			DeviationDescription: d.DeviationDescription,
+		})
+	}
+
+	return &model.IntelligenceInsight{
+		AnomalyID:         res.AnomalyId,
+		ConfidenceScore:   res.ConfidenceScore,
+		Reasons:           res.Reasons,
+		FeatureDeviations: deviations,
+	}, nil
 }
 
 // OperationalEventStream is the resolver for the operationalEventStream field.

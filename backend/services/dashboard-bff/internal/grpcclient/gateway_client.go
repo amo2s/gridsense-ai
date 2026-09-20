@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 
-	pb "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1"
+	pb "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1/proto"
 )
 
 // GatewayClient wraps the generated protobuf client and manages the persistent connection.
@@ -25,7 +25,7 @@ func NewGatewayClient(targetURL string) (*GatewayClient, error) {
 		PermitWithoutStream: true,
 	}
 
-	// Dial initializes the persistent connection. In a production SaaS environment, 
+	// Dial initializes the persistent connection. In a production SaaS environment,
 	// unary and stream interceptors for tenant propagation and retries are appended here.
 	conn, err := grpc.Dial(
 		targetURL,

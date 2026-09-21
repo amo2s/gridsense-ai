@@ -83,10 +83,7 @@ func LoadEngineCConfig() EngineCConfig {
 	if url == "" {
 		url = "http://localhost:8000/internal/v1/anomalies/detect"
 	}
-	token := os.Getenv("ENGINE_C_INTERNAL_KEY")
-	if token == "" {
-		token = "default-fallback-insecure-key"
-	}
+		token := mustGetEnv("ENGINE_C_INTERNAL_KEY")
 	return EngineCConfig{EngineCURL: url, ServiceToken: token}
 }
 

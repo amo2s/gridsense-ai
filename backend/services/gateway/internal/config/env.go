@@ -16,12 +16,13 @@ type Config struct {
 	EngineAURL         string // Docker bridge URL for Python Engine A (e.g., http://engine_a:8000)
 	InternalServiceKey string // X-Gateway-Token to authenticate with Engine A
 	AuthServiceURL     string // Docker bridge URL for routing to your Auth Microservice (e.g., http://auth_service:8081)
+	AlertInternalKey   string // X-Gateway-Token to authenticate with the Alert microservice
 }
 
 // LoadConfig parses the environment variables and validates their presence.
 func LoadConfig() *Config {
 	// Attempt to load the .env file if running locally.
-	// We ignore the error because in a production Docker/Kubernetes environment, 
+	// We ignore the error because in a production Docker/Kubernetes environment,
 	// variables are often injected directly by the orchestrator without a .env file.
 	_ = godotenv.Load()
 
@@ -32,6 +33,7 @@ func LoadConfig() *Config {
 		EngineAURL:         getEnvOrFatal("ENGINE_A_URL"),
 		InternalServiceKey: getEnvOrFatal("INTERNAL_SERVICE_KEY"),
 		AuthServiceURL:     getEnvOrFatal("AUTH_SERVICE_URL"),
+		AlertInternalKey:   getEnvOrFatal("ALERT_INTERNAL_KEY"),
 	}
 
 	return cfg

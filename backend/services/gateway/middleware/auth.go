@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,6 +19,12 @@ const (
 	UserIDKey contextKey = "user_id"
 )
 
+// Sentinel errors for JWT validation to allow HTTP middleware to return exact original messages.
+var (
+	ErrInvalidToken   = errors.New("invalid or expired token")
+	ErrInvalidPayload = errors.New("invalid token payload")
+)
+
 // jsonError represents a standardized API error response.
 type jsonError struct {
 	Error string `json:"error"`
@@ -30,11 +37,35 @@ func writeJSONError(w http.ResponseWriter, message string, statusCode int) {
 	json.NewEncoder(w).Encode(jsonError{Error: message})
 }
 
-// RequireAuth wraps an http.Handler to enforce JWT validation.
-func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
-	// Parse the secret once during initialization to avoid allocating on every request
+// ValidateJWT parses and validates a JWT token string, returning the user ID (sub claim).
+// This shared function is used by both HTTP middleware and gRPC interceptors.
+// Returns sentinel errors for HTTP middleware to map to exact original messages.
+func ValidateJWT(tokenString, jwtSecret string) (string, error) {
 	secretKey := []byte(jwtSecret)
 
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Strictly enforce HMAC signing to prevent algorithm confusion attacks
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return secretKey, nil
+	})
+
+	if err != nil || !token.Valid {
+		return "", ErrInvalidToken
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		if sub, ok := claims["sub"].(string); ok {
+			return sub, nil
+		}
+	}
+
+	return "", ErrInvalidPayload
+}
+
+// RequireAuth wraps an http.Handler to enforce JWT validation.
+func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// 1. Extract the Authorization header
@@ -54,32 +85,22 @@ func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 			tokenString := parts[1]
 
 			// 3. Parse and cryptographically verify the token signature
-			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-				// Strictly enforce HMAC signing to prevent algorithm confusion attacks
-				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			userID, err := ValidateJWT(tokenString, jwtSecret)
+			if err != nil {
+				// Map sentinel errors to original exact HTTP 401 messages
+				if errors.Is(err, ErrInvalidToken) {
+					writeJSONError(w, "Invalid or expired token", http.StatusUnauthorized)
+				} else if errors.Is(err, ErrInvalidPayload) {
+					writeJSONError(w, "Invalid token payload", http.StatusUnauthorized)
+				} else {
+					writeJSONError(w, err.Error(), http.StatusUnauthorized)
 				}
-				return secretKey, nil
-			})
-
-			if err != nil || !token.Valid {
-				writeJSONError(w, "Invalid or expired token", http.StatusUnauthorized)
 				return
 			}
 
-			// 4. Extract claims and inject into the request context
-			if claims, ok := token.Claims.(jwt.MapClaims); ok {
-				// Assuming 'sub' holds the user ID based on standard JWT specs
-				if sub, ok := claims["sub"].(string); ok {
-					// Create a derived context containing the user ID
-					ctx := context.WithValue(r.Context(), UserIDKey, sub)
-					// Pass the new context down the chain to the actual handler
-					next.ServeHTTP(w, r.WithContext(ctx))
-					return
-				}
-			}
-
-			writeJSONError(w, "Invalid token payload", http.StatusUnauthorized)
+			// 4. Inject user ID into the request context
+			ctx := context.WithValue(r.Context(), UserIDKey, userID)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

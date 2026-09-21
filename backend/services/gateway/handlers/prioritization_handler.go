@@ -90,10 +90,7 @@ func LoadEngineDConfig() EngineDConfig {
 	if url == "" {
 		url = "http://localhost:8000/api/v1/priorities/rank"
 	}
-	token := os.Getenv("ENGINE_D_INTERNAL_KEY")
-	if token == "" {
-		token = "default-fallback-insecure-key"
-	}
+		token := mustGetEnv("ENGINE_D_INTERNAL_KEY")
 	return EngineDConfig{EngineDURL: url, ServiceToken: token}
 }
 

@@ -15,24 +15,22 @@ type contextKey struct {
 }
 
 var (
-	// TenantContextKey is the memory address used to securely store and retrieve the identity.
-	TenantContextKey = &contextKey{"tenant_context"}
+	// UserContextKey is the memory address used to securely store and retrieve the identity.
+	UserContextKey = &contextKey{"user_context"}
 	// RawTokenContextKey stores the raw JWT token string for forwarding to gRPC.
 	RawTokenContextKey = &contextKey{"raw_token"}
 )
 
-// TenantIdentity strictly holds the verified core claims extracted from the JWT.
-type TenantIdentity struct {
-	UserID   string
-	TenantID string
-	Role     string
+// UserIdentity strictly holds the verified core claims extracted from the JWT.
+type UserIdentity struct {
+	UserID string
+	Role   string
 }
 
 // AuthClaims represents the expected cryptographic payload of the incoming Next.js JWT.
 type AuthClaims struct {
-	UserID   string `json:"user_id"`
-	TenantID string `json:"tenant_id"`
-	Role     string `json:"role"`
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -75,14 +73,13 @@ func AuthMiddleware(secret []byte) func(http.Handler) http.Handler {
 			}
 
 			// Package the verified identity.
-			identity := &TenantIdentity{
-				UserID:   claims.UserID,
-				TenantID: claims.TenantID,
-				Role:     claims.Role,
+			identity := &UserIdentity{
+				UserID: claims.UserID,
+				Role:   claims.Role,
 			}
 
 			// Inject the strongly-typed identity into the request context and propagate.
-			ctx := context.WithValue(r.Context(), TenantContextKey, identity)
+			ctx := context.WithValue(r.Context(), UserContextKey, identity)
 			// Also store the raw token for forwarding to gRPC.
 			ctx = context.WithValue(ctx, RawTokenContextKey, tokenStr)
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -90,9 +87,9 @@ func AuthMiddleware(secret []byte) func(http.Handler) http.Handler {
 	}
 }
 
-// GetTenantIdentity is a type-safe accessor used by the GraphQL resolvers and gRPC propagator.
-func GetTenantIdentity(ctx context.Context) (*TenantIdentity, error) {
-	identity, ok := ctx.Value(TenantContextKey).(*TenantIdentity)
+// GetUserIdentity is a type-safe accessor used by the GraphQL resolvers.
+func GetUserIdentity(ctx context.Context) (*UserIdentity, error) {
+	identity, ok := ctx.Value(UserContextKey).(*UserIdentity)
 	if !ok || identity == nil {
 		return nil, errors.New("unauthenticated request boundary")
 	}

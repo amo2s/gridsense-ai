@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 
+	"gridsense-ai/backend/services/dashboard-bff/internal/middleware"
 	pb "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1/proto"
 )
 
@@ -25,12 +26,15 @@ func NewGatewayClient(targetURL string) (*GatewayClient, error) {
 		PermitWithoutStream: true,
 	}
 
-	// Dial initializes the persistent connection. In a production SaaS environment,
-	// unary and stream interceptors for tenant propagation and retries are appended here.
+	// UnaryAuthPropagator/StreamAuthPropagator forward the caller's raw JWT as
+	// outgoing "authorization" metadata on every call; the Gateway validates it
+	// itself on receipt (see gateway/internal/grpc/interceptors.go).
 	conn, err := grpc.Dial(
 		targetURL,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithKeepaliveParams(kacp),
+		grpc.WithChainUnaryInterceptor(middleware.UnaryAuthPropagator()),
+		grpc.WithChainStreamInterceptor(middleware.StreamAuthPropagator()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial gateway at %s: %w", targetURL, err)

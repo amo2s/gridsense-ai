@@ -493,7 +493,8 @@ func (s *GatewayGRPCServer) processRankingRequest(ctx context.Context, queryID s
 				continue
 			}
 			seeds = append(seeds, interventionoutcomes.InterventionSeed{
-				InterventionID:         id,
+				ID:                     id,
+				QueryID:                p.QueryID,
 				FeederID:               asset.FeederID,
 				PredictedPriorityScore: asset.PriorityScore,
 				PredictedPriorityTier:  asset.PriorityTier,

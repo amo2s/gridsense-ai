@@ -23,6 +23,7 @@ import (
 	"gateway/handlers"
 	"gateway/internal/config"
 	grpcserver "gateway/internal/grpc"
+	interventionoutcomes "gateway/intervention_outcomes"
 	"gateway/middleware"
 	pb "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1/proto"
 )
@@ -108,7 +109,8 @@ func main() {
 
 	// Initialize Engine D specific repositories and handler
 	prioritizationRepo := handlers.NewSQLPrioritizationRepo(db)
-	prioritizationHandler := handlers.NewPrioritizationHandler(prioritizationRepo, engineDClient, nil)
+	outcomesRepo := interventionoutcomes.NewSQLRepository(db)
+	prioritizationHandler := handlers.NewPrioritizationHandler(prioritizationRepo, engineDClient, outcomesRepo)
 
 	// Initialize AI Assistant specific repositories and handler
 	assistantAuditRepo := handlers.NewSQLAssistantAuditRepo(db)
@@ -190,7 +192,7 @@ func main() {
 		engineBClient,      // 6. handlers.AIClient
 		prioritizationRepo, // 7. handlers.PrioritizationRepository
 		engineDClient,      // 8. handlers.EngineDClient
-		nil,                // 9. interventionoutcomes.Repository (untyped nil)
+		outcomesRepo,       // 9. interventionoutcomes.Repository
 		db,                 // 10. *database.PostgresDB
 		engineAClient,      // 11. *bridge.EngineAClient
 	)

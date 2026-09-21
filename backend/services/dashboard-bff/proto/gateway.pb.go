@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        v7.36.2
-// source: proto/gateway.proto
+// source: gateway.proto
 
 package gatewayv1
 
@@ -30,7 +30,7 @@ type DashboardSummaryRequest struct {
 
 func (x *DashboardSummaryRequest) Reset() {
 	*x = DashboardSummaryRequest{}
-	mi := &file_proto_gateway_proto_msgTypes[0]
+	mi := &file_gateway_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +42,7 @@ func (x *DashboardSummaryRequest) String() string {
 func (*DashboardSummaryRequest) ProtoMessage() {}
 
 func (x *DashboardSummaryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[0]
+	mi := &file_gateway_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +55,7 @@ func (x *DashboardSummaryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DashboardSummaryRequest.ProtoReflect.Descriptor instead.
 func (*DashboardSummaryRequest) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{0}
+	return file_gateway_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *DashboardSummaryRequest) GetTimeRange() string {
@@ -76,7 +76,7 @@ type DashboardSummaryResponse struct {
 
 func (x *DashboardSummaryResponse) Reset() {
 	*x = DashboardSummaryResponse{}
-	mi := &file_proto_gateway_proto_msgTypes[1]
+	mi := &file_gateway_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -88,7 +88,7 @@ func (x *DashboardSummaryResponse) String() string {
 func (*DashboardSummaryResponse) ProtoMessage() {}
 
 func (x *DashboardSummaryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[1]
+	mi := &file_gateway_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -101,7 +101,7 @@ func (x *DashboardSummaryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DashboardSummaryResponse.ProtoReflect.Descriptor instead.
 func (*DashboardSummaryResponse) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{1}
+	return file_gateway_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *DashboardSummaryResponse) GetOverallReliabilityScore() float64 {
@@ -135,7 +135,7 @@ type ReliabilityMetricsRequest struct {
 
 func (x *ReliabilityMetricsRequest) Reset() {
 	*x = ReliabilityMetricsRequest{}
-	mi := &file_proto_gateway_proto_msgTypes[2]
+	mi := &file_gateway_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -147,7 +147,7 @@ func (x *ReliabilityMetricsRequest) String() string {
 func (*ReliabilityMetricsRequest) ProtoMessage() {}
 
 func (x *ReliabilityMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[2]
+	mi := &file_gateway_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -160,7 +160,7 @@ func (x *ReliabilityMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReliabilityMetricsRequest.ProtoReflect.Descriptor instead.
 func (*ReliabilityMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{2}
+	return file_gateway_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ReliabilityMetricsRequest) GetAreaId() string {
@@ -188,7 +188,7 @@ type ReliabilityMetricsResponse struct {
 
 func (x *ReliabilityMetricsResponse) Reset() {
 	*x = ReliabilityMetricsResponse{}
-	mi := &file_proto_gateway_proto_msgTypes[3]
+	mi := &file_gateway_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -200,7 +200,7 @@ func (x *ReliabilityMetricsResponse) String() string {
 func (*ReliabilityMetricsResponse) ProtoMessage() {}
 
 func (x *ReliabilityMetricsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[3]
+	mi := &file_gateway_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -213,7 +213,7 @@ func (x *ReliabilityMetricsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReliabilityMetricsResponse.ProtoReflect.Descriptor instead.
 func (*ReliabilityMetricsResponse) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{3}
+	return file_gateway_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ReliabilityMetricsResponse) GetAreaId() string {
@@ -247,7 +247,7 @@ type TrendDataPoint struct {
 
 func (x *TrendDataPoint) Reset() {
 	*x = TrendDataPoint{}
-	mi := &file_proto_gateway_proto_msgTypes[4]
+	mi := &file_gateway_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -259,7 +259,7 @@ func (x *TrendDataPoint) String() string {
 func (*TrendDataPoint) ProtoMessage() {}
 
 func (x *TrendDataPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[4]
+	mi := &file_gateway_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -272,7 +272,7 @@ func (x *TrendDataPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrendDataPoint.ProtoReflect.Descriptor instead.
 func (*TrendDataPoint) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{4}
+	return file_gateway_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *TrendDataPoint) GetTimestamp() string {
@@ -298,7 +298,7 @@ type StreamEventsRequest struct {
 
 func (x *StreamEventsRequest) Reset() {
 	*x = StreamEventsRequest{}
-	mi := &file_proto_gateway_proto_msgTypes[5]
+	mi := &file_gateway_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -310,7 +310,7 @@ func (x *StreamEventsRequest) String() string {
 func (*StreamEventsRequest) ProtoMessage() {}
 
 func (x *StreamEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[5]
+	mi := &file_gateway_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -323,7 +323,7 @@ func (x *StreamEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamEventsRequest.ProtoReflect.Descriptor instead.
 func (*StreamEventsRequest) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{5}
+	return file_gateway_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *StreamEventsRequest) GetAreaIds() []string {
@@ -347,7 +347,7 @@ type OperationalEvent struct {
 
 func (x *OperationalEvent) Reset() {
 	*x = OperationalEvent{}
-	mi := &file_proto_gateway_proto_msgTypes[6]
+	mi := &file_gateway_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -359,7 +359,7 @@ func (x *OperationalEvent) String() string {
 func (*OperationalEvent) ProtoMessage() {}
 
 func (x *OperationalEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[6]
+	mi := &file_gateway_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -372,7 +372,7 @@ func (x *OperationalEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperationalEvent.ProtoReflect.Descriptor instead.
 func (*OperationalEvent) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{6}
+	return file_gateway_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *OperationalEvent) GetEventId() string {
@@ -425,7 +425,7 @@ type PriorityAreasRequest struct {
 
 func (x *PriorityAreasRequest) Reset() {
 	*x = PriorityAreasRequest{}
-	mi := &file_proto_gateway_proto_msgTypes[7]
+	mi := &file_gateway_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -437,7 +437,7 @@ func (x *PriorityAreasRequest) String() string {
 func (*PriorityAreasRequest) ProtoMessage() {}
 
 func (x *PriorityAreasRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[7]
+	mi := &file_gateway_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -450,7 +450,7 @@ func (x *PriorityAreasRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PriorityAreasRequest.ProtoReflect.Descriptor instead.
 func (*PriorityAreasRequest) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{7}
+	return file_gateway_proto_rawDescGZIP(), []int{7}
 }
 
 type PriorityAreasResponse struct {
@@ -462,7 +462,7 @@ type PriorityAreasResponse struct {
 
 func (x *PriorityAreasResponse) Reset() {
 	*x = PriorityAreasResponse{}
-	mi := &file_proto_gateway_proto_msgTypes[8]
+	mi := &file_gateway_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -474,7 +474,7 @@ func (x *PriorityAreasResponse) String() string {
 func (*PriorityAreasResponse) ProtoMessage() {}
 
 func (x *PriorityAreasResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[8]
+	mi := &file_gateway_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -487,7 +487,7 @@ func (x *PriorityAreasResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PriorityAreasResponse.ProtoReflect.Descriptor instead.
 func (*PriorityAreasResponse) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{8}
+	return file_gateway_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PriorityAreasResponse) GetAreas() []*PriorityArea {
@@ -510,7 +510,7 @@ type PriorityArea struct {
 
 func (x *PriorityArea) Reset() {
 	*x = PriorityArea{}
-	mi := &file_proto_gateway_proto_msgTypes[9]
+	mi := &file_gateway_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -522,7 +522,7 @@ func (x *PriorityArea) String() string {
 func (*PriorityArea) ProtoMessage() {}
 
 func (x *PriorityArea) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[9]
+	mi := &file_gateway_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -535,7 +535,7 @@ func (x *PriorityArea) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PriorityArea.ProtoReflect.Descriptor instead.
 func (*PriorityArea) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{9}
+	return file_gateway_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PriorityArea) GetId() string {
@@ -582,7 +582,7 @@ type AreaDetailRequest struct {
 
 func (x *AreaDetailRequest) Reset() {
 	*x = AreaDetailRequest{}
-	mi := &file_proto_gateway_proto_msgTypes[10]
+	mi := &file_gateway_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -594,7 +594,7 @@ func (x *AreaDetailRequest) String() string {
 func (*AreaDetailRequest) ProtoMessage() {}
 
 func (x *AreaDetailRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[10]
+	mi := &file_gateway_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -607,7 +607,7 @@ func (x *AreaDetailRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AreaDetailRequest.ProtoReflect.Descriptor instead.
 func (*AreaDetailRequest) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{10}
+	return file_gateway_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AreaDetailRequest) GetId() string {
@@ -629,7 +629,7 @@ type AreaDetailResponse struct {
 
 func (x *AreaDetailResponse) Reset() {
 	*x = AreaDetailResponse{}
-	mi := &file_proto_gateway_proto_msgTypes[11]
+	mi := &file_gateway_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -641,7 +641,7 @@ func (x *AreaDetailResponse) String() string {
 func (*AreaDetailResponse) ProtoMessage() {}
 
 func (x *AreaDetailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[11]
+	mi := &file_gateway_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -654,7 +654,7 @@ func (x *AreaDetailResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AreaDetailResponse.ProtoReflect.Descriptor instead.
 func (*AreaDetailResponse) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{11}
+	return file_gateway_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AreaDetailResponse) GetId() string {
@@ -694,7 +694,7 @@ type AnomalyTimelineRequest struct {
 
 func (x *AnomalyTimelineRequest) Reset() {
 	*x = AnomalyTimelineRequest{}
-	mi := &file_proto_gateway_proto_msgTypes[12]
+	mi := &file_gateway_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -706,7 +706,7 @@ func (x *AnomalyTimelineRequest) String() string {
 func (*AnomalyTimelineRequest) ProtoMessage() {}
 
 func (x *AnomalyTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[12]
+	mi := &file_gateway_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -719,7 +719,7 @@ func (x *AnomalyTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnomalyTimelineRequest.ProtoReflect.Descriptor instead.
 func (*AnomalyTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{12}
+	return file_gateway_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AnomalyTimelineRequest) GetAreaId() string {
@@ -738,7 +738,7 @@ type AnomalyTimelineResponse struct {
 
 func (x *AnomalyTimelineResponse) Reset() {
 	*x = AnomalyTimelineResponse{}
-	mi := &file_proto_gateway_proto_msgTypes[13]
+	mi := &file_gateway_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -750,7 +750,7 @@ func (x *AnomalyTimelineResponse) String() string {
 func (*AnomalyTimelineResponse) ProtoMessage() {}
 
 func (x *AnomalyTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[13]
+	mi := &file_gateway_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -763,7 +763,7 @@ func (x *AnomalyTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnomalyTimelineResponse.ProtoReflect.Descriptor instead.
 func (*AnomalyTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{13}
+	return file_gateway_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *AnomalyTimelineResponse) GetEvents() []*OperationalEvent {
@@ -782,7 +782,7 @@ type RiskForecastRequest struct {
 
 func (x *RiskForecastRequest) Reset() {
 	*x = RiskForecastRequest{}
-	mi := &file_proto_gateway_proto_msgTypes[14]
+	mi := &file_gateway_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -794,7 +794,7 @@ func (x *RiskForecastRequest) String() string {
 func (*RiskForecastRequest) ProtoMessage() {}
 
 func (x *RiskForecastRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[14]
+	mi := &file_gateway_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -807,7 +807,7 @@ func (x *RiskForecastRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RiskForecastRequest.ProtoReflect.Descriptor instead.
 func (*RiskForecastRequest) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{14}
+	return file_gateway_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RiskForecastRequest) GetAreaId() string {
@@ -826,7 +826,7 @@ type RiskForecastResponse struct {
 
 func (x *RiskForecastResponse) Reset() {
 	*x = RiskForecastResponse{}
-	mi := &file_proto_gateway_proto_msgTypes[15]
+	mi := &file_gateway_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -838,7 +838,7 @@ func (x *RiskForecastResponse) String() string {
 func (*RiskForecastResponse) ProtoMessage() {}
 
 func (x *RiskForecastResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[15]
+	mi := &file_gateway_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -851,7 +851,7 @@ func (x *RiskForecastResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RiskForecastResponse.ProtoReflect.Descriptor instead.
 func (*RiskForecastResponse) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{15}
+	return file_gateway_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RiskForecastResponse) GetPoints() []*RiskForecastPoint {
@@ -872,7 +872,7 @@ type RiskForecastPoint struct {
 
 func (x *RiskForecastPoint) Reset() {
 	*x = RiskForecastPoint{}
-	mi := &file_proto_gateway_proto_msgTypes[16]
+	mi := &file_gateway_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -884,7 +884,7 @@ func (x *RiskForecastPoint) String() string {
 func (*RiskForecastPoint) ProtoMessage() {}
 
 func (x *RiskForecastPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[16]
+	mi := &file_gateway_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -897,7 +897,7 @@ func (x *RiskForecastPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RiskForecastPoint.ProtoReflect.Descriptor instead.
 func (*RiskForecastPoint) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{16}
+	return file_gateway_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RiskForecastPoint) GetTimestamp() string {
@@ -930,7 +930,7 @@ type IntelligenceInsightRequest struct {
 
 func (x *IntelligenceInsightRequest) Reset() {
 	*x = IntelligenceInsightRequest{}
-	mi := &file_proto_gateway_proto_msgTypes[17]
+	mi := &file_gateway_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -942,7 +942,7 @@ func (x *IntelligenceInsightRequest) String() string {
 func (*IntelligenceInsightRequest) ProtoMessage() {}
 
 func (x *IntelligenceInsightRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[17]
+	mi := &file_gateway_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -955,7 +955,7 @@ func (x *IntelligenceInsightRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IntelligenceInsightRequest.ProtoReflect.Descriptor instead.
 func (*IntelligenceInsightRequest) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{17}
+	return file_gateway_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *IntelligenceInsightRequest) GetAnomalyId() string {
@@ -977,7 +977,7 @@ type IntelligenceInsightResponse struct {
 
 func (x *IntelligenceInsightResponse) Reset() {
 	*x = IntelligenceInsightResponse{}
-	mi := &file_proto_gateway_proto_msgTypes[18]
+	mi := &file_gateway_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -989,7 +989,7 @@ func (x *IntelligenceInsightResponse) String() string {
 func (*IntelligenceInsightResponse) ProtoMessage() {}
 
 func (x *IntelligenceInsightResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[18]
+	mi := &file_gateway_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1002,7 +1002,7 @@ func (x *IntelligenceInsightResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IntelligenceInsightResponse.ProtoReflect.Descriptor instead.
 func (*IntelligenceInsightResponse) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{18}
+	return file_gateway_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *IntelligenceInsightResponse) GetAnomalyId() string {
@@ -1044,7 +1044,7 @@ type FeatureDeviation struct {
 
 func (x *FeatureDeviation) Reset() {
 	*x = FeatureDeviation{}
-	mi := &file_proto_gateway_proto_msgTypes[19]
+	mi := &file_gateway_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1056,7 +1056,7 @@ func (x *FeatureDeviation) String() string {
 func (*FeatureDeviation) ProtoMessage() {}
 
 func (x *FeatureDeviation) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gateway_proto_msgTypes[19]
+	mi := &file_gateway_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1069,7 +1069,7 @@ func (x *FeatureDeviation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FeatureDeviation.ProtoReflect.Descriptor instead.
 func (*FeatureDeviation) Descriptor() ([]byte, []int) {
-	return file_proto_gateway_proto_rawDescGZIP(), []int{19}
+	return file_gateway_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *FeatureDeviation) GetFeatureName() string {
@@ -1093,11 +1093,211 @@ func (x *FeatureDeviation) GetDeviationDescription() string {
 	return ""
 }
 
-var File_proto_gateway_proto protoreflect.FileDescriptor
+type AcknowledgeAlertRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AlertId       string                 `protobuf:"bytes,1,opt,name=alert_id,json=alertId,proto3" json:"alert_id,omitempty"`
+	ResolvedBy    string                 `protobuf:"bytes,2,opt,name=resolved_by,json=resolvedBy,proto3" json:"resolved_by,omitempty"`
+	Notes         string                 `protobuf:"bytes,3,opt,name=notes,proto3" json:"notes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
 
-const file_proto_gateway_proto_rawDesc = "" +
+func (x *AcknowledgeAlertRequest) Reset() {
+	*x = AcknowledgeAlertRequest{}
+	mi := &file_gateway_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcknowledgeAlertRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcknowledgeAlertRequest) ProtoMessage() {}
+
+func (x *AcknowledgeAlertRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_gateway_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcknowledgeAlertRequest.ProtoReflect.Descriptor instead.
+func (*AcknowledgeAlertRequest) Descriptor() ([]byte, []int) {
+	return file_gateway_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *AcknowledgeAlertRequest) GetAlertId() string {
+	if x != nil {
+		return x.AlertId
+	}
+	return ""
+}
+
+func (x *AcknowledgeAlertRequest) GetResolvedBy() string {
+	if x != nil {
+		return x.ResolvedBy
+	}
+	return ""
+}
+
+func (x *AcknowledgeAlertRequest) GetNotes() string {
+	if x != nil {
+		return x.Notes
+	}
+	return ""
+}
+
+type AcknowledgeAlertResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcknowledgeAlertResponse) Reset() {
+	*x = AcknowledgeAlertResponse{}
+	mi := &file_gateway_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcknowledgeAlertResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcknowledgeAlertResponse) ProtoMessage() {}
+
+func (x *AcknowledgeAlertResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_gateway_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcknowledgeAlertResponse.ProtoReflect.Descriptor instead.
+func (*AcknowledgeAlertResponse) Descriptor() ([]byte, []int) {
+	return file_gateway_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *AcknowledgeAlertResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+type LogInterventionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActionTaken   string                 `protobuf:"bytes,1,opt,name=action_taken,json=actionTaken,proto3" json:"action_taken,omitempty"`
+	OperatorId    string                 `protobuf:"bytes,2,opt,name=operator_id,json=operatorId,proto3" json:"operator_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogInterventionRequest) Reset() {
+	*x = LogInterventionRequest{}
+	mi := &file_gateway_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogInterventionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogInterventionRequest) ProtoMessage() {}
+
+func (x *LogInterventionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_gateway_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogInterventionRequest.ProtoReflect.Descriptor instead.
+func (*LogInterventionRequest) Descriptor() ([]byte, []int) {
+	return file_gateway_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *LogInterventionRequest) GetActionTaken() string {
+	if x != nil {
+		return x.ActionTaken
+	}
+	return ""
+}
+
+func (x *LogInterventionRequest) GetOperatorId() string {
+	if x != nil {
+		return x.OperatorId
+	}
+	return ""
+}
+
+type LogInterventionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogInterventionResponse) Reset() {
+	*x = LogInterventionResponse{}
+	mi := &file_gateway_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogInterventionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogInterventionResponse) ProtoMessage() {}
+
+func (x *LogInterventionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_gateway_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogInterventionResponse.ProtoReflect.Descriptor instead.
+func (*LogInterventionResponse) Descriptor() ([]byte, []int) {
+	return file_gateway_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *LogInterventionResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+var File_gateway_proto protoreflect.FileDescriptor
+
+const file_gateway_proto_rawDesc = "" +
 	"\n" +
-	"\x13proto/gateway.proto\x12\x14gridsense.gateway.v1\"8\n" +
+	"\rgateway.proto\x12\x14gridsense.gateway.v1\"8\n" +
 	"\x17DashboardSummaryRequest\x12\x1d\n" +
 	"\n" +
 	"time_range\x18\x01 \x01(\tR\ttimeRange\"\xbb\x01\n" +
@@ -1167,7 +1367,20 @@ const file_proto_gateway_proto_rawDesc = "" +
 	"\x10FeatureDeviation\x12!\n" +
 	"\ffeature_name\x18\x01 \x01(\tR\vfeatureName\x12)\n" +
 	"\x10shap_attribution\x18\x02 \x01(\x01R\x0fshapAttribution\x123\n" +
-	"\x15deviation_description\x18\x03 \x01(\tR\x14deviationDescription2\x9f\a\n" +
+	"\x15deviation_description\x18\x03 \x01(\tR\x14deviationDescription\"k\n" +
+	"\x17AcknowledgeAlertRequest\x12\x19\n" +
+	"\balert_id\x18\x01 \x01(\tR\aalertId\x12\x1f\n" +
+	"\vresolved_by\x18\x02 \x01(\tR\n" +
+	"resolvedBy\x12\x14\n" +
+	"\x05notes\x18\x03 \x01(\tR\x05notes\"4\n" +
+	"\x18AcknowledgeAlertResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"\\\n" +
+	"\x16LogInterventionRequest\x12!\n" +
+	"\faction_taken\x18\x01 \x01(\tR\vactionTaken\x12\x1f\n" +
+	"\voperator_id\x18\x02 \x01(\tR\n" +
+	"operatorId\"3\n" +
+	"\x17LogInterventionResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess2\x82\t\n" +
 	"\x0eGatewayService\x12t\n" +
 	"\x13GetDashboardSummary\x12-.gridsense.gateway.v1.DashboardSummaryRequest\x1a..gridsense.gateway.v1.DashboardSummaryResponse\x12z\n" +
 	"\x15GetReliabilityMetrics\x12/.gridsense.gateway.v1.ReliabilityMetricsRequest\x1a0.gridsense.gateway.v1.ReliabilityMetricsResponse\x12n\n" +
@@ -1176,22 +1389,24 @@ const file_proto_gateway_proto_rawDesc = "" +
 	"\rGetAreaDetail\x12'.gridsense.gateway.v1.AreaDetailRequest\x1a(.gridsense.gateway.v1.AreaDetailResponse\x12q\n" +
 	"\x12GetAnomalyTimeline\x12,.gridsense.gateway.v1.AnomalyTimelineRequest\x1a-.gridsense.gateway.v1.AnomalyTimelineResponse\x12h\n" +
 	"\x0fGetRiskForecast\x12).gridsense.gateway.v1.RiskForecastRequest\x1a*.gridsense.gateway.v1.RiskForecastResponse\x12}\n" +
-	"\x16GetIntelligenceInsight\x120.gridsense.gateway.v1.IntelligenceInsightRequest\x1a1.gridsense.gateway.v1.IntelligenceInsightResponseBLZJgridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1;gatewayv1b\x06proto3"
+	"\x16GetIntelligenceInsight\x120.gridsense.gateway.v1.IntelligenceInsightRequest\x1a1.gridsense.gateway.v1.IntelligenceInsightResponse\x12q\n" +
+	"\x10AcknowledgeAlert\x12-.gridsense.gateway.v1.AcknowledgeAlertRequest\x1a..gridsense.gateway.v1.AcknowledgeAlertResponse\x12n\n" +
+	"\x0fLogIntervention\x12,.gridsense.gateway.v1.LogInterventionRequest\x1a-.gridsense.gateway.v1.LogInterventionResponseBLZJgridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1;gatewayv1b\x06proto3"
 
 var (
-	file_proto_gateway_proto_rawDescOnce sync.Once
-	file_proto_gateway_proto_rawDescData []byte
+	file_gateway_proto_rawDescOnce sync.Once
+	file_gateway_proto_rawDescData []byte
 )
 
-func file_proto_gateway_proto_rawDescGZIP() []byte {
-	file_proto_gateway_proto_rawDescOnce.Do(func() {
-		file_proto_gateway_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_gateway_proto_rawDesc), len(file_proto_gateway_proto_rawDesc)))
+func file_gateway_proto_rawDescGZIP() []byte {
+	file_gateway_proto_rawDescOnce.Do(func() {
+		file_gateway_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_gateway_proto_rawDesc), len(file_gateway_proto_rawDesc)))
 	})
-	return file_proto_gateway_proto_rawDescData
+	return file_gateway_proto_rawDescData
 }
 
-var file_proto_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
-var file_proto_gateway_proto_goTypes = []any{
+var file_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_gateway_proto_goTypes = []any{
 	(*DashboardSummaryRequest)(nil),     // 0: gridsense.gateway.v1.DashboardSummaryRequest
 	(*DashboardSummaryResponse)(nil),    // 1: gridsense.gateway.v1.DashboardSummaryResponse
 	(*ReliabilityMetricsRequest)(nil),   // 2: gridsense.gateway.v1.ReliabilityMetricsRequest
@@ -1212,8 +1427,12 @@ var file_proto_gateway_proto_goTypes = []any{
 	(*IntelligenceInsightRequest)(nil),  // 17: gridsense.gateway.v1.IntelligenceInsightRequest
 	(*IntelligenceInsightResponse)(nil), // 18: gridsense.gateway.v1.IntelligenceInsightResponse
 	(*FeatureDeviation)(nil),            // 19: gridsense.gateway.v1.FeatureDeviation
+	(*AcknowledgeAlertRequest)(nil),     // 20: gridsense.gateway.v1.AcknowledgeAlertRequest
+	(*AcknowledgeAlertResponse)(nil),    // 21: gridsense.gateway.v1.AcknowledgeAlertResponse
+	(*LogInterventionRequest)(nil),      // 22: gridsense.gateway.v1.LogInterventionRequest
+	(*LogInterventionResponse)(nil),     // 23: gridsense.gateway.v1.LogInterventionResponse
 }
-var file_proto_gateway_proto_depIdxs = []int32{
+var file_gateway_proto_depIdxs = []int32{
 	4,  // 0: gridsense.gateway.v1.ReliabilityMetricsResponse.trend:type_name -> gridsense.gateway.v1.TrendDataPoint
 	9,  // 1: gridsense.gateway.v1.PriorityAreasResponse.areas:type_name -> gridsense.gateway.v1.PriorityArea
 	6,  // 2: gridsense.gateway.v1.AnomalyTimelineResponse.events:type_name -> gridsense.gateway.v1.OperationalEvent
@@ -1227,41 +1446,45 @@ var file_proto_gateway_proto_depIdxs = []int32{
 	12, // 10: gridsense.gateway.v1.GatewayService.GetAnomalyTimeline:input_type -> gridsense.gateway.v1.AnomalyTimelineRequest
 	14, // 11: gridsense.gateway.v1.GatewayService.GetRiskForecast:input_type -> gridsense.gateway.v1.RiskForecastRequest
 	17, // 12: gridsense.gateway.v1.GatewayService.GetIntelligenceInsight:input_type -> gridsense.gateway.v1.IntelligenceInsightRequest
-	1,  // 13: gridsense.gateway.v1.GatewayService.GetDashboardSummary:output_type -> gridsense.gateway.v1.DashboardSummaryResponse
-	3,  // 14: gridsense.gateway.v1.GatewayService.GetReliabilityMetrics:output_type -> gridsense.gateway.v1.ReliabilityMetricsResponse
-	6,  // 15: gridsense.gateway.v1.GatewayService.StreamOperationalEvents:output_type -> gridsense.gateway.v1.OperationalEvent
-	8,  // 16: gridsense.gateway.v1.GatewayService.GetPriorityAreas:output_type -> gridsense.gateway.v1.PriorityAreasResponse
-	11, // 17: gridsense.gateway.v1.GatewayService.GetAreaDetail:output_type -> gridsense.gateway.v1.AreaDetailResponse
-	13, // 18: gridsense.gateway.v1.GatewayService.GetAnomalyTimeline:output_type -> gridsense.gateway.v1.AnomalyTimelineResponse
-	15, // 19: gridsense.gateway.v1.GatewayService.GetRiskForecast:output_type -> gridsense.gateway.v1.RiskForecastResponse
-	18, // 20: gridsense.gateway.v1.GatewayService.GetIntelligenceInsight:output_type -> gridsense.gateway.v1.IntelligenceInsightResponse
-	13, // [13:21] is the sub-list for method output_type
-	5,  // [5:13] is the sub-list for method input_type
+	20, // 13: gridsense.gateway.v1.GatewayService.AcknowledgeAlert:input_type -> gridsense.gateway.v1.AcknowledgeAlertRequest
+	22, // 14: gridsense.gateway.v1.GatewayService.LogIntervention:input_type -> gridsense.gateway.v1.LogInterventionRequest
+	1,  // 15: gridsense.gateway.v1.GatewayService.GetDashboardSummary:output_type -> gridsense.gateway.v1.DashboardSummaryResponse
+	3,  // 16: gridsense.gateway.v1.GatewayService.GetReliabilityMetrics:output_type -> gridsense.gateway.v1.ReliabilityMetricsResponse
+	6,  // 17: gridsense.gateway.v1.GatewayService.StreamOperationalEvents:output_type -> gridsense.gateway.v1.OperationalEvent
+	8,  // 18: gridsense.gateway.v1.GatewayService.GetPriorityAreas:output_type -> gridsense.gateway.v1.PriorityAreasResponse
+	11, // 19: gridsense.gateway.v1.GatewayService.GetAreaDetail:output_type -> gridsense.gateway.v1.AreaDetailResponse
+	13, // 20: gridsense.gateway.v1.GatewayService.GetAnomalyTimeline:output_type -> gridsense.gateway.v1.AnomalyTimelineResponse
+	15, // 21: gridsense.gateway.v1.GatewayService.GetRiskForecast:output_type -> gridsense.gateway.v1.RiskForecastResponse
+	18, // 22: gridsense.gateway.v1.GatewayService.GetIntelligenceInsight:output_type -> gridsense.gateway.v1.IntelligenceInsightResponse
+	21, // 23: gridsense.gateway.v1.GatewayService.AcknowledgeAlert:output_type -> gridsense.gateway.v1.AcknowledgeAlertResponse
+	23, // 24: gridsense.gateway.v1.GatewayService.LogIntervention:output_type -> gridsense.gateway.v1.LogInterventionResponse
+	15, // [15:25] is the sub-list for method output_type
+	5,  // [5:15] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
 }
 
-func init() { file_proto_gateway_proto_init() }
-func file_proto_gateway_proto_init() {
-	if File_proto_gateway_proto != nil {
+func init() { file_gateway_proto_init() }
+func file_gateway_proto_init() {
+	if File_gateway_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_gateway_proto_rawDesc), len(file_proto_gateway_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_gateway_proto_rawDesc), len(file_gateway_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_proto_gateway_proto_goTypes,
-		DependencyIndexes: file_proto_gateway_proto_depIdxs,
-		MessageInfos:      file_proto_gateway_proto_msgTypes,
+		GoTypes:           file_gateway_proto_goTypes,
+		DependencyIndexes: file_gateway_proto_depIdxs,
+		MessageInfos:      file_gateway_proto_msgTypes,
 	}.Build()
-	File_proto_gateway_proto = out.File
-	file_proto_gateway_proto_goTypes = nil
-	file_proto_gateway_proto_depIdxs = nil
+	File_gateway_proto = out.File
+	file_gateway_proto_goTypes = nil
+	file_gateway_proto_depIdxs = nil
 }

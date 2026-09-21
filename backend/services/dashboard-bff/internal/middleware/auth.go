@@ -17,6 +17,8 @@ type contextKey struct {
 var (
 	// TenantContextKey is the memory address used to securely store and retrieve the identity.
 	TenantContextKey = &contextKey{"tenant_context"}
+	// RawTokenContextKey stores the raw JWT token string for forwarding to gRPC.
+	RawTokenContextKey = &contextKey{"raw_token"}
 )
 
 // TenantIdentity strictly holds the verified core claims extracted from the JWT.
@@ -81,6 +83,8 @@ func AuthMiddleware(secret []byte) func(http.Handler) http.Handler {
 
 			// Inject the strongly-typed identity into the request context and propagate.
 			ctx := context.WithValue(r.Context(), TenantContextKey, identity)
+			// Also store the raw token for forwarding to gRPC.
+			ctx = context.WithValue(ctx, RawTokenContextKey, tokenStr)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -93,4 +97,10 @@ func GetTenantIdentity(ctx context.Context) (*TenantIdentity, error) {
 		return nil, errors.New("unauthenticated request boundary")
 	}
 	return identity, nil
+}
+
+// GetRawToken retrieves the raw JWT token string from context for forwarding to gRPC.
+func GetRawToken(ctx context.Context) (string, bool) {
+	token, ok := ctx.Value(RawTokenContextKey).(string)
+	return token, ok
 }

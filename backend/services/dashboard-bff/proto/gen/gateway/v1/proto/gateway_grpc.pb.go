@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v7.36.2
-// source: proto/gateway.proto
+// source: gateway.proto
 
 package gatewayv1
 
@@ -19,12 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	GatewayService_GetAnomalyTimeline_FullMethodName      = "/gridsense.gateway.v1.GatewayService/GetAnomalyTimeline"
+	GatewayService_AcknowledgeAlert_FullMethodName        = "/gridsense.gateway.v1.GatewayService/AcknowledgeAlert"
+	GatewayService_LogIntervention_FullMethodName         = "/gridsense.gateway.v1.GatewayService/LogIntervention"
+	GatewayService_EvaluateReliability_FullMethodName     = "/gridsense.gateway.v1.GatewayService/EvaluateReliability"
+	GatewayService_PredictRisk_FullMethodName             = "/gridsense.gateway.v1.GatewayService/PredictRisk"
+	GatewayService_DetectAnomaly_FullMethodName           = "/gridsense.gateway.v1.GatewayService/DetectAnomaly"
+	GatewayService_RankInterventions_FullMethodName       = "/gridsense.gateway.v1.GatewayService/RankInterventions"
 	GatewayService_GetDashboardSummary_FullMethodName     = "/gridsense.gateway.v1.GatewayService/GetDashboardSummary"
 	GatewayService_GetReliabilityMetrics_FullMethodName   = "/gridsense.gateway.v1.GatewayService/GetReliabilityMetrics"
 	GatewayService_StreamOperationalEvents_FullMethodName = "/gridsense.gateway.v1.GatewayService/StreamOperationalEvents"
 	GatewayService_GetPriorityAreas_FullMethodName        = "/gridsense.gateway.v1.GatewayService/GetPriorityAreas"
 	GatewayService_GetAreaDetail_FullMethodName           = "/gridsense.gateway.v1.GatewayService/GetAreaDetail"
-	GatewayService_GetAnomalyTimeline_FullMethodName      = "/gridsense.gateway.v1.GatewayService/GetAnomalyTimeline"
 	GatewayService_GetRiskForecast_FullMethodName         = "/gridsense.gateway.v1.GatewayService/GetRiskForecast"
 	GatewayService_GetIntelligenceInsight_FullMethodName  = "/gridsense.gateway.v1.GatewayService/GetIntelligenceInsight"
 )
@@ -33,13 +39,22 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type GatewayServiceClient interface {
+	// ---- Implemented by GatewayGRPCServer ----
+	GetAnomalyTimeline(ctx context.Context, in *AnomalyTimelineRequest, opts ...grpc.CallOption) (*AnomalyTimelineResponse, error)
+	AcknowledgeAlert(ctx context.Context, in *AcknowledgeAlertRequest, opts ...grpc.CallOption) (*AcknowledgeAlertResponse, error)
+	LogIntervention(ctx context.Context, in *LogInterventionRequest, opts ...grpc.CallOption) (*LogInterventionResponse, error)
+	// Engine-backed operations. Engines B, C and D also persist results as a side effect.
+	EvaluateReliability(ctx context.Context, in *EvaluateReliabilityRequest, opts ...grpc.CallOption) (*EvaluateReliabilityResponse, error)
+	PredictRisk(ctx context.Context, in *PredictRiskRequest, opts ...grpc.CallOption) (*PredictRiskResponse, error)
+	DetectAnomaly(ctx context.Context, in *DetectAnomalyRequest, opts ...grpc.CallOption) (*DetectAnomalyResponse, error)
+	RankInterventions(ctx context.Context, in *RankInterventionsRequest, opts ...grpc.CallOption) (*RankInterventionsResponse, error)
+	// ---- Declared for the BFF / GraphQL contract; not implemented by GatewayGRPCServer ----
+	// (they return Unimplemented via UnimplementedGatewayServiceServer)
 	GetDashboardSummary(ctx context.Context, in *DashboardSummaryRequest, opts ...grpc.CallOption) (*DashboardSummaryResponse, error)
 	GetReliabilityMetrics(ctx context.Context, in *ReliabilityMetricsRequest, opts ...grpc.CallOption) (*ReliabilityMetricsResponse, error)
-	StreamOperationalEvents(ctx context.Context, in *StreamEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[OperationalEvent], error)
-	// Newly added to satisfy GraphQL Schema requirements
+	StreamOperationalEvents(ctx context.Context, in *StreamEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AnomalyEvent], error)
 	GetPriorityAreas(ctx context.Context, in *PriorityAreasRequest, opts ...grpc.CallOption) (*PriorityAreasResponse, error)
 	GetAreaDetail(ctx context.Context, in *AreaDetailRequest, opts ...grpc.CallOption) (*AreaDetailResponse, error)
-	GetAnomalyTimeline(ctx context.Context, in *AnomalyTimelineRequest, opts ...grpc.CallOption) (*AnomalyTimelineResponse, error)
 	GetRiskForecast(ctx context.Context, in *RiskForecastRequest, opts ...grpc.CallOption) (*RiskForecastResponse, error)
 	GetIntelligenceInsight(ctx context.Context, in *IntelligenceInsightRequest, opts ...grpc.CallOption) (*IntelligenceInsightResponse, error)
 }
@@ -50,6 +65,76 @@ type gatewayServiceClient struct {
 
 func NewGatewayServiceClient(cc grpc.ClientConnInterface) GatewayServiceClient {
 	return &gatewayServiceClient{cc}
+}
+
+func (c *gatewayServiceClient) GetAnomalyTimeline(ctx context.Context, in *AnomalyTimelineRequest, opts ...grpc.CallOption) (*AnomalyTimelineResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AnomalyTimelineResponse)
+	err := c.cc.Invoke(ctx, GatewayService_GetAnomalyTimeline_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gatewayServiceClient) AcknowledgeAlert(ctx context.Context, in *AcknowledgeAlertRequest, opts ...grpc.CallOption) (*AcknowledgeAlertResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AcknowledgeAlertResponse)
+	err := c.cc.Invoke(ctx, GatewayService_AcknowledgeAlert_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gatewayServiceClient) LogIntervention(ctx context.Context, in *LogInterventionRequest, opts ...grpc.CallOption) (*LogInterventionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogInterventionResponse)
+	err := c.cc.Invoke(ctx, GatewayService_LogIntervention_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gatewayServiceClient) EvaluateReliability(ctx context.Context, in *EvaluateReliabilityRequest, opts ...grpc.CallOption) (*EvaluateReliabilityResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EvaluateReliabilityResponse)
+	err := c.cc.Invoke(ctx, GatewayService_EvaluateReliability_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gatewayServiceClient) PredictRisk(ctx context.Context, in *PredictRiskRequest, opts ...grpc.CallOption) (*PredictRiskResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PredictRiskResponse)
+	err := c.cc.Invoke(ctx, GatewayService_PredictRisk_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gatewayServiceClient) DetectAnomaly(ctx context.Context, in *DetectAnomalyRequest, opts ...grpc.CallOption) (*DetectAnomalyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DetectAnomalyResponse)
+	err := c.cc.Invoke(ctx, GatewayService_DetectAnomaly_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gatewayServiceClient) RankInterventions(ctx context.Context, in *RankInterventionsRequest, opts ...grpc.CallOption) (*RankInterventionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RankInterventionsResponse)
+	err := c.cc.Invoke(ctx, GatewayService_RankInterventions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *gatewayServiceClient) GetDashboardSummary(ctx context.Context, in *DashboardSummaryRequest, opts ...grpc.CallOption) (*DashboardSummaryResponse, error) {
@@ -72,13 +157,13 @@ func (c *gatewayServiceClient) GetReliabilityMetrics(ctx context.Context, in *Re
 	return out, nil
 }
 
-func (c *gatewayServiceClient) StreamOperationalEvents(ctx context.Context, in *StreamEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[OperationalEvent], error) {
+func (c *gatewayServiceClient) StreamOperationalEvents(ctx context.Context, in *StreamEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AnomalyEvent], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &GatewayService_ServiceDesc.Streams[0], GatewayService_StreamOperationalEvents_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[StreamEventsRequest, OperationalEvent]{ClientStream: stream}
+	x := &grpc.GenericClientStream[StreamEventsRequest, AnomalyEvent]{ClientStream: stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -89,7 +174,7 @@ func (c *gatewayServiceClient) StreamOperationalEvents(ctx context.Context, in *
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type GatewayService_StreamOperationalEventsClient = grpc.ServerStreamingClient[OperationalEvent]
+type GatewayService_StreamOperationalEventsClient = grpc.ServerStreamingClient[AnomalyEvent]
 
 func (c *gatewayServiceClient) GetPriorityAreas(ctx context.Context, in *PriorityAreasRequest, opts ...grpc.CallOption) (*PriorityAreasResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -105,16 +190,6 @@ func (c *gatewayServiceClient) GetAreaDetail(ctx context.Context, in *AreaDetail
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AreaDetailResponse)
 	err := c.cc.Invoke(ctx, GatewayService_GetAreaDetail_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *gatewayServiceClient) GetAnomalyTimeline(ctx context.Context, in *AnomalyTimelineRequest, opts ...grpc.CallOption) (*AnomalyTimelineResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AnomalyTimelineResponse)
-	err := c.cc.Invoke(ctx, GatewayService_GetAnomalyTimeline_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -145,13 +220,22 @@ func (c *gatewayServiceClient) GetIntelligenceInsight(ctx context.Context, in *I
 // All implementations must embed UnimplementedGatewayServiceServer
 // for forward compatibility.
 type GatewayServiceServer interface {
+	// ---- Implemented by GatewayGRPCServer ----
+	GetAnomalyTimeline(context.Context, *AnomalyTimelineRequest) (*AnomalyTimelineResponse, error)
+	AcknowledgeAlert(context.Context, *AcknowledgeAlertRequest) (*AcknowledgeAlertResponse, error)
+	LogIntervention(context.Context, *LogInterventionRequest) (*LogInterventionResponse, error)
+	// Engine-backed operations. Engines B, C and D also persist results as a side effect.
+	EvaluateReliability(context.Context, *EvaluateReliabilityRequest) (*EvaluateReliabilityResponse, error)
+	PredictRisk(context.Context, *PredictRiskRequest) (*PredictRiskResponse, error)
+	DetectAnomaly(context.Context, *DetectAnomalyRequest) (*DetectAnomalyResponse, error)
+	RankInterventions(context.Context, *RankInterventionsRequest) (*RankInterventionsResponse, error)
+	// ---- Declared for the BFF / GraphQL contract; not implemented by GatewayGRPCServer ----
+	// (they return Unimplemented via UnimplementedGatewayServiceServer)
 	GetDashboardSummary(context.Context, *DashboardSummaryRequest) (*DashboardSummaryResponse, error)
 	GetReliabilityMetrics(context.Context, *ReliabilityMetricsRequest) (*ReliabilityMetricsResponse, error)
-	StreamOperationalEvents(*StreamEventsRequest, grpc.ServerStreamingServer[OperationalEvent]) error
-	// Newly added to satisfy GraphQL Schema requirements
+	StreamOperationalEvents(*StreamEventsRequest, grpc.ServerStreamingServer[AnomalyEvent]) error
 	GetPriorityAreas(context.Context, *PriorityAreasRequest) (*PriorityAreasResponse, error)
 	GetAreaDetail(context.Context, *AreaDetailRequest) (*AreaDetailResponse, error)
-	GetAnomalyTimeline(context.Context, *AnomalyTimelineRequest) (*AnomalyTimelineResponse, error)
 	GetRiskForecast(context.Context, *RiskForecastRequest) (*RiskForecastResponse, error)
 	GetIntelligenceInsight(context.Context, *IntelligenceInsightRequest) (*IntelligenceInsightResponse, error)
 	mustEmbedUnimplementedGatewayServiceServer()
@@ -164,13 +248,34 @@ type GatewayServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedGatewayServiceServer struct{}
 
+func (UnimplementedGatewayServiceServer) GetAnomalyTimeline(context.Context, *AnomalyTimelineRequest) (*AnomalyTimelineResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAnomalyTimeline not implemented")
+}
+func (UnimplementedGatewayServiceServer) AcknowledgeAlert(context.Context, *AcknowledgeAlertRequest) (*AcknowledgeAlertResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AcknowledgeAlert not implemented")
+}
+func (UnimplementedGatewayServiceServer) LogIntervention(context.Context, *LogInterventionRequest) (*LogInterventionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LogIntervention not implemented")
+}
+func (UnimplementedGatewayServiceServer) EvaluateReliability(context.Context, *EvaluateReliabilityRequest) (*EvaluateReliabilityResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method EvaluateReliability not implemented")
+}
+func (UnimplementedGatewayServiceServer) PredictRisk(context.Context, *PredictRiskRequest) (*PredictRiskResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PredictRisk not implemented")
+}
+func (UnimplementedGatewayServiceServer) DetectAnomaly(context.Context, *DetectAnomalyRequest) (*DetectAnomalyResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DetectAnomaly not implemented")
+}
+func (UnimplementedGatewayServiceServer) RankInterventions(context.Context, *RankInterventionsRequest) (*RankInterventionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RankInterventions not implemented")
+}
 func (UnimplementedGatewayServiceServer) GetDashboardSummary(context.Context, *DashboardSummaryRequest) (*DashboardSummaryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDashboardSummary not implemented")
 }
 func (UnimplementedGatewayServiceServer) GetReliabilityMetrics(context.Context, *ReliabilityMetricsRequest) (*ReliabilityMetricsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetReliabilityMetrics not implemented")
 }
-func (UnimplementedGatewayServiceServer) StreamOperationalEvents(*StreamEventsRequest, grpc.ServerStreamingServer[OperationalEvent]) error {
+func (UnimplementedGatewayServiceServer) StreamOperationalEvents(*StreamEventsRequest, grpc.ServerStreamingServer[AnomalyEvent]) error {
 	return status.Error(codes.Unimplemented, "method StreamOperationalEvents not implemented")
 }
 func (UnimplementedGatewayServiceServer) GetPriorityAreas(context.Context, *PriorityAreasRequest) (*PriorityAreasResponse, error) {
@@ -178,9 +283,6 @@ func (UnimplementedGatewayServiceServer) GetPriorityAreas(context.Context, *Prio
 }
 func (UnimplementedGatewayServiceServer) GetAreaDetail(context.Context, *AreaDetailRequest) (*AreaDetailResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAreaDetail not implemented")
-}
-func (UnimplementedGatewayServiceServer) GetAnomalyTimeline(context.Context, *AnomalyTimelineRequest) (*AnomalyTimelineResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetAnomalyTimeline not implemented")
 }
 func (UnimplementedGatewayServiceServer) GetRiskForecast(context.Context, *RiskForecastRequest) (*RiskForecastResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetRiskForecast not implemented")
@@ -207,6 +309,132 @@ func RegisterGatewayServiceServer(s grpc.ServiceRegistrar, srv GatewayServiceSer
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&GatewayService_ServiceDesc, srv)
+}
+
+func _GatewayService_GetAnomalyTimeline_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AnomalyTimelineRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServiceServer).GetAnomalyTimeline(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GatewayService_GetAnomalyTimeline_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServiceServer).GetAnomalyTimeline(ctx, req.(*AnomalyTimelineRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GatewayService_AcknowledgeAlert_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AcknowledgeAlertRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServiceServer).AcknowledgeAlert(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GatewayService_AcknowledgeAlert_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServiceServer).AcknowledgeAlert(ctx, req.(*AcknowledgeAlertRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GatewayService_LogIntervention_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogInterventionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServiceServer).LogIntervention(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GatewayService_LogIntervention_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServiceServer).LogIntervention(ctx, req.(*LogInterventionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GatewayService_EvaluateReliability_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EvaluateReliabilityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServiceServer).EvaluateReliability(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GatewayService_EvaluateReliability_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServiceServer).EvaluateReliability(ctx, req.(*EvaluateReliabilityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GatewayService_PredictRisk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PredictRiskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServiceServer).PredictRisk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GatewayService_PredictRisk_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServiceServer).PredictRisk(ctx, req.(*PredictRiskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GatewayService_DetectAnomaly_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DetectAnomalyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServiceServer).DetectAnomaly(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GatewayService_DetectAnomaly_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServiceServer).DetectAnomaly(ctx, req.(*DetectAnomalyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GatewayService_RankInterventions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RankInterventionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServiceServer).RankInterventions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GatewayService_RankInterventions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServiceServer).RankInterventions(ctx, req.(*RankInterventionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _GatewayService_GetDashboardSummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -250,11 +478,11 @@ func _GatewayService_StreamOperationalEvents_Handler(srv interface{}, stream grp
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(GatewayServiceServer).StreamOperationalEvents(m, &grpc.GenericServerStream[StreamEventsRequest, OperationalEvent]{ServerStream: stream})
+	return srv.(GatewayServiceServer).StreamOperationalEvents(m, &grpc.GenericServerStream[StreamEventsRequest, AnomalyEvent]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type GatewayService_StreamOperationalEventsServer = grpc.ServerStreamingServer[OperationalEvent]
+type GatewayService_StreamOperationalEventsServer = grpc.ServerStreamingServer[AnomalyEvent]
 
 func _GatewayService_GetPriorityAreas_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PriorityAreasRequest)
@@ -288,24 +516,6 @@ func _GatewayService_GetAreaDetail_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GatewayServiceServer).GetAreaDetail(ctx, req.(*AreaDetailRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _GatewayService_GetAnomalyTimeline_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AnomalyTimelineRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(GatewayServiceServer).GetAnomalyTimeline(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: GatewayService_GetAnomalyTimeline_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GatewayServiceServer).GetAnomalyTimeline(ctx, req.(*AnomalyTimelineRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -354,6 +564,34 @@ var GatewayService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*GatewayServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "GetAnomalyTimeline",
+			Handler:    _GatewayService_GetAnomalyTimeline_Handler,
+		},
+		{
+			MethodName: "AcknowledgeAlert",
+			Handler:    _GatewayService_AcknowledgeAlert_Handler,
+		},
+		{
+			MethodName: "LogIntervention",
+			Handler:    _GatewayService_LogIntervention_Handler,
+		},
+		{
+			MethodName: "EvaluateReliability",
+			Handler:    _GatewayService_EvaluateReliability_Handler,
+		},
+		{
+			MethodName: "PredictRisk",
+			Handler:    _GatewayService_PredictRisk_Handler,
+		},
+		{
+			MethodName: "DetectAnomaly",
+			Handler:    _GatewayService_DetectAnomaly_Handler,
+		},
+		{
+			MethodName: "RankInterventions",
+			Handler:    _GatewayService_RankInterventions_Handler,
+		},
+		{
 			MethodName: "GetDashboardSummary",
 			Handler:    _GatewayService_GetDashboardSummary_Handler,
 		},
@@ -368,10 +606,6 @@ var GatewayService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAreaDetail",
 			Handler:    _GatewayService_GetAreaDetail_Handler,
-		},
-		{
-			MethodName: "GetAnomalyTimeline",
-			Handler:    _GatewayService_GetAnomalyTimeline_Handler,
 		},
 		{
 			MethodName: "GetRiskForecast",
@@ -389,5 +623,5 @@ var GatewayService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "proto/gateway.proto",
+	Metadata: "gateway.proto",
 }

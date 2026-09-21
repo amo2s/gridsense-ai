@@ -2,20 +2,207 @@ syntax = "proto3";
 
 package gridsense.gateway.v1;
 
-option go_package = "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1;gatewayv1";
+option go_package = "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1/proto;gatewayv1";
+
+// Convention: every timestamp field is an RFC3339 string.
+//
+// Source of truth: GatewayGRPCServer (gateway/server). Every message and field
+// used by that server is defined here with the exact names it expects.
 
 service GatewayService {
+  // ---- Implemented by GatewayGRPCServer ----
+  rpc GetAnomalyTimeline(AnomalyTimelineRequest) returns (AnomalyTimelineResponse);
+  rpc AcknowledgeAlert(AcknowledgeAlertRequest) returns (AcknowledgeAlertResponse);
+  rpc LogIntervention(LogInterventionRequest) returns (LogInterventionResponse);
+
+  // Engine-backed operations. Engines B, C and D also persist results as a side effect.
+  rpc EvaluateReliability(EvaluateReliabilityRequest) returns (EvaluateReliabilityResponse); // Engine A
+  rpc PredictRisk(PredictRiskRequest) returns (PredictRiskResponse);                         // Engine B
+  rpc DetectAnomaly(DetectAnomalyRequest) returns (DetectAnomalyResponse);                   // Engine C
+  rpc RankInterventions(RankInterventionsRequest) returns (RankInterventionsResponse);       // Engine D
+
+  // ---- Declared for the BFF / GraphQL contract; not implemented by GatewayGRPCServer ----
+  // (they return Unimplemented via UnimplementedGatewayServiceServer)
   rpc GetDashboardSummary(DashboardSummaryRequest) returns (DashboardSummaryResponse);
   rpc GetReliabilityMetrics(ReliabilityMetricsRequest) returns (ReliabilityMetricsResponse);
-  rpc StreamOperationalEvents(StreamEventsRequest) returns (stream OperationalEvent);
-  
-  // Newly added to satisfy GraphQL Schema requirements
+  rpc StreamOperationalEvents(StreamEventsRequest) returns (stream AnomalyEvent);
   rpc GetPriorityAreas(PriorityAreasRequest) returns (PriorityAreasResponse);
   rpc GetAreaDetail(AreaDetailRequest) returns (AreaDetailResponse);
-  rpc GetAnomalyTimeline(AnomalyTimelineRequest) returns (AnomalyTimelineResponse);
   rpc GetRiskForecast(RiskForecastRequest) returns (RiskForecastResponse);
   rpc GetIntelligenceInsight(IntelligenceInsightRequest) returns (IntelligenceInsightResponse);
 }
+
+// =====================================================================
+// Shared
+// =====================================================================
+
+// A real-time or historical anomaly/operational event. Returned by the timeline,
+// published to Redis by BroadcastAnomaly, and streamed by StreamOperationalEvents.
+message AnomalyEvent {
+  string event_id = 1;
+  string area_id = 2;
+  string event_type = 3;
+  string severity = 4;
+  string timestamp = 5;
+  string description = 6;
+}
+
+// A feature and its signed contribution to a model output (SHAP-style).
+// Used by Engine B (contributing factors) and Engine D (ranking explanations).
+message FeatureAttribution {
+  string feature_name = 1;
+  double contribution = 2;
+}
+
+// =====================================================================
+// Alerts
+// =====================================================================
+
+message AnomalyTimelineRequest {
+  string area_id = 1;
+}
+
+message AnomalyTimelineResponse {
+  repeated AnomalyEvent events = 1;
+}
+
+message AcknowledgeAlertRequest {
+  string alert_id = 1;
+  string resolved_by = 2 [deprecated = true]; // ignored: identity is taken from the JWT sub
+  string notes = 3;
+}
+
+message AcknowledgeAlertResponse {
+  bool success = 1;
+}
+
+message LogInterventionRequest {
+  string action_taken = 1;
+  string operator_id = 2 [deprecated = true]; // ignored: identity is taken from the JWT sub
+  string alert_id = 3;
+  string feeder_id = 4;
+  string notes = 5;
+  string timestamp = 6; // optional; the server defaults to now (UTC) when empty
+}
+
+message LogInterventionResponse {
+  bool success = 1;
+}
+
+// =====================================================================
+// Engine A: deterministic reliability scoring
+// =====================================================================
+
+message EvaluateReliabilityRequest {
+  string feeder_id = 1;
+  string timestamp = 2; // optional cycle end; defaults to now (UTC) when empty
+}
+
+message SubScoreMetrics {
+  double base_availability = 1;
+  double duration_penalty = 2;
+  double frequency_penalty = 3;
+}
+
+message VulnerabilityWindow {
+  string start_time = 1;
+  string end_time = 2;
+  string severity_tag = 3;
+}
+
+message AuditMetadata {
+  string cycle_timestamp = 1;
+  double calculation_latency_ms = 2;
+  string engine_version = 3;
+}
+
+message EvaluateReliabilityResponse {
+  string feeder_id = 1;
+  int32 reliability_score = 2;
+  string risk_band = 3;
+  string trajectory = 4;
+  SubScoreMetrics sub_scores = 5;
+  repeated VulnerabilityWindow vulnerability_windows = 6;
+  AuditMetadata audit = 7;
+}
+
+// =====================================================================
+// Engine B: failure-risk prediction
+// =====================================================================
+
+message PredictRiskRequest {
+  string feeder_id = 1; // must be a valid UUID
+}
+
+message PredictRiskResponse {
+  string feeder_id = 1;
+  string generated_at = 2;
+  int32 horizon_hours = 3;
+  double risk_score = 4;
+  string risk_level = 5;
+  string model_version = 6;
+  repeated FeatureAttribution contributing_factors = 7;
+}
+
+// =====================================================================
+// Engine C: multivariate anomaly detection
+// =====================================================================
+
+message DetectAnomalyRequest {
+  string feeder_id = 1; // must be a valid UUID
+}
+
+message LayerFlags {
+  bool layer1_stat = 1;
+  bool layer2_seas = 2;
+  bool layer3_multi = 3;
+}
+
+message AttributionFactor {
+  string feature = 1;
+  double magnitude = 2;
+  string source = 3;
+}
+
+message DetectAnomalyResponse {
+  string feeder_id = 1;
+  string timestamp = 2;
+  bool is_anomaly = 3;
+  string severity = 4;
+  double confidence_score = 5;
+  LayerFlags layer_flags = 6;
+  repeated AttributionFactor ranked_attributions = 7;
+  repeated string reasons = 8;
+  double inference_latency_ms = 9;
+  string model_version = 10;
+}
+
+// =====================================================================
+// Engine D: intervention prioritization
+// =====================================================================
+
+message RankInterventionsRequest {
+  string query_id = 1; // an area ID; must be a valid UUID
+}
+
+message RankedAsset {
+  string feeder_id = 1;
+  int32 rank_position = 2;
+  double priority_score = 3;
+  string priority_tier = 4;
+  repeated FeatureAttribution explanations = 5;
+}
+
+message RankInterventionsResponse {
+  string query_id = 1;
+  string generated_at = 2;
+  string model_version = 3;
+  repeated RankedAsset ranked_assets = 4;
+}
+
+// =====================================================================
+// BFF / GraphQL contract (not implemented by GatewayGRPCServer)
+// =====================================================================
 
 message DashboardSummaryRequest {
   string time_range = 1;
@@ -47,17 +234,6 @@ message StreamEventsRequest {
   repeated string area_ids = 1;
 }
 
-message OperationalEvent {
-  string event_id = 1;
-  string area_id = 2;
-  string event_type = 3;
-  string severity = 4;
-  string timestamp = 5;
-  string description = 6;
-}
-
-// New message definitions
-
 message PriorityAreasRequest {}
 
 message PriorityAreasResponse {
@@ -81,14 +257,6 @@ message AreaDetailResponse {
   string name = 2;
   double current_risk_score = 3;
   string status = 4;
-}
-
-message AnomalyTimelineRequest {
-  string area_id = 1;
-}
-
-message AnomalyTimelineResponse {
-  repeated OperationalEvent events = 1;
 }
 
 message RiskForecastRequest {

@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v7.36.2
-// source: proto/gateway.proto
+// source: gateway.proto
 
 package gatewayv1
 
@@ -27,6 +27,8 @@ const (
 	GatewayService_GetAnomalyTimeline_FullMethodName      = "/gridsense.gateway.v1.GatewayService/GetAnomalyTimeline"
 	GatewayService_GetRiskForecast_FullMethodName         = "/gridsense.gateway.v1.GatewayService/GetRiskForecast"
 	GatewayService_GetIntelligenceInsight_FullMethodName  = "/gridsense.gateway.v1.GatewayService/GetIntelligenceInsight"
+	GatewayService_AcknowledgeAlert_FullMethodName        = "/gridsense.gateway.v1.GatewayService/AcknowledgeAlert"
+	GatewayService_LogIntervention_FullMethodName         = "/gridsense.gateway.v1.GatewayService/LogIntervention"
 )
 
 // GatewayServiceClient is the client API for GatewayService service.
@@ -42,6 +44,9 @@ type GatewayServiceClient interface {
 	GetAnomalyTimeline(ctx context.Context, in *AnomalyTimelineRequest, opts ...grpc.CallOption) (*AnomalyTimelineResponse, error)
 	GetRiskForecast(ctx context.Context, in *RiskForecastRequest, opts ...grpc.CallOption) (*RiskForecastResponse, error)
 	GetIntelligenceInsight(ctx context.Context, in *IntelligenceInsightRequest, opts ...grpc.CallOption) (*IntelligenceInsightResponse, error)
+	// Alert management operations
+	AcknowledgeAlert(ctx context.Context, in *AcknowledgeAlertRequest, opts ...grpc.CallOption) (*AcknowledgeAlertResponse, error)
+	LogIntervention(ctx context.Context, in *LogInterventionRequest, opts ...grpc.CallOption) (*LogInterventionResponse, error)
 }
 
 type gatewayServiceClient struct {
@@ -141,6 +146,26 @@ func (c *gatewayServiceClient) GetIntelligenceInsight(ctx context.Context, in *I
 	return out, nil
 }
 
+func (c *gatewayServiceClient) AcknowledgeAlert(ctx context.Context, in *AcknowledgeAlertRequest, opts ...grpc.CallOption) (*AcknowledgeAlertResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AcknowledgeAlertResponse)
+	err := c.cc.Invoke(ctx, GatewayService_AcknowledgeAlert_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gatewayServiceClient) LogIntervention(ctx context.Context, in *LogInterventionRequest, opts ...grpc.CallOption) (*LogInterventionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogInterventionResponse)
+	err := c.cc.Invoke(ctx, GatewayService_LogIntervention_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GatewayServiceServer is the server API for GatewayService service.
 // All implementations must embed UnimplementedGatewayServiceServer
 // for forward compatibility.
@@ -154,6 +179,9 @@ type GatewayServiceServer interface {
 	GetAnomalyTimeline(context.Context, *AnomalyTimelineRequest) (*AnomalyTimelineResponse, error)
 	GetRiskForecast(context.Context, *RiskForecastRequest) (*RiskForecastResponse, error)
 	GetIntelligenceInsight(context.Context, *IntelligenceInsightRequest) (*IntelligenceInsightResponse, error)
+	// Alert management operations
+	AcknowledgeAlert(context.Context, *AcknowledgeAlertRequest) (*AcknowledgeAlertResponse, error)
+	LogIntervention(context.Context, *LogInterventionRequest) (*LogInterventionResponse, error)
 	mustEmbedUnimplementedGatewayServiceServer()
 }
 
@@ -187,6 +215,12 @@ func (UnimplementedGatewayServiceServer) GetRiskForecast(context.Context, *RiskF
 }
 func (UnimplementedGatewayServiceServer) GetIntelligenceInsight(context.Context, *IntelligenceInsightRequest) (*IntelligenceInsightResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetIntelligenceInsight not implemented")
+}
+func (UnimplementedGatewayServiceServer) AcknowledgeAlert(context.Context, *AcknowledgeAlertRequest) (*AcknowledgeAlertResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AcknowledgeAlert not implemented")
+}
+func (UnimplementedGatewayServiceServer) LogIntervention(context.Context, *LogInterventionRequest) (*LogInterventionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LogIntervention not implemented")
 }
 func (UnimplementedGatewayServiceServer) mustEmbedUnimplementedGatewayServiceServer() {}
 func (UnimplementedGatewayServiceServer) testEmbeddedByValue()                        {}
@@ -346,6 +380,42 @@ func _GatewayService_GetIntelligenceInsight_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GatewayService_AcknowledgeAlert_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AcknowledgeAlertRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServiceServer).AcknowledgeAlert(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GatewayService_AcknowledgeAlert_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServiceServer).AcknowledgeAlert(ctx, req.(*AcknowledgeAlertRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GatewayService_LogIntervention_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogInterventionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServiceServer).LogIntervention(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GatewayService_LogIntervention_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServiceServer).LogIntervention(ctx, req.(*LogInterventionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GatewayService_ServiceDesc is the grpc.ServiceDesc for GatewayService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -381,6 +451,14 @@ var GatewayService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetIntelligenceInsight",
 			Handler:    _GatewayService_GetIntelligenceInsight_Handler,
 		},
+		{
+			MethodName: "AcknowledgeAlert",
+			Handler:    _GatewayService_AcknowledgeAlert_Handler,
+		},
+		{
+			MethodName: "LogIntervention",
+			Handler:    _GatewayService_LogIntervention_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -389,5 +467,5 @@ var GatewayService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "proto/gateway.proto",
+	Metadata: "gateway.proto",
 }

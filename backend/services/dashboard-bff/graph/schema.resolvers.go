@@ -8,6 +8,7 @@ package graph
 import (
 	"context"
 	"fmt"
+
 	"gridsense-ai/backend/services/dashboard-bff/graph/generated"
 	"gridsense-ai/backend/services/dashboard-bff/graph/model"
 	pb "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1/proto"
@@ -154,8 +155,7 @@ func (r *queryResolver) IntelligenceInsight(ctx context.Context, anomalyID strin
 
 // OperationalEventStream is the resolver for the operationalEventStream field.
 func (r *subscriptionResolver) OperationalEventStream(ctx context.Context) (<-chan *model.AnomalyEvent, error) {
-	// TODO: Phase 5 - Implement Redis Pub/Sub to GraphQL Subscription bridge
-	panic(fmt.Errorf("not implemented: OperationalEventStream - Redis Pub/Sub integration pending"))
+	return r.Subscriptions.Subscribe(ctx)
 }
 
 // Query returns generated.QueryResolver implementation.

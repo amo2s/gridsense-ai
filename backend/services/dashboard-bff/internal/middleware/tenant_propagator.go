@@ -34,15 +34,22 @@ func StreamTenantPropagator() grpc.StreamClientInterceptor {
 func appendIdentityMetadata(ctx context.Context) context.Context {
 	identity, err := GetTenantIdentity(ctx)
 	if err != nil || identity == nil {
-		// If identity is absent, pass the context unchanged. 
+		// If identity is absent, pass the context unchanged.
 		// The core Gateway assumes the responsibility of dropping unauthenticated RPCs.
 		return ctx
 	}
 
 	// AppendToOutgoingContext safely merges with any existing metadata rather than overwriting it.
-	return metadata.AppendToOutgoingContext(ctx,
+	outCtx := metadata.AppendToOutgoingContext(ctx,
 		TenantIDHeader, identity.TenantID,
 		UserIDHeader, identity.UserID,
 		RoleHeader, identity.Role,
 	)
+
+	// Also forward the raw JWT token if available for gateway re-validation
+	if rawToken, ok := GetRawToken(ctx); ok {
+		outCtx = metadata.AppendToOutgoingContext(outCtx, "authorization", "Bearer "+rawToken)
+	}
+
+	return outCtx
 }

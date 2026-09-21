@@ -90,7 +90,7 @@ func LoadEngineDConfig() EngineDConfig {
 	if url == "" {
 		url = "http://localhost:8000/api/v1/priorities/rank"
 	}
-		token := mustGetEnv("ENGINE_D_INTERNAL_KEY")
+	token := mustGetEnv("ENGINE_D_INTERNAL_KEY")
 	return EngineDConfig{EngineDURL: url, ServiceToken: token}
 }
 
@@ -495,11 +495,12 @@ func (h *PrioritizationHandler) processRankingRequest(ctx context.Context, query
 				continue
 			}
 			seeds = append(seeds, interventionoutcomes.InterventionSeed{
-				InterventionID:         id,
-				FeederID:                asset.FeederID,
-				PredictedPriorityScore:  asset.PriorityScore,
-				PredictedPriorityTier:   asset.PriorityTier,
-				ShapTopFeatures:         convertShapAttributions(asset.Explanations),
+				ID:                     id,
+				QueryID:                p.QueryID,
+				FeederID:               asset.FeederID,
+				PredictedPriorityScore: asset.PriorityScore,
+				PredictedPriorityTier:  asset.PriorityTier,
+				ShapTopFeatures:        convertShapAttributions(asset.Explanations),
 			})
 		}
 

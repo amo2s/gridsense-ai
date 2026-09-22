@@ -6,10 +6,19 @@ type Query {
   anomalyTimeline(areaId: ID!): [AnomalyEvent!]!
   riskForecast(areaId: ID!): [RiskForecastPoint!]!
   intelligenceInsight(anomalyId: ID!): IntelligenceInsight!
+  evaluateReliability(feederId: ID!, timestamp: String): ReliabilityResult!
+  predictRisk(feederId: ID!): RiskPrediction!
+  detectAnomaly(feederId: ID!): AnomalyDetection!
+  rankInterventions(queryId: ID!): InterventionRanking!
 }
 
 type Subscription {
   operationalEventStream: AnomalyEvent!
+}
+
+type Mutation {
+  acknowledgeAlert(alertId: ID!, notes: String): AcknowledgeAlertResult!
+  logIntervention(alertId: ID!, feederId: String!, actionTaken: String!, notes: String): LogInterventionResult!
 }
 
 type DashboardSummary {
@@ -64,4 +73,95 @@ type FeatureDeviation {
   featureName: String!
   shapAttribution: Float!
   deviationDescription: String!
+}
+
+type AcknowledgeAlertResult {
+  success: Boolean!
+}
+
+type LogInterventionResult {
+  success: Boolean!
+}
+
+type FeatureAttribution {
+  featureName: String!
+  contribution: Float!
+}
+
+type ReliabilityResult {
+  feederId: ID!
+  reliabilityScore: Int!
+  riskBand: String!
+  trajectory: String!
+  subScores: SubScoreMetrics!
+  vulnerabilityWindows: [VulnerabilityWindow!]!
+  audit: AuditMetadata!
+}
+
+type SubScoreMetrics {
+  baseAvailability: Float!
+  durationPenalty: Float!
+  frequencyPenalty: Float!
+}
+
+type VulnerabilityWindow {
+  startTime: String!
+  endTime: String!
+  severityTag: String!
+}
+
+type AuditMetadata {
+  cycleTimestamp: String!
+  calculationLatencyMs: Float!
+  engineVersion: String!
+}
+
+type RiskPrediction {
+  feederId: ID!
+  generatedAt: String!
+  horizonHours: Int!
+  riskScore: Float!
+  riskLevel: String!
+  modelVersion: String!
+  contributingFactors: [FeatureAttribution!]!
+}
+
+type AnomalyDetection {
+  feederId: ID!
+  timestamp: String!
+  isAnomaly: Boolean!
+  severity: String!
+  confidenceScore: Float!
+  layerFlags: LayerFlags!
+  rankedAttributions: [AttributionFactor!]!
+  reasons: [String!]!
+  inferenceLatencyMs: Float!
+  modelVersion: String!
+}
+
+type LayerFlags {
+  layer1Stat: Boolean!
+  layer2Seas: Boolean!
+  layer3Multi: Boolean!
+}
+
+type AttributionFactor {
+  feature: String!
+  magnitude: Float!
+  source: String!
+}
+
+type InterventionRanking {
+  queryId: ID!
+  generatedAt: String!
+  modelVersion: String!
+  rankedAssets: [RankedAsset!]!
+}
+
+type RankedAsset {
+  feederId: ID!
+  rankPosition: Int!
+  priorityScore: Float!
+  priorityTier: String!
+  explanations: [FeatureAttribution!]!
 }

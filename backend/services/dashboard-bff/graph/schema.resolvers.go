@@ -8,11 +8,20 @@ package graph
 import (
 	"context"
 	"fmt"
-
 	"gridsense-ai/backend/services/dashboard-bff/graph/generated"
 	"gridsense-ai/backend/services/dashboard-bff/graph/model"
 	pb "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1/proto"
 )
+
+// AcknowledgeAlert is the resolver for the acknowledgeAlert field.
+func (r *mutationResolver) AcknowledgeAlert(ctx context.Context, alertID string, notes *string) (*model.AcknowledgeAlertResult, error) {
+	panic(fmt.Errorf("not implemented: AcknowledgeAlert - acknowledgeAlert"))
+}
+
+// LogIntervention is the resolver for the logIntervention field.
+func (r *mutationResolver) LogIntervention(ctx context.Context, alertID string, feederID string, actionTaken string, notes *string) (*model.LogInterventionResult, error) {
+	panic(fmt.Errorf("not implemented: LogIntervention - logIntervention"))
+}
 
 // DashboardSummary is the resolver for the dashboardSummary field.
 func (r *queryResolver) DashboardSummary(ctx context.Context, timeRange string) (*model.DashboardSummary, error) {
@@ -153,10 +162,33 @@ func (r *queryResolver) IntelligenceInsight(ctx context.Context, anomalyID strin
 	}, nil
 }
 
+// EvaluateReliability is the resolver for the evaluateReliability field.
+func (r *queryResolver) EvaluateReliability(ctx context.Context, feederID string, timestamp *string) (*model.ReliabilityResult, error) {
+	panic(fmt.Errorf("not implemented: EvaluateReliability - evaluateReliability"))
+}
+
+// PredictRisk is the resolver for the predictRisk field.
+func (r *queryResolver) PredictRisk(ctx context.Context, feederID string) (*model.RiskPrediction, error) {
+	panic(fmt.Errorf("not implemented: PredictRisk - predictRisk"))
+}
+
+// DetectAnomaly is the resolver for the detectAnomaly field.
+func (r *queryResolver) DetectAnomaly(ctx context.Context, feederID string) (*model.AnomalyDetection, error) {
+	panic(fmt.Errorf("not implemented: DetectAnomaly - detectAnomaly"))
+}
+
+// RankInterventions is the resolver for the rankInterventions field.
+func (r *queryResolver) RankInterventions(ctx context.Context, queryID string) (*model.InterventionRanking, error) {
+	panic(fmt.Errorf("not implemented: RankInterventions - rankInterventions"))
+}
+
 // OperationalEventStream is the resolver for the operationalEventStream field.
 func (r *subscriptionResolver) OperationalEventStream(ctx context.Context) (<-chan *model.AnomalyEvent, error) {
 	return r.Subscriptions.Subscribe(ctx)
 }
+
+// Mutation returns generated.MutationResolver implementation.
+func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
@@ -165,6 +197,7 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
 
 type (
+	mutationResolver     struct{ *Resolver }
 	queryResolver        struct{ *Resolver }
 	subscriptionResolver struct{ *Resolver }
 )

@@ -2,6 +2,23 @@
 
 package model
 
+type AcknowledgeAlertResult struct {
+	Success bool `json:"success"`
+}
+
+type AnomalyDetection struct {
+	FeederID           string               `json:"feederId"`
+	Timestamp          string               `json:"timestamp"`
+	IsAnomaly          bool                 `json:"isAnomaly"`
+	Severity           string               `json:"severity"`
+	ConfidenceScore    float64              `json:"confidenceScore"`
+	LayerFlags         *LayerFlags          `json:"layerFlags"`
+	RankedAttributions []*AttributionFactor `json:"rankedAttributions"`
+	Reasons            []string             `json:"reasons"`
+	InferenceLatencyMs float64              `json:"inferenceLatencyMs"`
+	ModelVersion       string               `json:"modelVersion"`
+}
+
 type AnomalyEvent struct {
 	ID          string `json:"id"`
 	AreaID      string `json:"areaId"`
@@ -18,10 +35,27 @@ type AreaDetail struct {
 	Status           string  `json:"status"`
 }
 
+type AttributionFactor struct {
+	Feature   string  `json:"feature"`
+	Magnitude float64 `json:"magnitude"`
+	Source    string  `json:"source"`
+}
+
+type AuditMetadata struct {
+	CycleTimestamp       string  `json:"cycleTimestamp"`
+	CalculationLatencyMs float64 `json:"calculationLatencyMs"`
+	EngineVersion        string  `json:"engineVersion"`
+}
+
 type DashboardSummary struct {
 	OverallReliabilityScore float64 `json:"overallReliabilityScore"`
 	ActiveHighRiskAreas     int     `json:"activeHighRiskAreas"`
 	TotalActiveAlerts       int     `json:"totalActiveAlerts"`
+}
+
+type FeatureAttribution struct {
+	FeatureName  string  `json:"featureName"`
+	Contribution float64 `json:"contribution"`
 }
 
 type FeatureDeviation struct {
@@ -37,6 +71,26 @@ type IntelligenceInsight struct {
 	FeatureDeviations []*FeatureDeviation `json:"featureDeviations"`
 }
 
+type InterventionRanking struct {
+	QueryID      string         `json:"queryId"`
+	GeneratedAt  string         `json:"generatedAt"`
+	ModelVersion string         `json:"modelVersion"`
+	RankedAssets []*RankedAsset `json:"rankedAssets"`
+}
+
+type LayerFlags struct {
+	Layer1Stat  bool `json:"layer1Stat"`
+	Layer2Seas  bool `json:"layer2Seas"`
+	Layer3Multi bool `json:"layer3Multi"`
+}
+
+type LogInterventionResult struct {
+	Success bool `json:"success"`
+}
+
+type Mutation struct {
+}
+
 type PriorityArea struct {
 	ID          string  `json:"id"`
 	Name        string  `json:"name"`
@@ -48,10 +102,44 @@ type PriorityArea struct {
 type Query struct {
 }
 
+type RankedAsset struct {
+	FeederID      string                `json:"feederId"`
+	RankPosition  int                   `json:"rankPosition"`
+	PriorityScore float64               `json:"priorityScore"`
+	PriorityTier  string                `json:"priorityTier"`
+	Explanations  []*FeatureAttribution `json:"explanations"`
+}
+
+type ReliabilityResult struct {
+	FeederID             string                 `json:"feederId"`
+	ReliabilityScore     int                    `json:"reliabilityScore"`
+	RiskBand             string                 `json:"riskBand"`
+	Trajectory           string                 `json:"trajectory"`
+	SubScores            *SubScoreMetrics       `json:"subScores"`
+	VulnerabilityWindows []*VulnerabilityWindow `json:"vulnerabilityWindows"`
+	Audit                *AuditMetadata         `json:"audit"`
+}
+
 type RiskForecastPoint struct {
 	Timestamp          string  `json:"timestamp"`
 	PredictedRiskScore float64 `json:"predictedRiskScore"`
 	IsHistorical       bool    `json:"isHistorical"`
+}
+
+type RiskPrediction struct {
+	FeederID            string                `json:"feederId"`
+	GeneratedAt         string                `json:"generatedAt"`
+	HorizonHours        int                   `json:"horizonHours"`
+	RiskScore           float64               `json:"riskScore"`
+	RiskLevel           string                `json:"riskLevel"`
+	ModelVersion        string                `json:"modelVersion"`
+	ContributingFactors []*FeatureAttribution `json:"contributingFactors"`
+}
+
+type SubScoreMetrics struct {
+	BaseAvailability float64 `json:"baseAvailability"`
+	DurationPenalty  float64 `json:"durationPenalty"`
+	FrequencyPenalty float64 `json:"frequencyPenalty"`
 }
 
 type Subscription struct {
@@ -60,4 +148,10 @@ type Subscription struct {
 type TrendDataPoint struct {
 	Timestamp string  `json:"timestamp"`
 	Value     float64 `json:"value"`
+}
+
+type VulnerabilityWindow struct {
+	StartTime   string `json:"startTime"`
+	EndTime     string `json:"endTime"`
+	SeverityTag string `json:"severityTag"`
 }

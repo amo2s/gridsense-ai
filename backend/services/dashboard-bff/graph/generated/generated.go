@@ -28,6 +28,7 @@ func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
 type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
 type ResolverRoot interface {
+	Mutation() MutationResolver
 	Query() QueryResolver
 	Subscription() SubscriptionResolver
 }
@@ -36,6 +37,23 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	AcknowledgeAlertResult struct {
+		Success func(childComplexity int) int
+	}
+
+	AnomalyDetection struct {
+		ConfidenceScore    func(childComplexity int) int
+		FeederID           func(childComplexity int) int
+		InferenceLatencyMs func(childComplexity int) int
+		IsAnomaly          func(childComplexity int) int
+		LayerFlags         func(childComplexity int) int
+		ModelVersion       func(childComplexity int) int
+		RankedAttributions func(childComplexity int) int
+		Reasons            func(childComplexity int) int
+		Severity           func(childComplexity int) int
+		Timestamp          func(childComplexity int) int
+	}
+
 	AnomalyEvent struct {
 		AreaID      func(childComplexity int) int
 		Description func(childComplexity int) int
@@ -52,10 +70,27 @@ type ComplexityRoot struct {
 		Status           func(childComplexity int) int
 	}
 
+	AttributionFactor struct {
+		Feature   func(childComplexity int) int
+		Magnitude func(childComplexity int) int
+		Source    func(childComplexity int) int
+	}
+
+	AuditMetadata struct {
+		CalculationLatencyMs func(childComplexity int) int
+		CycleTimestamp       func(childComplexity int) int
+		EngineVersion        func(childComplexity int) int
+	}
+
 	DashboardSummary struct {
 		ActiveHighRiskAreas     func(childComplexity int) int
 		OverallReliabilityScore func(childComplexity int) int
 		TotalActiveAlerts       func(childComplexity int) int
+	}
+
+	FeatureAttribution struct {
+		Contribution func(childComplexity int) int
+		FeatureName  func(childComplexity int) int
 	}
 
 	FeatureDeviation struct {
@@ -71,6 +106,28 @@ type ComplexityRoot struct {
 		Reasons           func(childComplexity int) int
 	}
 
+	InterventionRanking struct {
+		GeneratedAt  func(childComplexity int) int
+		ModelVersion func(childComplexity int) int
+		QueryID      func(childComplexity int) int
+		RankedAssets func(childComplexity int) int
+	}
+
+	LayerFlags struct {
+		Layer1Stat  func(childComplexity int) int
+		Layer2Seas  func(childComplexity int) int
+		Layer3Multi func(childComplexity int) int
+	}
+
+	LogInterventionResult struct {
+		Success func(childComplexity int) int
+	}
+
+	Mutation struct {
+		AcknowledgeAlert func(childComplexity int, alertID string, notes *string) int
+		LogIntervention  func(childComplexity int, alertID string, feederID string, actionTaken string, notes *string) int
+	}
+
 	PriorityArea struct {
 		ID          func(childComplexity int) int
 		Name        func(childComplexity int) int
@@ -83,16 +140,54 @@ type ComplexityRoot struct {
 		AnomalyTimeline     func(childComplexity int, areaID string) int
 		AreaDetail          func(childComplexity int, id string) int
 		DashboardSummary    func(childComplexity int, timeRange string) int
+		DetectAnomaly       func(childComplexity int, feederID string) int
+		EvaluateReliability func(childComplexity int, feederID string, timestamp *string) int
 		IntelligenceInsight func(childComplexity int, anomalyID string) int
+		PredictRisk         func(childComplexity int, feederID string) int
 		PriorityAreas       func(childComplexity int) int
+		RankInterventions   func(childComplexity int, queryID string) int
 		ReliabilityTrend    func(childComplexity int, timeRange string) int
 		RiskForecast        func(childComplexity int, areaID string) int
+	}
+
+	RankedAsset struct {
+		Explanations  func(childComplexity int) int
+		FeederID      func(childComplexity int) int
+		PriorityScore func(childComplexity int) int
+		PriorityTier  func(childComplexity int) int
+		RankPosition  func(childComplexity int) int
+	}
+
+	ReliabilityResult struct {
+		Audit                func(childComplexity int) int
+		FeederID             func(childComplexity int) int
+		ReliabilityScore     func(childComplexity int) int
+		RiskBand             func(childComplexity int) int
+		SubScores            func(childComplexity int) int
+		Trajectory           func(childComplexity int) int
+		VulnerabilityWindows func(childComplexity int) int
 	}
 
 	RiskForecastPoint struct {
 		IsHistorical       func(childComplexity int) int
 		PredictedRiskScore func(childComplexity int) int
 		Timestamp          func(childComplexity int) int
+	}
+
+	RiskPrediction struct {
+		ContributingFactors func(childComplexity int) int
+		FeederID            func(childComplexity int) int
+		GeneratedAt         func(childComplexity int) int
+		HorizonHours        func(childComplexity int) int
+		ModelVersion        func(childComplexity int) int
+		RiskLevel           func(childComplexity int) int
+		RiskScore           func(childComplexity int) int
+	}
+
+	SubScoreMetrics struct {
+		BaseAvailability func(childComplexity int) int
+		DurationPenalty  func(childComplexity int) int
+		FrequencyPenalty func(childComplexity int) int
 	}
 
 	Subscription struct {
@@ -103,12 +198,22 @@ type ComplexityRoot struct {
 		Timestamp func(childComplexity int) int
 		Value     func(childComplexity int) int
 	}
+
+	VulnerabilityWindow struct {
+		EndTime     func(childComplexity int) int
+		SeverityTag func(childComplexity int) int
+		StartTime   func(childComplexity int) int
+	}
 }
 
 // endregion ***************************** api!.gotpl *****************************
 
 // region    ************************** generated!.gotpl **************************
 
+type MutationResolver interface {
+	AcknowledgeAlert(ctx context.Context, alertID string, notes *string) (*model.AcknowledgeAlertResult, error)
+	LogIntervention(ctx context.Context, alertID string, feederID string, actionTaken string, notes *string) (*model.LogInterventionResult, error)
+}
 type QueryResolver interface {
 	DashboardSummary(ctx context.Context, timeRange string) (*model.DashboardSummary, error)
 	PriorityAreas(ctx context.Context) ([]*model.PriorityArea, error)
@@ -117,6 +222,10 @@ type QueryResolver interface {
 	AnomalyTimeline(ctx context.Context, areaID string) ([]*model.AnomalyEvent, error)
 	RiskForecast(ctx context.Context, areaID string) ([]*model.RiskForecastPoint, error)
 	IntelligenceInsight(ctx context.Context, anomalyID string) (*model.IntelligenceInsight, error)
+	EvaluateReliability(ctx context.Context, feederID string, timestamp *string) (*model.ReliabilityResult, error)
+	PredictRisk(ctx context.Context, feederID string) (*model.RiskPrediction, error)
+	DetectAnomaly(ctx context.Context, feederID string) (*model.AnomalyDetection, error)
+	RankInterventions(ctx context.Context, queryID string) (*model.InterventionRanking, error)
 }
 type SubscriptionResolver interface {
 	OperationalEventStream(ctx context.Context) (<-chan *model.AnomalyEvent, error)
@@ -139,6 +248,74 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := newExecutionContext(nil, e, nil)
 	_ = ec
 	switch typeName + "." + field {
+
+	case "AcknowledgeAlertResult.success":
+		if e.ComplexityRoot.AcknowledgeAlertResult.Success == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AcknowledgeAlertResult.Success(childComplexity), true
+
+	case "AnomalyDetection.confidenceScore":
+		if e.ComplexityRoot.AnomalyDetection.ConfidenceScore == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnomalyDetection.ConfidenceScore(childComplexity), true
+	case "AnomalyDetection.feederId":
+		if e.ComplexityRoot.AnomalyDetection.FeederID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnomalyDetection.FeederID(childComplexity), true
+	case "AnomalyDetection.inferenceLatencyMs":
+		if e.ComplexityRoot.AnomalyDetection.InferenceLatencyMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnomalyDetection.InferenceLatencyMs(childComplexity), true
+	case "AnomalyDetection.isAnomaly":
+		if e.ComplexityRoot.AnomalyDetection.IsAnomaly == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnomalyDetection.IsAnomaly(childComplexity), true
+	case "AnomalyDetection.layerFlags":
+		if e.ComplexityRoot.AnomalyDetection.LayerFlags == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnomalyDetection.LayerFlags(childComplexity), true
+	case "AnomalyDetection.modelVersion":
+		if e.ComplexityRoot.AnomalyDetection.ModelVersion == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnomalyDetection.ModelVersion(childComplexity), true
+	case "AnomalyDetection.rankedAttributions":
+		if e.ComplexityRoot.AnomalyDetection.RankedAttributions == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnomalyDetection.RankedAttributions(childComplexity), true
+	case "AnomalyDetection.reasons":
+		if e.ComplexityRoot.AnomalyDetection.Reasons == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnomalyDetection.Reasons(childComplexity), true
+	case "AnomalyDetection.severity":
+		if e.ComplexityRoot.AnomalyDetection.Severity == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnomalyDetection.Severity(childComplexity), true
+	case "AnomalyDetection.timestamp":
+		if e.ComplexityRoot.AnomalyDetection.Timestamp == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnomalyDetection.Timestamp(childComplexity), true
 
 	case "AnomalyEvent.areaId":
 		if e.ComplexityRoot.AnomalyEvent.AreaID == nil {
@@ -202,6 +379,44 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.AreaDetail.Status(childComplexity), true
 
+	case "AttributionFactor.feature":
+		if e.ComplexityRoot.AttributionFactor.Feature == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AttributionFactor.Feature(childComplexity), true
+	case "AttributionFactor.magnitude":
+		if e.ComplexityRoot.AttributionFactor.Magnitude == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AttributionFactor.Magnitude(childComplexity), true
+	case "AttributionFactor.source":
+		if e.ComplexityRoot.AttributionFactor.Source == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AttributionFactor.Source(childComplexity), true
+
+	case "AuditMetadata.calculationLatencyMs":
+		if e.ComplexityRoot.AuditMetadata.CalculationLatencyMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuditMetadata.CalculationLatencyMs(childComplexity), true
+	case "AuditMetadata.cycleTimestamp":
+		if e.ComplexityRoot.AuditMetadata.CycleTimestamp == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuditMetadata.CycleTimestamp(childComplexity), true
+	case "AuditMetadata.engineVersion":
+		if e.ComplexityRoot.AuditMetadata.EngineVersion == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuditMetadata.EngineVersion(childComplexity), true
+
 	case "DashboardSummary.activeHighRiskAreas":
 		if e.ComplexityRoot.DashboardSummary.ActiveHighRiskAreas == nil {
 			break
@@ -220,6 +435,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DashboardSummary.TotalActiveAlerts(childComplexity), true
+
+	case "FeatureAttribution.contribution":
+		if e.ComplexityRoot.FeatureAttribution.Contribution == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FeatureAttribution.Contribution(childComplexity), true
+	case "FeatureAttribution.featureName":
+		if e.ComplexityRoot.FeatureAttribution.FeatureName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.FeatureAttribution.FeatureName(childComplexity), true
 
 	case "FeatureDeviation.deviationDescription":
 		if e.ComplexityRoot.FeatureDeviation.DeviationDescription == nil {
@@ -264,6 +492,80 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.IntelligenceInsight.Reasons(childComplexity), true
+
+	case "InterventionRanking.generatedAt":
+		if e.ComplexityRoot.InterventionRanking.GeneratedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InterventionRanking.GeneratedAt(childComplexity), true
+	case "InterventionRanking.modelVersion":
+		if e.ComplexityRoot.InterventionRanking.ModelVersion == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InterventionRanking.ModelVersion(childComplexity), true
+	case "InterventionRanking.queryId":
+		if e.ComplexityRoot.InterventionRanking.QueryID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InterventionRanking.QueryID(childComplexity), true
+	case "InterventionRanking.rankedAssets":
+		if e.ComplexityRoot.InterventionRanking.RankedAssets == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InterventionRanking.RankedAssets(childComplexity), true
+
+	case "LayerFlags.layer1Stat":
+		if e.ComplexityRoot.LayerFlags.Layer1Stat == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LayerFlags.Layer1Stat(childComplexity), true
+	case "LayerFlags.layer2Seas":
+		if e.ComplexityRoot.LayerFlags.Layer2Seas == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LayerFlags.Layer2Seas(childComplexity), true
+	case "LayerFlags.layer3Multi":
+		if e.ComplexityRoot.LayerFlags.Layer3Multi == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LayerFlags.Layer3Multi(childComplexity), true
+
+	case "LogInterventionResult.success":
+		if e.ComplexityRoot.LogInterventionResult.Success == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LogInterventionResult.Success(childComplexity), true
+
+	case "Mutation.acknowledgeAlert":
+		if e.ComplexityRoot.Mutation.AcknowledgeAlert == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_acknowledgeAlert_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.AcknowledgeAlert(childComplexity, args["alertId"].(string), args["notes"].(*string)), true
+	case "Mutation.logIntervention":
+		if e.ComplexityRoot.Mutation.LogIntervention == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_logIntervention_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.LogIntervention(childComplexity, args["alertId"].(string), args["feederId"].(string), args["actionTaken"].(string), args["notes"].(*string)), true
 
 	case "PriorityArea.id":
 		if e.ComplexityRoot.PriorityArea.ID == nil {
@@ -329,6 +631,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.DashboardSummary(childComplexity, args["timeRange"].(string)), true
+	case "Query.detectAnomaly":
+		if e.ComplexityRoot.Query.DetectAnomaly == nil {
+			break
+		}
+
+		args, err := ec.field_Query_detectAnomaly_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.DetectAnomaly(childComplexity, args["feederId"].(string)), true
+	case "Query.evaluateReliability":
+		if e.ComplexityRoot.Query.EvaluateReliability == nil {
+			break
+		}
+
+		args, err := ec.field_Query_evaluateReliability_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.EvaluateReliability(childComplexity, args["feederId"].(string), args["timestamp"].(*string)), true
 	case "Query.intelligenceInsight":
 		if e.ComplexityRoot.Query.IntelligenceInsight == nil {
 			break
@@ -341,12 +665,34 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Query.IntelligenceInsight(childComplexity, args["anomalyId"].(string)), true
 
+	case "Query.predictRisk":
+		if e.ComplexityRoot.Query.PredictRisk == nil {
+			break
+		}
+
+		args, err := ec.field_Query_predictRisk_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.PredictRisk(childComplexity, args["feederId"].(string)), true
 	case "Query.priorityAreas":
 		if e.ComplexityRoot.Query.PriorityAreas == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Query.PriorityAreas(childComplexity), true
+	case "Query.rankInterventions":
+		if e.ComplexityRoot.Query.RankInterventions == nil {
+			break
+		}
+
+		args, err := ec.field_Query_rankInterventions_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.RankInterventions(childComplexity, args["queryId"].(string)), true
 	case "Query.reliabilityTrend":
 		if e.ComplexityRoot.Query.ReliabilityTrend == nil {
 			break
@@ -370,6 +716,80 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Query.RiskForecast(childComplexity, args["areaId"].(string)), true
 
+	case "RankedAsset.explanations":
+		if e.ComplexityRoot.RankedAsset.Explanations == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RankedAsset.Explanations(childComplexity), true
+	case "RankedAsset.feederId":
+		if e.ComplexityRoot.RankedAsset.FeederID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RankedAsset.FeederID(childComplexity), true
+	case "RankedAsset.priorityScore":
+		if e.ComplexityRoot.RankedAsset.PriorityScore == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RankedAsset.PriorityScore(childComplexity), true
+	case "RankedAsset.priorityTier":
+		if e.ComplexityRoot.RankedAsset.PriorityTier == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RankedAsset.PriorityTier(childComplexity), true
+	case "RankedAsset.rankPosition":
+		if e.ComplexityRoot.RankedAsset.RankPosition == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RankedAsset.RankPosition(childComplexity), true
+
+	case "ReliabilityResult.audit":
+		if e.ComplexityRoot.ReliabilityResult.Audit == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReliabilityResult.Audit(childComplexity), true
+	case "ReliabilityResult.feederId":
+		if e.ComplexityRoot.ReliabilityResult.FeederID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReliabilityResult.FeederID(childComplexity), true
+	case "ReliabilityResult.reliabilityScore":
+		if e.ComplexityRoot.ReliabilityResult.ReliabilityScore == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReliabilityResult.ReliabilityScore(childComplexity), true
+	case "ReliabilityResult.riskBand":
+		if e.ComplexityRoot.ReliabilityResult.RiskBand == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReliabilityResult.RiskBand(childComplexity), true
+	case "ReliabilityResult.subScores":
+		if e.ComplexityRoot.ReliabilityResult.SubScores == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReliabilityResult.SubScores(childComplexity), true
+	case "ReliabilityResult.trajectory":
+		if e.ComplexityRoot.ReliabilityResult.Trajectory == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReliabilityResult.Trajectory(childComplexity), true
+	case "ReliabilityResult.vulnerabilityWindows":
+		if e.ComplexityRoot.ReliabilityResult.VulnerabilityWindows == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReliabilityResult.VulnerabilityWindows(childComplexity), true
+
 	case "RiskForecastPoint.isHistorical":
 		if e.ComplexityRoot.RiskForecastPoint.IsHistorical == nil {
 			break
@@ -388,6 +808,68 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.RiskForecastPoint.Timestamp(childComplexity), true
+
+	case "RiskPrediction.contributingFactors":
+		if e.ComplexityRoot.RiskPrediction.ContributingFactors == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RiskPrediction.ContributingFactors(childComplexity), true
+	case "RiskPrediction.feederId":
+		if e.ComplexityRoot.RiskPrediction.FeederID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RiskPrediction.FeederID(childComplexity), true
+	case "RiskPrediction.generatedAt":
+		if e.ComplexityRoot.RiskPrediction.GeneratedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RiskPrediction.GeneratedAt(childComplexity), true
+	case "RiskPrediction.horizonHours":
+		if e.ComplexityRoot.RiskPrediction.HorizonHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RiskPrediction.HorizonHours(childComplexity), true
+	case "RiskPrediction.modelVersion":
+		if e.ComplexityRoot.RiskPrediction.ModelVersion == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RiskPrediction.ModelVersion(childComplexity), true
+	case "RiskPrediction.riskLevel":
+		if e.ComplexityRoot.RiskPrediction.RiskLevel == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RiskPrediction.RiskLevel(childComplexity), true
+	case "RiskPrediction.riskScore":
+		if e.ComplexityRoot.RiskPrediction.RiskScore == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RiskPrediction.RiskScore(childComplexity), true
+
+	case "SubScoreMetrics.baseAvailability":
+		if e.ComplexityRoot.SubScoreMetrics.BaseAvailability == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubScoreMetrics.BaseAvailability(childComplexity), true
+	case "SubScoreMetrics.durationPenalty":
+		if e.ComplexityRoot.SubScoreMetrics.DurationPenalty == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubScoreMetrics.DurationPenalty(childComplexity), true
+	case "SubScoreMetrics.frequencyPenalty":
+		if e.ComplexityRoot.SubScoreMetrics.FrequencyPenalty == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubScoreMetrics.FrequencyPenalty(childComplexity), true
 
 	case "Subscription.operationalEventStream":
 		if e.ComplexityRoot.Subscription.OperationalEventStream == nil {
@@ -408,6 +890,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TrendDataPoint.Value(childComplexity), true
+
+	case "VulnerabilityWindow.endTime":
+		if e.ComplexityRoot.VulnerabilityWindow.EndTime == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VulnerabilityWindow.EndTime(childComplexity), true
+	case "VulnerabilityWindow.severityTag":
+		if e.ComplexityRoot.VulnerabilityWindow.SeverityTag == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VulnerabilityWindow.SeverityTag(childComplexity), true
+	case "VulnerabilityWindow.startTime":
+		if e.ComplexityRoot.VulnerabilityWindow.StartTime == nil {
+			break
+		}
+
+		return e.ComplexityRoot.VulnerabilityWindow.StartTime(childComplexity), true
 
 	}
 	return 0, false
@@ -449,6 +950,21 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			}
 
 			return &response
+		}
+	case ast.Mutation:
+		return func(ctx context.Context) *graphql.Response {
+			if !first {
+				return nil
+			}
+			first = false
+			ctx = graphql.WithUnmarshalerMap(ctx, inputUnmarshalMap)
+			data := ec._Mutation(ctx, opCtx.Operation.SelectionSet)
+			var buf bytes.Buffer
+			data.MarshalGQL(&buf)
+
+			return &graphql.Response{
+				Data: buf.Bytes(),
+			}
 		}
 	case ast.Subscription:
 		next := ec._Subscription(ctx, opCtx.Operation.SelectionSet)
@@ -501,10 +1017,19 @@ var sources = []*ast.Source{
   anomalyTimeline(areaId: ID!): [AnomalyEvent!]!
   riskForecast(areaId: ID!): [RiskForecastPoint!]!
   intelligenceInsight(anomalyId: ID!): IntelligenceInsight!
+  evaluateReliability(feederId: ID!, timestamp: String): ReliabilityResult!
+  predictRisk(feederId: ID!): RiskPrediction!
+  detectAnomaly(feederId: ID!): AnomalyDetection!
+  rankInterventions(queryId: ID!): InterventionRanking!
 }
 
 type Subscription {
   operationalEventStream: AnomalyEvent!
+}
+
+type Mutation {
+  acknowledgeAlert(alertId: ID!, notes: String): AcknowledgeAlertResult!
+  logIntervention(alertId: ID!, feederId: String!, actionTaken: String!, notes: String): LogInterventionResult!
 }
 
 type DashboardSummary {
@@ -559,6 +1084,97 @@ type FeatureDeviation {
   featureName: String!
   shapAttribution: Float!
   deviationDescription: String!
+}
+
+type AcknowledgeAlertResult {
+  success: Boolean!
+}
+
+type LogInterventionResult {
+  success: Boolean!
+}
+
+type FeatureAttribution {
+  featureName: String!
+  contribution: Float!
+}
+
+type ReliabilityResult {
+  feederId: ID!
+  reliabilityScore: Int!
+  riskBand: String!
+  trajectory: String!
+  subScores: SubScoreMetrics!
+  vulnerabilityWindows: [VulnerabilityWindow!]!
+  audit: AuditMetadata!
+}
+
+type SubScoreMetrics {
+  baseAvailability: Float!
+  durationPenalty: Float!
+  frequencyPenalty: Float!
+}
+
+type VulnerabilityWindow {
+  startTime: String!
+  endTime: String!
+  severityTag: String!
+}
+
+type AuditMetadata {
+  cycleTimestamp: String!
+  calculationLatencyMs: Float!
+  engineVersion: String!
+}
+
+type RiskPrediction {
+  feederId: ID!
+  generatedAt: String!
+  horizonHours: Int!
+  riskScore: Float!
+  riskLevel: String!
+  modelVersion: String!
+  contributingFactors: [FeatureAttribution!]!
+}
+
+type AnomalyDetection {
+  feederId: ID!
+  timestamp: String!
+  isAnomaly: Boolean!
+  severity: String!
+  confidenceScore: Float!
+  layerFlags: LayerFlags!
+  rankedAttributions: [AttributionFactor!]!
+  reasons: [String!]!
+  inferenceLatencyMs: Float!
+  modelVersion: String!
+}
+
+type LayerFlags {
+  layer1Stat: Boolean!
+  layer2Seas: Boolean!
+  layer3Multi: Boolean!
+}
+
+type AttributionFactor {
+  feature: String!
+  magnitude: Float!
+  source: String!
+}
+
+type InterventionRanking {
+  queryId: ID!
+  generatedAt: String!
+  modelVersion: String!
+  rankedAssets: [RankedAsset!]!
+}
+
+type RankedAsset {
+  feederId: ID!
+  rankPosition: Int!
+  priorityScore: Float!
+  priorityTier: String!
+  explanations: [FeatureAttribution!]!
 }`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -566,6 +1182,40 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // childFields_* functions provide shared child field context lookups.
 // Each function is generated once per unique object type, deduplicating the
 // switch statements that were previously inlined in every fieldContext_* function.
+
+func (ec *executionContext) childFields_AcknowledgeAlertResult(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "success":
+		return ec.fieldContext_AcknowledgeAlertResult_success(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AcknowledgeAlertResult", field.Name)
+}
+
+func (ec *executionContext) childFields_AnomalyDetection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "feederId":
+		return ec.fieldContext_AnomalyDetection_feederId(ctx, field)
+	case "timestamp":
+		return ec.fieldContext_AnomalyDetection_timestamp(ctx, field)
+	case "isAnomaly":
+		return ec.fieldContext_AnomalyDetection_isAnomaly(ctx, field)
+	case "severity":
+		return ec.fieldContext_AnomalyDetection_severity(ctx, field)
+	case "confidenceScore":
+		return ec.fieldContext_AnomalyDetection_confidenceScore(ctx, field)
+	case "layerFlags":
+		return ec.fieldContext_AnomalyDetection_layerFlags(ctx, field)
+	case "rankedAttributions":
+		return ec.fieldContext_AnomalyDetection_rankedAttributions(ctx, field)
+	case "reasons":
+		return ec.fieldContext_AnomalyDetection_reasons(ctx, field)
+	case "inferenceLatencyMs":
+		return ec.fieldContext_AnomalyDetection_inferenceLatencyMs(ctx, field)
+	case "modelVersion":
+		return ec.fieldContext_AnomalyDetection_modelVersion(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AnomalyDetection", field.Name)
+}
 
 func (ec *executionContext) childFields_AnomalyEvent(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
@@ -599,6 +1249,30 @@ func (ec *executionContext) childFields_AreaDetail(ctx context.Context, field gr
 	return nil, fmt.Errorf("no field named %q was found under type AreaDetail", field.Name)
 }
 
+func (ec *executionContext) childFields_AttributionFactor(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "feature":
+		return ec.fieldContext_AttributionFactor_feature(ctx, field)
+	case "magnitude":
+		return ec.fieldContext_AttributionFactor_magnitude(ctx, field)
+	case "source":
+		return ec.fieldContext_AttributionFactor_source(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AttributionFactor", field.Name)
+}
+
+func (ec *executionContext) childFields_AuditMetadata(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "cycleTimestamp":
+		return ec.fieldContext_AuditMetadata_cycleTimestamp(ctx, field)
+	case "calculationLatencyMs":
+		return ec.fieldContext_AuditMetadata_calculationLatencyMs(ctx, field)
+	case "engineVersion":
+		return ec.fieldContext_AuditMetadata_engineVersion(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AuditMetadata", field.Name)
+}
+
 func (ec *executionContext) childFields_DashboardSummary(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "overallReliabilityScore":
@@ -609,6 +1283,16 @@ func (ec *executionContext) childFields_DashboardSummary(ctx context.Context, fi
 		return ec.fieldContext_DashboardSummary_totalActiveAlerts(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type DashboardSummary", field.Name)
+}
+
+func (ec *executionContext) childFields_FeatureAttribution(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "featureName":
+		return ec.fieldContext_FeatureAttribution_featureName(ctx, field)
+	case "contribution":
+		return ec.fieldContext_FeatureAttribution_contribution(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type FeatureAttribution", field.Name)
 }
 
 func (ec *executionContext) childFields_FeatureDeviation(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -637,6 +1321,40 @@ func (ec *executionContext) childFields_IntelligenceInsight(ctx context.Context,
 	return nil, fmt.Errorf("no field named %q was found under type IntelligenceInsight", field.Name)
 }
 
+func (ec *executionContext) childFields_InterventionRanking(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "queryId":
+		return ec.fieldContext_InterventionRanking_queryId(ctx, field)
+	case "generatedAt":
+		return ec.fieldContext_InterventionRanking_generatedAt(ctx, field)
+	case "modelVersion":
+		return ec.fieldContext_InterventionRanking_modelVersion(ctx, field)
+	case "rankedAssets":
+		return ec.fieldContext_InterventionRanking_rankedAssets(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type InterventionRanking", field.Name)
+}
+
+func (ec *executionContext) childFields_LayerFlags(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "layer1Stat":
+		return ec.fieldContext_LayerFlags_layer1Stat(ctx, field)
+	case "layer2Seas":
+		return ec.fieldContext_LayerFlags_layer2Seas(ctx, field)
+	case "layer3Multi":
+		return ec.fieldContext_LayerFlags_layer3Multi(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type LayerFlags", field.Name)
+}
+
+func (ec *executionContext) childFields_LogInterventionResult(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "success":
+		return ec.fieldContext_LogInterventionResult_success(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type LogInterventionResult", field.Name)
+}
+
 func (ec *executionContext) childFields_PriorityArea(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "id":
@@ -653,6 +1371,42 @@ func (ec *executionContext) childFields_PriorityArea(ctx context.Context, field 
 	return nil, fmt.Errorf("no field named %q was found under type PriorityArea", field.Name)
 }
 
+func (ec *executionContext) childFields_RankedAsset(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "feederId":
+		return ec.fieldContext_RankedAsset_feederId(ctx, field)
+	case "rankPosition":
+		return ec.fieldContext_RankedAsset_rankPosition(ctx, field)
+	case "priorityScore":
+		return ec.fieldContext_RankedAsset_priorityScore(ctx, field)
+	case "priorityTier":
+		return ec.fieldContext_RankedAsset_priorityTier(ctx, field)
+	case "explanations":
+		return ec.fieldContext_RankedAsset_explanations(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type RankedAsset", field.Name)
+}
+
+func (ec *executionContext) childFields_ReliabilityResult(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "feederId":
+		return ec.fieldContext_ReliabilityResult_feederId(ctx, field)
+	case "reliabilityScore":
+		return ec.fieldContext_ReliabilityResult_reliabilityScore(ctx, field)
+	case "riskBand":
+		return ec.fieldContext_ReliabilityResult_riskBand(ctx, field)
+	case "trajectory":
+		return ec.fieldContext_ReliabilityResult_trajectory(ctx, field)
+	case "subScores":
+		return ec.fieldContext_ReliabilityResult_subScores(ctx, field)
+	case "vulnerabilityWindows":
+		return ec.fieldContext_ReliabilityResult_vulnerabilityWindows(ctx, field)
+	case "audit":
+		return ec.fieldContext_ReliabilityResult_audit(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ReliabilityResult", field.Name)
+}
+
 func (ec *executionContext) childFields_RiskForecastPoint(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "timestamp":
@@ -665,6 +1419,38 @@ func (ec *executionContext) childFields_RiskForecastPoint(ctx context.Context, f
 	return nil, fmt.Errorf("no field named %q was found under type RiskForecastPoint", field.Name)
 }
 
+func (ec *executionContext) childFields_RiskPrediction(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "feederId":
+		return ec.fieldContext_RiskPrediction_feederId(ctx, field)
+	case "generatedAt":
+		return ec.fieldContext_RiskPrediction_generatedAt(ctx, field)
+	case "horizonHours":
+		return ec.fieldContext_RiskPrediction_horizonHours(ctx, field)
+	case "riskScore":
+		return ec.fieldContext_RiskPrediction_riskScore(ctx, field)
+	case "riskLevel":
+		return ec.fieldContext_RiskPrediction_riskLevel(ctx, field)
+	case "modelVersion":
+		return ec.fieldContext_RiskPrediction_modelVersion(ctx, field)
+	case "contributingFactors":
+		return ec.fieldContext_RiskPrediction_contributingFactors(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type RiskPrediction", field.Name)
+}
+
+func (ec *executionContext) childFields_SubScoreMetrics(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "baseAvailability":
+		return ec.fieldContext_SubScoreMetrics_baseAvailability(ctx, field)
+	case "durationPenalty":
+		return ec.fieldContext_SubScoreMetrics_durationPenalty(ctx, field)
+	case "frequencyPenalty":
+		return ec.fieldContext_SubScoreMetrics_frequencyPenalty(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type SubScoreMetrics", field.Name)
+}
+
 func (ec *executionContext) childFields_TrendDataPoint(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "timestamp":
@@ -673,6 +1459,18 @@ func (ec *executionContext) childFields_TrendDataPoint(ctx context.Context, fiel
 		return ec.fieldContext_TrendDataPoint_value(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type TrendDataPoint", field.Name)
+}
+
+func (ec *executionContext) childFields_VulnerabilityWindow(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "startTime":
+		return ec.fieldContext_VulnerabilityWindow_startTime(ctx, field)
+	case "endTime":
+		return ec.fieldContext_VulnerabilityWindow_endTime(ctx, field)
+	case "severityTag":
+		return ec.fieldContext_VulnerabilityWindow_severityTag(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type VulnerabilityWindow", field.Name)
 }
 
 func (ec *executionContext) childFields___Directive(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -791,6 +1589,66 @@ func (ec *executionContext) childFields___Type(ctx context.Context, field graphq
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) field_Mutation_acknowledgeAlert_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "alertId",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["alertId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "notes",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["notes"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_logIntervention_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "alertId",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["alertId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "feederId",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["feederId"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "actionTaken",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["actionTaken"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "notes",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["notes"] = arg3
+	return args, nil
+}
+
 func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -847,6 +1705,42 @@ func (ec *executionContext) field_Query_dashboardSummary_args(ctx context.Contex
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_detectAnomaly_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "feederId",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["feederId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_evaluateReliability_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "feederId",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["feederId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "timestamp",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["timestamp"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_intelligenceInsight_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -858,6 +1752,34 @@ func (ec *executionContext) field_Query_intelligenceInsight_args(ctx context.Con
 		return nil, err
 	}
 	args["anomalyId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_predictRisk_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "feederId",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["feederId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_rankInterventions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "queryId",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["queryId"] = arg0
 	return args, nil
 }
 
@@ -948,6 +1870,277 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ***************************** args.gotpl *****************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _AcknowledgeAlertResult_success(ctx context.Context, field graphql.CollectedField, obj *model.AcknowledgeAlertResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AcknowledgeAlertResult_success(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Success, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AcknowledgeAlertResult_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AcknowledgeAlertResult", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _AnomalyDetection_feederId(ctx context.Context, field graphql.CollectedField, obj *model.AnomalyDetection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AnomalyDetection_feederId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FeederID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AnomalyDetection_feederId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AnomalyDetection", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _AnomalyDetection_timestamp(ctx context.Context, field graphql.CollectedField, obj *model.AnomalyDetection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AnomalyDetection_timestamp(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Timestamp, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AnomalyDetection_timestamp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AnomalyDetection", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AnomalyDetection_isAnomaly(ctx context.Context, field graphql.CollectedField, obj *model.AnomalyDetection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AnomalyDetection_isAnomaly(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.IsAnomaly, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AnomalyDetection_isAnomaly(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AnomalyDetection", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _AnomalyDetection_severity(ctx context.Context, field graphql.CollectedField, obj *model.AnomalyDetection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AnomalyDetection_severity(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Severity, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AnomalyDetection_severity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AnomalyDetection", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AnomalyDetection_confidenceScore(ctx context.Context, field graphql.CollectedField, obj *model.AnomalyDetection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AnomalyDetection_confidenceScore(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ConfidenceScore, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AnomalyDetection_confidenceScore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AnomalyDetection", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _AnomalyDetection_layerFlags(ctx context.Context, field graphql.CollectedField, obj *model.AnomalyDetection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AnomalyDetection_layerFlags(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LayerFlags, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.LayerFlags) graphql.Marshaler {
+			return ec.marshalNLayerFlags2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐLayerFlags(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AnomalyDetection_layerFlags(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AnomalyDetection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_LayerFlags(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AnomalyDetection_rankedAttributions(ctx context.Context, field graphql.CollectedField, obj *model.AnomalyDetection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AnomalyDetection_rankedAttributions(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RankedAttributions, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.AttributionFactor) graphql.Marshaler {
+			return ec.marshalNAttributionFactor2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐAttributionFactorᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AnomalyDetection_rankedAttributions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AnomalyDetection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AttributionFactor(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AnomalyDetection_reasons(ctx context.Context, field graphql.CollectedField, obj *model.AnomalyDetection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AnomalyDetection_reasons(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Reasons, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AnomalyDetection_reasons(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AnomalyDetection", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AnomalyDetection_inferenceLatencyMs(ctx context.Context, field graphql.CollectedField, obj *model.AnomalyDetection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AnomalyDetection_inferenceLatencyMs(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.InferenceLatencyMs, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AnomalyDetection_inferenceLatencyMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AnomalyDetection", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _AnomalyDetection_modelVersion(ctx context.Context, field graphql.CollectedField, obj *model.AnomalyDetection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AnomalyDetection_modelVersion(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ModelVersion, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AnomalyDetection_modelVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AnomalyDetection", field, false, false, errors.New("field of type String does not have child fields"))
+}
 
 func (ec *executionContext) _AnomalyEvent_id(ctx context.Context, field graphql.CollectedField, obj *model.AnomalyEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -1179,6 +2372,144 @@ func (ec *executionContext) fieldContext_AreaDetail_status(_ context.Context, fi
 	return graphql.NewScalarFieldContext("AreaDetail", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _AttributionFactor_feature(ctx context.Context, field graphql.CollectedField, obj *model.AttributionFactor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AttributionFactor_feature(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Feature, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AttributionFactor_feature(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AttributionFactor", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AttributionFactor_magnitude(ctx context.Context, field graphql.CollectedField, obj *model.AttributionFactor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AttributionFactor_magnitude(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Magnitude, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AttributionFactor_magnitude(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AttributionFactor", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _AttributionFactor_source(ctx context.Context, field graphql.CollectedField, obj *model.AttributionFactor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AttributionFactor_source(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AttributionFactor_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AttributionFactor", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AuditMetadata_cycleTimestamp(ctx context.Context, field graphql.CollectedField, obj *model.AuditMetadata) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AuditMetadata_cycleTimestamp(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CycleTimestamp, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AuditMetadata_cycleTimestamp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AuditMetadata", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AuditMetadata_calculationLatencyMs(ctx context.Context, field graphql.CollectedField, obj *model.AuditMetadata) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AuditMetadata_calculationLatencyMs(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CalculationLatencyMs, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AuditMetadata_calculationLatencyMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AuditMetadata", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _AuditMetadata_engineVersion(ctx context.Context, field graphql.CollectedField, obj *model.AuditMetadata) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AuditMetadata_engineVersion(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.EngineVersion, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AuditMetadata_engineVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AuditMetadata", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _DashboardSummary_overallReliabilityScore(ctx context.Context, field graphql.CollectedField, obj *model.DashboardSummary) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1246,6 +2577,52 @@ func (ec *executionContext) _DashboardSummary_totalActiveAlerts(ctx context.Cont
 }
 func (ec *executionContext) fieldContext_DashboardSummary_totalActiveAlerts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("DashboardSummary", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _FeatureAttribution_featureName(ctx context.Context, field graphql.CollectedField, obj *model.FeatureAttribution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_FeatureAttribution_featureName(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FeatureName, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_FeatureAttribution_featureName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("FeatureAttribution", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _FeatureAttribution_contribution(ctx context.Context, field graphql.CollectedField, obj *model.FeatureAttribution) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_FeatureAttribution_contribution(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Contribution, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_FeatureAttribution_contribution(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("FeatureAttribution", field, false, false, errors.New("field of type Float does not have child fields"))
 }
 
 func (ec *executionContext) _FeatureDeviation_featureName(ctx context.Context, field graphql.CollectedField, obj *model.FeatureDeviation) (ret graphql.Marshaler) {
@@ -1414,6 +2791,287 @@ func (ec *executionContext) fieldContext_IntelligenceInsight_featureDeviations(_
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_FeatureDeviation(ctx, field)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _InterventionRanking_queryId(ctx context.Context, field graphql.CollectedField, obj *model.InterventionRanking) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_InterventionRanking_queryId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.QueryID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_InterventionRanking_queryId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("InterventionRanking", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _InterventionRanking_generatedAt(ctx context.Context, field graphql.CollectedField, obj *model.InterventionRanking) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_InterventionRanking_generatedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.GeneratedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_InterventionRanking_generatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("InterventionRanking", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _InterventionRanking_modelVersion(ctx context.Context, field graphql.CollectedField, obj *model.InterventionRanking) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_InterventionRanking_modelVersion(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ModelVersion, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_InterventionRanking_modelVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("InterventionRanking", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _InterventionRanking_rankedAssets(ctx context.Context, field graphql.CollectedField, obj *model.InterventionRanking) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_InterventionRanking_rankedAssets(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RankedAssets, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.RankedAsset) graphql.Marshaler {
+			return ec.marshalNRankedAsset2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐRankedAssetᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_InterventionRanking_rankedAssets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "InterventionRanking",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_RankedAsset(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _LayerFlags_layer1Stat(ctx context.Context, field graphql.CollectedField, obj *model.LayerFlags) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LayerFlags_layer1Stat(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Layer1Stat, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LayerFlags_layer1Stat(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LayerFlags", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _LayerFlags_layer2Seas(ctx context.Context, field graphql.CollectedField, obj *model.LayerFlags) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LayerFlags_layer2Seas(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Layer2Seas, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LayerFlags_layer2Seas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LayerFlags", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _LayerFlags_layer3Multi(ctx context.Context, field graphql.CollectedField, obj *model.LayerFlags) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LayerFlags_layer3Multi(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Layer3Multi, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LayerFlags_layer3Multi(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LayerFlags", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _LogInterventionResult_success(ctx context.Context, field graphql.CollectedField, obj *model.LogInterventionResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_LogInterventionResult_success(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Success, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_LogInterventionResult_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("LogInterventionResult", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Mutation_acknowledgeAlert(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_acknowledgeAlert(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().AcknowledgeAlert(ctx, fc.Args["alertId"].(string), fc.Args["notes"].(*string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AcknowledgeAlertResult) graphql.Marshaler {
+			return ec.marshalNAcknowledgeAlertResult2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐAcknowledgeAlertResult(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_acknowledgeAlert(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AcknowledgeAlertResult(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_acknowledgeAlert_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_logIntervention(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_logIntervention(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().LogIntervention(ctx, fc.Args["alertId"].(string), fc.Args["feederId"].(string), fc.Args["actionTaken"].(string), fc.Args["notes"].(*string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.LogInterventionResult) graphql.Marshaler {
+			return ec.marshalNLogInterventionResult2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐLogInterventionResult(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_logIntervention(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_LogInterventionResult(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_logIntervention_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -1829,6 +3487,182 @@ func (ec *executionContext) fieldContext_Query_intelligenceInsight(ctx context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_evaluateReliability(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_evaluateReliability(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().EvaluateReliability(ctx, fc.Args["feederId"].(string), fc.Args["timestamp"].(*string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ReliabilityResult) graphql.Marshaler {
+			return ec.marshalNReliabilityResult2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐReliabilityResult(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_evaluateReliability(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ReliabilityResult(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_evaluateReliability_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_predictRisk(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_predictRisk(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().PredictRisk(ctx, fc.Args["feederId"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.RiskPrediction) graphql.Marshaler {
+			return ec.marshalNRiskPrediction2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐRiskPrediction(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_predictRisk(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_RiskPrediction(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_predictRisk_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_detectAnomaly(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_detectAnomaly(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().DetectAnomaly(ctx, fc.Args["feederId"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AnomalyDetection) graphql.Marshaler {
+			return ec.marshalNAnomalyDetection2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐAnomalyDetection(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_detectAnomaly(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AnomalyDetection(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_detectAnomaly_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_rankInterventions(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_rankInterventions(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().RankInterventions(ctx, fc.Args["queryId"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.InterventionRanking) graphql.Marshaler {
+			return ec.marshalNInterventionRanking2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐInterventionRanking(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_rankInterventions(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_InterventionRanking(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_rankInterventions_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1905,6 +3739,318 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _RankedAsset_feederId(ctx context.Context, field graphql.CollectedField, obj *model.RankedAsset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RankedAsset_feederId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FeederID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RankedAsset_feederId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RankedAsset", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _RankedAsset_rankPosition(ctx context.Context, field graphql.CollectedField, obj *model.RankedAsset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RankedAsset_rankPosition(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RankPosition, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RankedAsset_rankPosition(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RankedAsset", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _RankedAsset_priorityScore(ctx context.Context, field graphql.CollectedField, obj *model.RankedAsset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RankedAsset_priorityScore(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PriorityScore, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RankedAsset_priorityScore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RankedAsset", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _RankedAsset_priorityTier(ctx context.Context, field graphql.CollectedField, obj *model.RankedAsset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RankedAsset_priorityTier(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PriorityTier, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RankedAsset_priorityTier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RankedAsset", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _RankedAsset_explanations(ctx context.Context, field graphql.CollectedField, obj *model.RankedAsset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RankedAsset_explanations(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Explanations, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.FeatureAttribution) graphql.Marshaler {
+			return ec.marshalNFeatureAttribution2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐFeatureAttributionᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RankedAsset_explanations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RankedAsset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_FeatureAttribution(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReliabilityResult_feederId(ctx context.Context, field graphql.CollectedField, obj *model.ReliabilityResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReliabilityResult_feederId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FeederID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReliabilityResult_feederId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReliabilityResult", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _ReliabilityResult_reliabilityScore(ctx context.Context, field graphql.CollectedField, obj *model.ReliabilityResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReliabilityResult_reliabilityScore(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ReliabilityScore, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReliabilityResult_reliabilityScore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReliabilityResult", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ReliabilityResult_riskBand(ctx context.Context, field graphql.CollectedField, obj *model.ReliabilityResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReliabilityResult_riskBand(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RiskBand, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReliabilityResult_riskBand(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReliabilityResult", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ReliabilityResult_trajectory(ctx context.Context, field graphql.CollectedField, obj *model.ReliabilityResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReliabilityResult_trajectory(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Trajectory, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReliabilityResult_trajectory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReliabilityResult", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ReliabilityResult_subScores(ctx context.Context, field graphql.CollectedField, obj *model.ReliabilityResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReliabilityResult_subScores(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SubScores, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.SubScoreMetrics) graphql.Marshaler {
+			return ec.marshalNSubScoreMetrics2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐSubScoreMetrics(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReliabilityResult_subScores(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReliabilityResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_SubScoreMetrics(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReliabilityResult_vulnerabilityWindows(ctx context.Context, field graphql.CollectedField, obj *model.ReliabilityResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReliabilityResult_vulnerabilityWindows(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.VulnerabilityWindows, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.VulnerabilityWindow) graphql.Marshaler {
+			return ec.marshalNVulnerabilityWindow2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐVulnerabilityWindowᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReliabilityResult_vulnerabilityWindows(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReliabilityResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_VulnerabilityWindow(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReliabilityResult_audit(ctx context.Context, field graphql.CollectedField, obj *model.ReliabilityResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReliabilityResult_audit(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Audit, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AuditMetadata) graphql.Marshaler {
+			return ec.marshalNAuditMetadata2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐAuditMetadata(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReliabilityResult_audit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReliabilityResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AuditMetadata(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _RiskForecastPoint_timestamp(ctx context.Context, field graphql.CollectedField, obj *model.RiskForecastPoint) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1972,6 +4118,245 @@ func (ec *executionContext) _RiskForecastPoint_isHistorical(ctx context.Context,
 }
 func (ec *executionContext) fieldContext_RiskForecastPoint_isHistorical(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("RiskForecastPoint", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _RiskPrediction_feederId(ctx context.Context, field graphql.CollectedField, obj *model.RiskPrediction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RiskPrediction_feederId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FeederID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RiskPrediction_feederId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RiskPrediction", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _RiskPrediction_generatedAt(ctx context.Context, field graphql.CollectedField, obj *model.RiskPrediction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RiskPrediction_generatedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.GeneratedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RiskPrediction_generatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RiskPrediction", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _RiskPrediction_horizonHours(ctx context.Context, field graphql.CollectedField, obj *model.RiskPrediction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RiskPrediction_horizonHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.HorizonHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RiskPrediction_horizonHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RiskPrediction", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _RiskPrediction_riskScore(ctx context.Context, field graphql.CollectedField, obj *model.RiskPrediction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RiskPrediction_riskScore(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RiskScore, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RiskPrediction_riskScore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RiskPrediction", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _RiskPrediction_riskLevel(ctx context.Context, field graphql.CollectedField, obj *model.RiskPrediction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RiskPrediction_riskLevel(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RiskLevel, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RiskPrediction_riskLevel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RiskPrediction", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _RiskPrediction_modelVersion(ctx context.Context, field graphql.CollectedField, obj *model.RiskPrediction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RiskPrediction_modelVersion(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ModelVersion, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RiskPrediction_modelVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RiskPrediction", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _RiskPrediction_contributingFactors(ctx context.Context, field graphql.CollectedField, obj *model.RiskPrediction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RiskPrediction_contributingFactors(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ContributingFactors, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.FeatureAttribution) graphql.Marshaler {
+			return ec.marshalNFeatureAttribution2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐFeatureAttributionᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RiskPrediction_contributingFactors(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RiskPrediction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_FeatureAttribution(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubScoreMetrics_baseAvailability(ctx context.Context, field graphql.CollectedField, obj *model.SubScoreMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_SubScoreMetrics_baseAvailability(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.BaseAvailability, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_SubScoreMetrics_baseAvailability(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("SubScoreMetrics", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _SubScoreMetrics_durationPenalty(ctx context.Context, field graphql.CollectedField, obj *model.SubScoreMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_SubScoreMetrics_durationPenalty(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DurationPenalty, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_SubScoreMetrics_durationPenalty(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("SubScoreMetrics", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _SubScoreMetrics_frequencyPenalty(ctx context.Context, field graphql.CollectedField, obj *model.SubScoreMetrics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_SubScoreMetrics_frequencyPenalty(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FrequencyPenalty, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_SubScoreMetrics_frequencyPenalty(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("SubScoreMetrics", field, false, false, errors.New("field of type Float does not have child fields"))
 }
 
 func (ec *executionContext) _Subscription_operationalEventStream(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
@@ -2050,6 +4435,75 @@ func (ec *executionContext) _TrendDataPoint_value(ctx context.Context, field gra
 }
 func (ec *executionContext) fieldContext_TrendDataPoint_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("TrendDataPoint", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _VulnerabilityWindow_startTime(ctx context.Context, field graphql.CollectedField, obj *model.VulnerabilityWindow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VulnerabilityWindow_startTime(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StartTime, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VulnerabilityWindow_startTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VulnerabilityWindow", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _VulnerabilityWindow_endTime(ctx context.Context, field graphql.CollectedField, obj *model.VulnerabilityWindow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VulnerabilityWindow_endTime(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.EndTime, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VulnerabilityWindow_endTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VulnerabilityWindow", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _VulnerabilityWindow_severityTag(ctx context.Context, field graphql.CollectedField, obj *model.VulnerabilityWindow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_VulnerabilityWindow_severityTag(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SeverityTag, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_VulnerabilityWindow_severityTag(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("VulnerabilityWindow", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -3119,6 +5573,127 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** object.gotpl ****************************
 
+var acknowledgeAlertResultImplementors = []string{"AcknowledgeAlertResult"}
+
+func (ec *executionContext) _AcknowledgeAlertResult(ctx context.Context, sel ast.SelectionSet, obj *model.AcknowledgeAlertResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, acknowledgeAlertResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AcknowledgeAlertResult")
+		case "success":
+			out.Values[i] = ec._AcknowledgeAlertResult_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var anomalyDetectionImplementors = []string{"AnomalyDetection"}
+
+func (ec *executionContext) _AnomalyDetection(ctx context.Context, sel ast.SelectionSet, obj *model.AnomalyDetection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, anomalyDetectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AnomalyDetection")
+		case "feederId":
+			out.Values[i] = ec._AnomalyDetection_feederId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timestamp":
+			out.Values[i] = ec._AnomalyDetection_timestamp(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "isAnomaly":
+			out.Values[i] = ec._AnomalyDetection_isAnomaly(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "severity":
+			out.Values[i] = ec._AnomalyDetection_severity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "confidenceScore":
+			out.Values[i] = ec._AnomalyDetection_confidenceScore(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "layerFlags":
+			out.Values[i] = ec._AnomalyDetection_layerFlags(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rankedAttributions":
+			out.Values[i] = ec._AnomalyDetection_rankedAttributions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reasons":
+			out.Values[i] = ec._AnomalyDetection_reasons(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inferenceLatencyMs":
+			out.Values[i] = ec._AnomalyDetection_inferenceLatencyMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "modelVersion":
+			out.Values[i] = ec._AnomalyDetection_modelVersion(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var anomalyEventImplementors = []string{"AnomalyEvent"}
 
 func (ec *executionContext) _AnomalyEvent(ctx context.Context, sel ast.SelectionSet, obj *model.AnomalyEvent) graphql.Marshaler {
@@ -3235,6 +5810,102 @@ func (ec *executionContext) _AreaDetail(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
+var attributionFactorImplementors = []string{"AttributionFactor"}
+
+func (ec *executionContext) _AttributionFactor(ctx context.Context, sel ast.SelectionSet, obj *model.AttributionFactor) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, attributionFactorImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AttributionFactor")
+		case "feature":
+			out.Values[i] = ec._AttributionFactor_feature(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "magnitude":
+			out.Values[i] = ec._AttributionFactor_magnitude(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "source":
+			out.Values[i] = ec._AttributionFactor_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var auditMetadataImplementors = []string{"AuditMetadata"}
+
+func (ec *executionContext) _AuditMetadata(ctx context.Context, sel ast.SelectionSet, obj *model.AuditMetadata) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, auditMetadataImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AuditMetadata")
+		case "cycleTimestamp":
+			out.Values[i] = ec._AuditMetadata_cycleTimestamp(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "calculationLatencyMs":
+			out.Values[i] = ec._AuditMetadata_calculationLatencyMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "engineVersion":
+			out.Values[i] = ec._AuditMetadata_engineVersion(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var dashboardSummaryImplementors = []string{"DashboardSummary"}
 
 func (ec *executionContext) _DashboardSummary(ctx context.Context, sel ast.SelectionSet, obj *model.DashboardSummary) graphql.Marshaler {
@@ -3259,6 +5930,49 @@ func (ec *executionContext) _DashboardSummary(ctx context.Context, sel ast.Selec
 			}
 		case "totalActiveAlerts":
 			out.Values[i] = ec._DashboardSummary_totalActiveAlerts(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var featureAttributionImplementors = []string{"FeatureAttribution"}
+
+func (ec *executionContext) _FeatureAttribution(ctx context.Context, sel ast.SelectionSet, obj *model.FeatureAttribution) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, featureAttributionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FeatureAttribution")
+		case "featureName":
+			out.Values[i] = ec._FeatureAttribution_featureName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "contribution":
+			out.Values[i] = ec._FeatureAttribution_contribution(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -3360,6 +6074,200 @@ func (ec *executionContext) _IntelligenceInsight(ctx context.Context, sel ast.Se
 			}
 		case "featureDeviations":
 			out.Values[i] = ec._IntelligenceInsight_featureDeviations(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var interventionRankingImplementors = []string{"InterventionRanking"}
+
+func (ec *executionContext) _InterventionRanking(ctx context.Context, sel ast.SelectionSet, obj *model.InterventionRanking) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, interventionRankingImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("InterventionRanking")
+		case "queryId":
+			out.Values[i] = ec._InterventionRanking_queryId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "generatedAt":
+			out.Values[i] = ec._InterventionRanking_generatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "modelVersion":
+			out.Values[i] = ec._InterventionRanking_modelVersion(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rankedAssets":
+			out.Values[i] = ec._InterventionRanking_rankedAssets(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var layerFlagsImplementors = []string{"LayerFlags"}
+
+func (ec *executionContext) _LayerFlags(ctx context.Context, sel ast.SelectionSet, obj *model.LayerFlags) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, layerFlagsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("LayerFlags")
+		case "layer1Stat":
+			out.Values[i] = ec._LayerFlags_layer1Stat(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "layer2Seas":
+			out.Values[i] = ec._LayerFlags_layer2Seas(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "layer3Multi":
+			out.Values[i] = ec._LayerFlags_layer3Multi(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var logInterventionResultImplementors = []string{"LogInterventionResult"}
+
+func (ec *executionContext) _LogInterventionResult(ctx context.Context, sel ast.SelectionSet, obj *model.LogInterventionResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, logInterventionResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("LogInterventionResult")
+		case "success":
+			out.Values[i] = ec._LogInterventionResult_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var mutationImplementors = []string{"Mutation"}
+
+func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, mutationImplementors)
+	ctx = graphql.WithFieldContext(ctx, &graphql.FieldContext{
+		Object: "Mutation",
+	})
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		innerCtx := graphql.WithRootFieldContext(ctx, &graphql.RootFieldContext{
+			Object: field.Name,
+			Field:  field,
+		})
+
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Mutation")
+		case "acknowledgeAlert":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_acknowledgeAlert(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "logIntervention":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_logIntervention(ctx, field)
+			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -3616,6 +6524,94 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "evaluateReliability":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_evaluateReliability(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "predictRisk":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_predictRisk(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "detectAnomaly":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_detectAnomaly(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "rankInterventions":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_rankInterventions(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -3629,6 +6625,132 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			})
 			if out.Values[i] == graphql.RequiredNull {
 				atomic.AddUint32(&out.Invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var rankedAssetImplementors = []string{"RankedAsset"}
+
+func (ec *executionContext) _RankedAsset(ctx context.Context, sel ast.SelectionSet, obj *model.RankedAsset) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, rankedAssetImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RankedAsset")
+		case "feederId":
+			out.Values[i] = ec._RankedAsset_feederId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rankPosition":
+			out.Values[i] = ec._RankedAsset_rankPosition(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "priorityScore":
+			out.Values[i] = ec._RankedAsset_priorityScore(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "priorityTier":
+			out.Values[i] = ec._RankedAsset_priorityTier(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "explanations":
+			out.Values[i] = ec._RankedAsset_explanations(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var reliabilityResultImplementors = []string{"ReliabilityResult"}
+
+func (ec *executionContext) _ReliabilityResult(ctx context.Context, sel ast.SelectionSet, obj *model.ReliabilityResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, reliabilityResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ReliabilityResult")
+		case "feederId":
+			out.Values[i] = ec._ReliabilityResult_feederId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reliabilityScore":
+			out.Values[i] = ec._ReliabilityResult_reliabilityScore(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "riskBand":
+			out.Values[i] = ec._ReliabilityResult_riskBand(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "trajectory":
+			out.Values[i] = ec._ReliabilityResult_trajectory(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subScores":
+			out.Values[i] = ec._ReliabilityResult_subScores(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "vulnerabilityWindows":
+			out.Values[i] = ec._ReliabilityResult_vulnerabilityWindows(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "audit":
+			out.Values[i] = ec._ReliabilityResult_audit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -3699,6 +6821,122 @@ func (ec *executionContext) _RiskForecastPoint(ctx context.Context, sel ast.Sele
 	return out
 }
 
+var riskPredictionImplementors = []string{"RiskPrediction"}
+
+func (ec *executionContext) _RiskPrediction(ctx context.Context, sel ast.SelectionSet, obj *model.RiskPrediction) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, riskPredictionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RiskPrediction")
+		case "feederId":
+			out.Values[i] = ec._RiskPrediction_feederId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "generatedAt":
+			out.Values[i] = ec._RiskPrediction_generatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "horizonHours":
+			out.Values[i] = ec._RiskPrediction_horizonHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "riskScore":
+			out.Values[i] = ec._RiskPrediction_riskScore(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "riskLevel":
+			out.Values[i] = ec._RiskPrediction_riskLevel(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "modelVersion":
+			out.Values[i] = ec._RiskPrediction_modelVersion(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "contributingFactors":
+			out.Values[i] = ec._RiskPrediction_contributingFactors(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var subScoreMetricsImplementors = []string{"SubScoreMetrics"}
+
+func (ec *executionContext) _SubScoreMetrics(ctx context.Context, sel ast.SelectionSet, obj *model.SubScoreMetrics) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, subScoreMetricsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SubScoreMetrics")
+		case "baseAvailability":
+			out.Values[i] = ec._SubScoreMetrics_baseAvailability(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "durationPenalty":
+			out.Values[i] = ec._SubScoreMetrics_durationPenalty(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "frequencyPenalty":
+			out.Values[i] = ec._SubScoreMetrics_frequencyPenalty(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var subscriptionImplementors = []string{"Subscription"}
 
 func (ec *executionContext) _Subscription(ctx context.Context, sel ast.SelectionSet) func(ctx context.Context) graphql.Marshaler {
@@ -3738,6 +6976,54 @@ func (ec *executionContext) _TrendDataPoint(ctx context.Context, sel ast.Selecti
 			}
 		case "value":
 			out.Values[i] = ec._TrendDataPoint_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var vulnerabilityWindowImplementors = []string{"VulnerabilityWindow"}
+
+func (ec *executionContext) _VulnerabilityWindow(ctx context.Context, sel ast.SelectionSet, obj *model.VulnerabilityWindow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, vulnerabilityWindowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VulnerabilityWindow")
+		case "startTime":
+			out.Values[i] = ec._VulnerabilityWindow_startTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "endTime":
+			out.Values[i] = ec._VulnerabilityWindow_endTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "severityTag":
+			out.Values[i] = ec._VulnerabilityWindow_severityTag(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -4154,6 +7440,26 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) marshalNAcknowledgeAlertResult2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐAcknowledgeAlertResult(ctx context.Context, sel ast.SelectionSet, v *model.AcknowledgeAlertResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AcknowledgeAlertResult(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAnomalyDetection2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐAnomalyDetection(ctx context.Context, sel ast.SelectionSet, v *model.AnomalyDetection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AnomalyDetection(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNAnomalyEvent2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐAnomalyEventᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AnomalyEvent) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -4190,6 +7496,42 @@ func (ec *executionContext) marshalNAreaDetail2ᚖgridsenseᚑaiᚋbackendᚋser
 	return ec._AreaDetail(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNAttributionFactor2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐAttributionFactorᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AttributionFactor) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAttributionFactor2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐAttributionFactor(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAttributionFactor2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐAttributionFactor(ctx context.Context, sel ast.SelectionSet, v *model.AttributionFactor) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AttributionFactor(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAuditMetadata2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐAuditMetadata(ctx context.Context, sel ast.SelectionSet, v *model.AuditMetadata) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AuditMetadata(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v any) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -4214,6 +7556,32 @@ func (ec *executionContext) marshalNDashboardSummary2ᚖgridsenseᚑaiᚋbackend
 		return graphql.Null
 	}
 	return ec._DashboardSummary(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNFeatureAttribution2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐFeatureAttributionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.FeatureAttribution) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNFeatureAttribution2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐFeatureAttribution(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNFeatureAttribution2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐFeatureAttribution(ctx context.Context, sel ast.SelectionSet, v *model.FeatureAttribution) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._FeatureAttribution(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNFeatureDeviation2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐFeatureDeviationᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.FeatureDeviation) graphql.Marshaler {
@@ -4300,6 +7668,36 @@ func (ec *executionContext) marshalNIntelligenceInsight2ᚖgridsenseᚑaiᚋback
 	return ec._IntelligenceInsight(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNInterventionRanking2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐInterventionRanking(ctx context.Context, sel ast.SelectionSet, v *model.InterventionRanking) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._InterventionRanking(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNLayerFlags2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐLayerFlags(ctx context.Context, sel ast.SelectionSet, v *model.LayerFlags) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._LayerFlags(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNLogInterventionResult2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐLogInterventionResult(ctx context.Context, sel ast.SelectionSet, v *model.LogInterventionResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._LogInterventionResult(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNPriorityArea2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐPriorityAreaᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.PriorityArea) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -4326,6 +7724,42 @@ func (ec *executionContext) marshalNPriorityArea2ᚖgridsenseᚑaiᚋbackendᚋs
 	return ec._PriorityArea(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNRankedAsset2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐRankedAssetᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.RankedAsset) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNRankedAsset2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐRankedAsset(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNRankedAsset2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐRankedAsset(ctx context.Context, sel ast.SelectionSet, v *model.RankedAsset) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._RankedAsset(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNReliabilityResult2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐReliabilityResult(ctx context.Context, sel ast.SelectionSet, v *model.ReliabilityResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ReliabilityResult(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNRiskForecastPoint2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐRiskForecastPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.RiskForecastPoint) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -4350,6 +7784,16 @@ func (ec *executionContext) marshalNRiskForecastPoint2ᚖgridsenseᚑaiᚋbacken
 		return graphql.Null
 	}
 	return ec._RiskForecastPoint(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNRiskPrediction2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐRiskPrediction(ctx context.Context, sel ast.SelectionSet, v *model.RiskPrediction) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._RiskPrediction(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
@@ -4397,6 +7841,16 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 	return ret
 }
 
+func (ec *executionContext) marshalNSubScoreMetrics2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐSubScoreMetrics(ctx context.Context, sel ast.SelectionSet, v *model.SubScoreMetrics) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SubScoreMetrics(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNTrendDataPoint2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐTrendDataPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.TrendDataPoint) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -4421,6 +7875,32 @@ func (ec *executionContext) marshalNTrendDataPoint2ᚖgridsenseᚑaiᚋbackend�
 		return graphql.Null
 	}
 	return ec._TrendDataPoint(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNVulnerabilityWindow2ᚕᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐVulnerabilityWindowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.VulnerabilityWindow) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNVulnerabilityWindow2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐVulnerabilityWindow(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNVulnerabilityWindow2ᚖgridsenseᚑaiᚋbackendᚋservicesᚋdashboardᚑbffᚋgraphᚋmodelᚐVulnerabilityWindow(ctx context.Context, sel ast.SelectionSet, v *model.VulnerabilityWindow) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._VulnerabilityWindow(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

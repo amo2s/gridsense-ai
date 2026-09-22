@@ -44,10 +44,10 @@ func NewRedisClient(ctx context.Context, redisURL string) (*RedisClient, error) 
 	return &RedisClient{rdb: rdb}, nil
 }
 
-// BuildTenantKey enforces strict logical isolation by universally prefixing cache keys with the tenant ID.
-// Format: dashboard:{tenant_id}:{resource}:{aggregation}:{version}
-func BuildTenantKey(tenantID, resource, aggregation, version string) string {
-	return fmt.Sprintf("dashboard:%s:%s:%s:%s", tenantID, resource, aggregation, version)
+// BuildCacheKey builds a namespaced cache key.
+// Format: dashboard:{resource}:{aggregation}:{version}
+func BuildCacheKey(resource, aggregation, version string) string {
+	return fmt.Sprintf("dashboard:%s:%s:%s", resource, aggregation, version)
 }
 
 // Get executes a highly optimized read against the cache.
@@ -82,7 +82,7 @@ func (c *RedisClient) Invalidate(ctx context.Context, key string) error {
 	return nil
 }
 
-// Subscribe opens a Pub/Sub channel connection. 
+// Subscribe opens a Pub/Sub channel connection.
 // This is strictly used by the internal/realtime subscription manager.
 func (c *RedisClient) Subscribe(ctx context.Context, channel string) *redis.PubSub {
 	return c.rdb.Subscribe(ctx, channel)

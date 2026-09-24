@@ -13,8 +13,6 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi/v5"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"gridsense-ai/backend/services/dashboard-bff/config"
 	"gridsense-ai/backend/services/dashboard-bff/graph"
@@ -23,7 +21,6 @@ import (
 	"gridsense-ai/backend/services/dashboard-bff/internal/grpcclient"
 	"gridsense-ai/backend/services/dashboard-bff/internal/middleware"
 	"gridsense-ai/backend/services/dashboard-bff/internal/realtime"
-	pb "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1/proto"
 )
 
 func main() {
@@ -43,22 +40,13 @@ func main() {
 	log.Println("Redis connection pool established.")
 
 	// 3. Dependency Bootstrapping: gRPC Gateway Client
-	grpcConn, err := grpc.DialContext(
-		ctx,
-		cfg.GatewayGRPCURL,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(), // Fail fast if Gateway is down at startup
-		grpc.WithUnaryInterceptor(middleware.UnaryTenantPropagator()),
-		grpc.WithStreamInterceptor(middleware.StreamTenantPropagator()),
-	)
+	// NewGatewayClient owns the dial options (keepalive, auth propagation
+	// interceptors) so they live in exactly one place. Do not re-dial here.
+	gatewayClient, err := grpcclient.NewGatewayClient(cfg.GatewayGRPCURL)
 	if err != nil {
 		log.Fatalf("CRITICAL: Failed to establish gRPC connection to Gateway: %v", err)
 	}
-	defer grpcConn.Close()
-	gatewayClient := &grpcclient.GatewayClient{
-		Conn:   grpcConn,
-		Client: pb.NewGatewayServiceClient(grpcConn),
-	}
+	defer gatewayClient.Close()
 	log.Println("gRPC Gateway connection established.")
 
 	// 4. Domain Wiring: Real-Time Subscriptions
@@ -71,7 +59,6 @@ func main() {
 		Cache:         redisClient,
 		Subscriptions: subscriptionManager,
 	}
-	// FIXED: Using the generated package for gqlgen schema construction
 	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 
 	// 6. Routing & Middleware

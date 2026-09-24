@@ -7,39 +7,126 @@ package graph
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
+	"time"
+
 	"gridsense-ai/backend/services/dashboard-bff/graph/generated"
 	"gridsense-ai/backend/services/dashboard-bff/graph/model"
+	"gridsense-ai/backend/services/dashboard-bff/internal/cache"
 	pb "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1/proto"
 )
 
+// cacheVersion is bumped whenever a cached response shape changes, so stale
+// entries from an old deploy are never unmarshalled into a new struct.
+const cacheVersion = "v1"
+
+// dashboardAggregateTTL bounds how long a cached dashboard aggregate is served
+// before falling through to a fresh Gateway call.
+const dashboardAggregateTTL = 30 * time.Second
+
+// getCached is a small cache-aside helper: on a hit it unmarshals into dest and
+// returns true; on a miss, or any cache error, it fails open (logs and returns
+// false) so a broken cache never blocks a request.
+func getCached(ctx context.Context, c *cache.RedisClient, key string, dest interface{}) bool {
+	data, err := c.Get(ctx, key)
+	if err != nil {
+		if !errors.Is(err, cache.ErrCacheMiss) {
+			log.Printf("cache get failed for key %s: %v", key, err)
+		}
+		return false
+	}
+	if err := json.Unmarshal(data, dest); err != nil {
+		log.Printf("cache unmarshal failed for key %s: %v", key, err)
+		return false
+	}
+	return true
+}
+
+// setCached best-effort populates the cache; failures are logged, never returned,
+// since a failed write should not fail the request that already has its data.
+func setCached(ctx context.Context, c *cache.RedisClient, key string, value interface{}, ttl time.Duration) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		log.Printf("cache marshal failed for key %s: %v", key, err)
+		return
+	}
+	if err := c.Set(ctx, key, data, ttl); err != nil {
+		log.Printf("cache set failed for key %s: %v", key, err)
+	}
+}
+
 // AcknowledgeAlert is the resolver for the acknowledgeAlert field.
 func (r *mutationResolver) AcknowledgeAlert(ctx context.Context, alertID string, notes *string) (*model.AcknowledgeAlertResult, error) {
-	panic(fmt.Errorf("not implemented: AcknowledgeAlert - acknowledgeAlert"))
+	req := &pb.AcknowledgeAlertRequest{AlertId: alertID}
+	if notes != nil {
+		req.Notes = *notes
+	}
+
+	res, err := r.GatewayClient.Client.AcknowledgeAlert(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to acknowledge alert: %w", err)
+	}
+
+	return &model.AcknowledgeAlertResult{Success: res.Success}, nil
 }
 
 // LogIntervention is the resolver for the logIntervention field.
 func (r *mutationResolver) LogIntervention(ctx context.Context, alertID string, feederID string, actionTaken string, notes *string) (*model.LogInterventionResult, error) {
-	panic(fmt.Errorf("not implemented: LogIntervention - logIntervention"))
+	req := &pb.LogInterventionRequest{
+		AlertId:     alertID,
+		FeederId:    feederID,
+		ActionTaken: actionTaken,
+	}
+	if notes != nil {
+		req.Notes = *notes
+	}
+	// Timestamp left empty: the Gateway defaults it to now (UTC) when unset.
+
+	res, err := r.GatewayClient.Client.LogIntervention(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to log intervention: %w", err)
+	}
+
+	return &model.LogInterventionResult{Success: res.Success}, nil
 }
 
 // DashboardSummary is the resolver for the dashboardSummary field.
 func (r *queryResolver) DashboardSummary(ctx context.Context, timeRange string) (*model.DashboardSummary, error) {
+	key := cache.BuildCacheKey("dashboard_summary", timeRange, cacheVersion)
+
+	var cached model.DashboardSummary
+	if getCached(ctx, r.Cache, key, &cached) {
+		return &cached, nil
+	}
+
 	req := &pb.DashboardSummaryRequest{TimeRange: timeRange}
 	res, err := r.GatewayClient.Client.GetDashboardSummary(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get dashboard summary: %w", err)
 	}
 
-	return &model.DashboardSummary{
+	result := &model.DashboardSummary{
 		OverallReliabilityScore: res.OverallReliabilityScore,
 		ActiveHighRiskAreas:     int(res.ActiveHighRiskAreas),
 		TotalActiveAlerts:       int(res.TotalActiveAlerts),
-	}, nil
+	}
+
+	setCached(ctx, r.Cache, key, result, dashboardAggregateTTL)
+	return result, nil
 }
 
 // PriorityAreas is the resolver for the priorityAreas field.
 func (r *queryResolver) PriorityAreas(ctx context.Context) ([]*model.PriorityArea, error) {
+	key := cache.BuildCacheKey("priority_areas", "all", cacheVersion)
+
+	var cached []*model.PriorityArea
+	if getCached(ctx, r.Cache, key, &cached) {
+		return cached, nil
+	}
+
 	req := &pb.PriorityAreasRequest{}
 	res, err := r.GatewayClient.Client.GetPriorityAreas(ctx, req)
 	if err != nil {
@@ -56,11 +143,20 @@ func (r *queryResolver) PriorityAreas(ctx context.Context) ([]*model.PriorityAre
 			Status:      a.Status,
 		})
 	}
+
+	setCached(ctx, r.Cache, key, areas, dashboardAggregateTTL)
 	return areas, nil
 }
 
 // ReliabilityTrend is the resolver for the reliabilityTrend field.
 func (r *queryResolver) ReliabilityTrend(ctx context.Context, timeRange string) ([]*model.TrendDataPoint, error) {
+	key := cache.BuildCacheKey("reliability_trend", timeRange, cacheVersion)
+
+	var cached []*model.TrendDataPoint
+	if getCached(ctx, r.Cache, key, &cached) {
+		return cached, nil
+	}
+
 	req := &pb.ReliabilityMetricsRequest{
 		AreaId:    "global", // Defaulting to global for the system-wide trend
 		TimeRange: timeRange,
@@ -77,23 +173,35 @@ func (r *queryResolver) ReliabilityTrend(ctx context.Context, timeRange string) 
 			Value:     p.Value,
 		})
 	}
+
+	setCached(ctx, r.Cache, key, trend, dashboardAggregateTTL)
 	return trend, nil
 }
 
 // AreaDetail is the resolver for the areaDetail field.
 func (r *queryResolver) AreaDetail(ctx context.Context, id string) (*model.AreaDetail, error) {
+	key := cache.BuildCacheKey("area_detail", id, cacheVersion)
+
+	var cached model.AreaDetail
+	if getCached(ctx, r.Cache, key, &cached) {
+		return &cached, nil
+	}
+
 	req := &pb.AreaDetailRequest{Id: id}
 	res, err := r.GatewayClient.Client.GetAreaDetail(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get area detail: %w", err)
 	}
 
-	return &model.AreaDetail{
+	result := &model.AreaDetail{
 		ID:               res.Id,
 		Name:             res.Name,
 		CurrentRiskScore: res.CurrentRiskScore,
 		Status:           res.Status,
-	}, nil
+	}
+
+	setCached(ctx, r.Cache, key, result, dashboardAggregateTTL)
+	return result, nil
 }
 
 // AnomalyTimeline is the resolver for the anomalyTimeline field.
@@ -164,22 +272,138 @@ func (r *queryResolver) IntelligenceInsight(ctx context.Context, anomalyID strin
 
 // EvaluateReliability is the resolver for the evaluateReliability field.
 func (r *queryResolver) EvaluateReliability(ctx context.Context, feederID string, timestamp *string) (*model.ReliabilityResult, error) {
-	panic(fmt.Errorf("not implemented: EvaluateReliability - evaluateReliability"))
+	req := &pb.EvaluateReliabilityRequest{FeederId: feederID}
+	if timestamp != nil {
+		req.Timestamp = *timestamp
+	}
+
+	res, err := r.GatewayClient.Client.EvaluateReliability(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to evaluate reliability: %w", err)
+	}
+
+	windows := make([]*model.VulnerabilityWindow, 0, len(res.VulnerabilityWindows))
+	for _, w := range res.VulnerabilityWindows {
+		windows = append(windows, &model.VulnerabilityWindow{
+			StartTime:   w.StartTime,
+			EndTime:     w.EndTime,
+			SeverityTag: w.SeverityTag,
+		})
+	}
+
+	return &model.ReliabilityResult{
+		FeederID:         res.FeederId,
+		ReliabilityScore: int(res.ReliabilityScore),
+		RiskBand:         res.RiskBand,
+		Trajectory:       res.Trajectory,
+		SubScores: &model.SubScoreMetrics{
+			BaseAvailability: res.SubScores.BaseAvailability,
+			DurationPenalty:  res.SubScores.DurationPenalty,
+			FrequencyPenalty: res.SubScores.FrequencyPenalty,
+		},
+		VulnerabilityWindows: windows,
+		Audit: &model.AuditMetadata{
+			CycleTimestamp:       res.Audit.CycleTimestamp,
+			CalculationLatencyMs: res.Audit.CalculationLatencyMs,
+			EngineVersion:        res.Audit.EngineVersion,
+		},
+	}, nil
 }
 
 // PredictRisk is the resolver for the predictRisk field.
 func (r *queryResolver) PredictRisk(ctx context.Context, feederID string) (*model.RiskPrediction, error) {
-	panic(fmt.Errorf("not implemented: PredictRisk - predictRisk"))
+	req := &pb.PredictRiskRequest{FeederId: feederID}
+	res, err := r.GatewayClient.Client.PredictRisk(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to predict risk: %w", err)
+	}
+
+	factors := make([]*model.FeatureAttribution, 0, len(res.ContributingFactors))
+	for _, f := range res.ContributingFactors {
+		factors = append(factors, &model.FeatureAttribution{
+			FeatureName:  f.FeatureName,
+			Contribution: f.Contribution,
+		})
+	}
+
+	return &model.RiskPrediction{
+		FeederID:            res.FeederId,
+		GeneratedAt:         res.GeneratedAt,
+		HorizonHours:        int(res.HorizonHours),
+		RiskScore:           res.RiskScore,
+		RiskLevel:           res.RiskLevel,
+		ModelVersion:        res.ModelVersion,
+		ContributingFactors: factors,
+	}, nil
 }
 
 // DetectAnomaly is the resolver for the detectAnomaly field.
 func (r *queryResolver) DetectAnomaly(ctx context.Context, feederID string) (*model.AnomalyDetection, error) {
-	panic(fmt.Errorf("not implemented: DetectAnomaly - detectAnomaly"))
+	req := &pb.DetectAnomalyRequest{FeederId: feederID}
+	res, err := r.GatewayClient.Client.DetectAnomaly(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect anomaly: %w", err)
+	}
+
+	attributions := make([]*model.AttributionFactor, 0, len(res.RankedAttributions))
+	for _, a := range res.RankedAttributions {
+		attributions = append(attributions, &model.AttributionFactor{
+			Feature:   a.Feature,
+			Magnitude: a.Magnitude,
+			Source:    a.Source,
+		})
+	}
+
+	return &model.AnomalyDetection{
+		FeederID:        res.FeederId,
+		Timestamp:       res.Timestamp,
+		IsAnomaly:       res.IsAnomaly,
+		Severity:        res.Severity,
+		ConfidenceScore: res.ConfidenceScore,
+		LayerFlags: &model.LayerFlags{
+			Layer1Stat:  res.LayerFlags.Layer1Stat,
+			Layer2Seas:  res.LayerFlags.Layer2Seas,
+			Layer3Multi: res.LayerFlags.Layer3Multi,
+		},
+		RankedAttributions: attributions,
+		Reasons:            res.Reasons,
+		InferenceLatencyMs: res.InferenceLatencyMs,
+		ModelVersion:       res.ModelVersion,
+	}, nil
 }
 
 // RankInterventions is the resolver for the rankInterventions field.
 func (r *queryResolver) RankInterventions(ctx context.Context, queryID string) (*model.InterventionRanking, error) {
-	panic(fmt.Errorf("not implemented: RankInterventions - rankInterventions"))
+	req := &pb.RankInterventionsRequest{QueryId: queryID}
+	res, err := r.GatewayClient.Client.RankInterventions(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to rank interventions: %w", err)
+	}
+
+	assets := make([]*model.RankedAsset, 0, len(res.RankedAssets))
+	for _, a := range res.RankedAssets {
+		explanations := make([]*model.FeatureAttribution, 0, len(a.Explanations))
+		for _, e := range a.Explanations {
+			explanations = append(explanations, &model.FeatureAttribution{
+				FeatureName:  e.FeatureName,
+				Contribution: e.Contribution,
+			})
+		}
+		assets = append(assets, &model.RankedAsset{
+			FeederID:      a.FeederId,
+			RankPosition:  int(a.RankPosition),
+			PriorityScore: a.PriorityScore,
+			PriorityTier:  a.PriorityTier,
+			Explanations:  explanations,
+		})
+	}
+
+	return &model.InterventionRanking{
+		QueryID:      res.QueryId,
+		GeneratedAt:  res.GeneratedAt,
+		ModelVersion: res.ModelVersion,
+		RankedAssets: assets,
+	}, nil
 }
 
 // OperationalEventStream is the resolver for the operationalEventStream field.

@@ -1,6 +1,7 @@
 package grpcclient
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -19,6 +20,7 @@ type GatewayClient struct {
 }
 
 // NewGatewayClient establishes a persistent, multiplexed HTTP/2 connection to the core Gateway.
+// It uses grpc.WithBlock() to fail fast at startup if the Gateway is unreachable.
 func NewGatewayClient(targetURL string) (*GatewayClient, error) {
 	kacp := keepalive.ClientParameters{
 		Time:                10 * time.Second,
@@ -26,13 +28,21 @@ func NewGatewayClient(targetURL string) (*GatewayClient, error) {
 		PermitWithoutStream: true,
 	}
 
+	// Fail-fast at startup: use a 5-second dial timeout with WithBlock().
+	// If the Gateway is unreachable, the BFF will fail to start immediately
+	// rather than returning successfully and failing on the first RPC.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	// UnaryAuthPropagator/StreamAuthPropagator forward the caller's raw JWT as
 	// outgoing "authorization" metadata on every call; the Gateway validates it
 	// itself on receipt (see gateway/internal/grpc/interceptors.go).
-	conn, err := grpc.Dial(
+	conn, err := grpc.DialContext(
+		ctx,
 		targetURL,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithKeepaliveParams(kacp),
+		grpc.WithBlock(),
 		grpc.WithChainUnaryInterceptor(middleware.UnaryAuthPropagator()),
 		grpc.WithChainStreamInterceptor(middleware.StreamAuthPropagator()),
 	)

@@ -601,16 +601,16 @@ func (s *GatewayGRPCServer) EvaluateReliability(ctx context.Context, req *pb.Eva
 
 // BroadcastAnomaly completely replaces the HTTP/SSE proxy mechanism.
 // The core Gateway invokes this internally to push real-time events to Redis,
-// where the BFF's multiplexer reads them and fans out to GraphQL WebSockets.
-func (s *GatewayGRPCServer) BroadcastAnomaly(ctx context.Context, tenantID string, event *pb.AnomalyEvent) error {
-	if tenantID == "" || event == nil {
-		return errors.New("tenant ID and event payload are strictly required for broadcast")
+// where the BFF's SubscriptionManager reads them and fans out to every
+// GraphQL subscriber (single-tenant: no routing key needed).
+func (s *GatewayGRPCServer) BroadcastAnomaly(ctx context.Context, event *pb.AnomalyEvent) error {
+	if event == nil {
+		return errors.New("event payload is required for broadcast")
 	}
 
 	// Match the GatewayEvent struct expected by the BFF's SubscriptionManager
 	envelope := map[string]interface{}{
-		"tenant_id": tenantID,
-		"payload":   event,
+		"payload": event,
 	}
 
 	data, err := json.Marshal(envelope)

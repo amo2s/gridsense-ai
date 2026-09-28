@@ -17,6 +17,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive" // Added keepalive package
 
 	"gateway/bridge"
 	"gateway/database"
@@ -46,9 +47,9 @@ func main() {
 	log.Println("Database connection pool established successfully.")
 
 	// 3. Initialize Redis Client (for BroadcastAnomaly pub/sub)
-	redisURL := os.Getenv("REDIS_URL")
+	redisURL := os.Getenv("UPSTASH_REDIS_URL")
 	if redisURL == "" {
-		log.Fatalf("CRITICAL CONFIGURATION ERROR: Environment variable REDIS_URL is missing or empty.")
+		log.Fatalf("CRITICAL CONFIGURATION ERROR: Environment variable UPSTASH_REDIS_URL is missing or empty.")
 	}
 	redisOpts, err := redis.ParseURL(redisURL)
 	if err != nil {
@@ -173,6 +174,11 @@ func main() {
 
 	grpcSrv := grpc.NewServer(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		// ADDED: Keepalive enforcement policy to allow frequent pings from the BFF
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             5 * time.Second, // Allow pings every 5 seconds
+			PermitWithoutStream: true,            // Allow pings even when there are no active streams
+		}),
 		grpc.ChainUnaryInterceptor(
 			grpcserver.NewMetricsUnaryInterceptor(),
 			grpcserver.NewAuthUnaryInterceptor(cfg.JWTSecret),

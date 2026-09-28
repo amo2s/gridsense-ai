@@ -17,8 +17,11 @@ type Config struct {
 
 // LoadConfig parses and validates the environment state, failing fast on missing secrets.
 func LoadConfig() *Config {
-	// Attempt to load the .env file locally; silently ignore in production/Docker
-	_ = godotenv.Load()
+	// Attempt to load the .env file locally and log any parser or file errors
+	err := godotenv.Load()
+	if err != nil {
+		log.Printf("ENV LOADER NOTICE: Failed to load .env file: %v", err)
+	}
 
 	cfg := &Config{
 		Port:           getEnvOrDefault("BFF_PORT", "8082"),

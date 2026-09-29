@@ -132,25 +132,38 @@ func (f *fakePrioritizationRepo) PersistPrioritization(ctx context.Context, resp
 	return f.interventionIDs, f.persistErr
 }
 
-type fakeDashboardRepo struct{}
+type fakeDashboardRepo struct {
+	summaryRes  handlers.DashboardSummary
+	summaryErr  error
+	metricsRes  handlers.ReliabilityMetrics
+	metricsErr  error
+	areasRes    []handlers.PriorityArea
+	areasErr    error
+	detailRes   handlers.AreaDetail
+	detailErr   error
+	forecastRes []handlers.RiskForecastPoint
+	forecastErr error
+	insightRes  handlers.IntelligenceInsight
+	insightErr  error
+}
 
 func (f *fakeDashboardRepo) GetDashboardSummary(ctx context.Context, timeRange string) (handlers.DashboardSummary, error) {
-	return handlers.DashboardSummary{}, nil
+	return f.summaryRes, f.summaryErr
 }
 func (f *fakeDashboardRepo) GetReliabilityMetrics(ctx context.Context, areaID string, timeRange string) (handlers.ReliabilityMetrics, error) {
-	return handlers.ReliabilityMetrics{}, nil
+	return f.metricsRes, f.metricsErr
 }
 func (f *fakeDashboardRepo) GetPriorityAreas(ctx context.Context) ([]handlers.PriorityArea, error) {
-	return nil, nil
+	return f.areasRes, f.areasErr
 }
 func (f *fakeDashboardRepo) GetAreaDetail(ctx context.Context, areaID string) (handlers.AreaDetail, error) {
-	return handlers.AreaDetail{}, nil
+	return f.detailRes, f.detailErr
 }
 func (f *fakeDashboardRepo) GetRiskForecast(ctx context.Context, areaID string) ([]handlers.RiskForecastPoint, error) {
-	return nil, nil
+	return f.forecastRes, f.forecastErr
 }
 func (f *fakeDashboardRepo) GetIntelligenceInsight(ctx context.Context, anomalyID string) (handlers.IntelligenceInsight, error) {
-	return handlers.IntelligenceInsight{}, nil
+	return f.insightRes, f.insightErr
 }
 
 type fakeEngineDClient struct {
@@ -473,10 +486,7 @@ func TestRankInterventions_SeedsOutcomes(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Concurrency: the exact panic risk flagged when B/C were given separate
-// singleflight groups. If they ever shared one, a concurrent DetectAnomaly +
-// PredictRisk for the same feederID would collide in the group and panic on
-// the v.(*T) type assertion. This proves they don't.
+// Concurrency
 // ---------------------------------------------------------------------------
 
 func TestDetectAnomaly_And_PredictRisk_ConcurrentSameFeeder_NoPanic(t *testing.T) {
@@ -504,5 +514,142 @@ func TestDetectAnomaly_And_PredictRisk_ConcurrentSameFeeder_NoPanic(t *testing.T
 		if err := <-errCh; err != nil {
 			t.Fatalf("unexpected error from concurrent call: %v", err)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard BFF RPCs
+// ---------------------------------------------------------------------------
+
+func TestGetDashboardSummary_Success(t *testing.T) {
+	client, ts, cleanup := startTestGateway(t)
+	defer cleanup()
+
+	ts.dashboard.summaryRes = handlers.DashboardSummary{
+		OverallReliabilityScore: 92.5,
+		ActiveHighRiskAreas:     3,
+	}
+	// Simulate 2 active alerts from the alert microservice
+	ts.alert.alerts = []models.Alert{{ID: "1"}, {ID: "2"}}
+
+	res, err := client.GetDashboardSummary(context.Background(), &pb.DashboardSummaryRequest{TimeRange: "24h"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if res.OverallReliabilityScore != 92.5 || res.ActiveHighRiskAreas != 3 || res.TotalActiveAlerts != 2 {
+		t.Fatalf("dashboard summary mismatch: %+v", res)
+	}
+}
+
+func TestGetReliabilityMetrics_Success(t *testing.T) {
+	client, ts, cleanup := startTestGateway(t)
+	defer cleanup()
+
+	now := time.Now().UTC()
+	ts.dashboard.metricsRes = handlers.ReliabilityMetrics{
+		AreaID:           "area-123",
+		CurrentRiskScore: 85.0,
+		Trend: []handlers.TrendDataPoint{
+			{Timestamp: now, Value: 80.0},
+		},
+	}
+
+	res, err := client.GetReliabilityMetrics(context.Background(), &pb.ReliabilityMetricsRequest{AreaId: "area-123"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if res.AreaId != "area-123" || res.CurrentRiskScore != 85.0 {
+		t.Fatalf("metrics mismatch: %+v", res)
+	}
+	if len(res.Trend) != 1 || res.Trend[0].Timestamp != now.Format(time.RFC3339) {
+		t.Fatalf("trend mapping mismatch: %+v", res.Trend)
+	}
+}
+
+func TestGetReliabilityMetrics_MissingAreaID(t *testing.T) {
+	client, _, cleanup := startTestGateway(t)
+	defer cleanup()
+
+	_, err := client.GetReliabilityMetrics(context.Background(), &pb.ReliabilityMetricsRequest{AreaId: ""})
+	if grpcCode(t, err) != codes.InvalidArgument {
+		t.Fatalf("expected InvalidArgument, got %v", err)
+	}
+}
+
+func TestGetPriorityAreas_Success(t *testing.T) {
+	client, ts, cleanup := startTestGateway(t)
+	defer cleanup()
+
+	ts.dashboard.areasRes = []handlers.PriorityArea{
+		{ID: "area-1", Name: "Downtown", UrgencyRank: 1, RiskScore: 99.0, Status: "CRITICAL"},
+	}
+
+	res, err := client.GetPriorityAreas(context.Background(), &pb.PriorityAreasRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(res.Areas) != 1 || res.Areas[0].Name != "Downtown" {
+		t.Fatalf("areas mismatch: %+v", res)
+	}
+}
+
+func TestGetAreaDetail_MissingID(t *testing.T) {
+	client, _, cleanup := startTestGateway(t)
+	defer cleanup()
+
+	_, err := client.GetAreaDetail(context.Background(), &pb.AreaDetailRequest{Id: ""})
+	if grpcCode(t, err) != codes.InvalidArgument {
+		t.Fatalf("expected InvalidArgument, got %v", err)
+	}
+}
+
+func TestGetRiskForecast_MissingAreaID(t *testing.T) {
+	client, _, cleanup := startTestGateway(t)
+	defer cleanup()
+
+	_, err := client.GetRiskForecast(context.Background(), &pb.RiskForecastRequest{AreaId: ""})
+	if grpcCode(t, err) != codes.InvalidArgument {
+		t.Fatalf("expected InvalidArgument, got %v", err)
+	}
+}
+
+func TestGetIntelligenceInsight_Success(t *testing.T) {
+	client, ts, cleanup := startTestGateway(t)
+	defer cleanup()
+
+	ts.dashboard.insightRes = handlers.IntelligenceInsight{
+		AnomalyID:       "anom-999",
+		ConfidenceScore: 0.95,
+		Reasons:         []string{"high load"},
+		FeatureDeviations: []handlers.FeatureDeviation{
+			{FeatureName: "temperature", ShapAttribution: 0.4},
+		},
+	}
+
+	res, err := client.GetIntelligenceInsight(context.Background(), &pb.IntelligenceInsightRequest{AnomalyId: "anom-999"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if res.AnomalyId != "anom-999" || len(res.FeatureDeviations) != 1 || res.FeatureDeviations[0].FeatureName != "temperature" {
+		t.Fatalf("insight mismatch: %+v", res)
+	}
+}
+
+func TestStreamOperationalEvents_DeprecationStub(t *testing.T) {
+	client, _, cleanup := startTestGateway(t)
+	defer cleanup()
+
+	stream, err := client.StreamOperationalEvents(context.Background(), &pb.StreamEventsRequest{})
+	if err != nil {
+		t.Fatalf("unexpected stream setup error: %v", err)
+	}
+
+	_, err = stream.Recv()
+	if grpcCode(t, err) != codes.Unimplemented {
+		t.Fatalf("expected Unimplemented, got %v", err)
 	}
 }

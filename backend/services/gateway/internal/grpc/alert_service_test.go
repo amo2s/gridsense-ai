@@ -120,14 +120,37 @@ type fakePrioritizationRepo struct {
 	signals         []handlers.MultiEngineSignals
 	fetchErr        error
 	interventionIDs map[string]string
+	persisted       []handlers.PrioritizationResponse
 	persistErr      error
 }
 
 func (f *fakePrioritizationRepo) FetchFusedSignals(ctx context.Context, queryID string) ([]handlers.MultiEngineSignals, error) {
 	return f.signals, f.fetchErr
 }
-func (f *fakePrioritizationRepo) PersistPrioritization(ctx context.Context, p handlers.PrioritizationResponse) (map[string]string, error) {
+func (f *fakePrioritizationRepo) PersistPrioritization(ctx context.Context, resp handlers.PrioritizationResponse) (map[string]string, error) {
+	f.persisted = append(f.persisted, resp)
 	return f.interventionIDs, f.persistErr
+}
+
+type fakeDashboardRepo struct{}
+
+func (f *fakeDashboardRepo) GetDashboardSummary(ctx context.Context, timeRange string) (handlers.DashboardSummary, error) {
+	return handlers.DashboardSummary{}, nil
+}
+func (f *fakeDashboardRepo) GetReliabilityMetrics(ctx context.Context, areaID string, timeRange string) (handlers.ReliabilityMetrics, error) {
+	return handlers.ReliabilityMetrics{}, nil
+}
+func (f *fakeDashboardRepo) GetPriorityAreas(ctx context.Context) ([]handlers.PriorityArea, error) {
+	return nil, nil
+}
+func (f *fakeDashboardRepo) GetAreaDetail(ctx context.Context, areaID string) (handlers.AreaDetail, error) {
+	return handlers.AreaDetail{}, nil
+}
+func (f *fakeDashboardRepo) GetRiskForecast(ctx context.Context, areaID string) ([]handlers.RiskForecastPoint, error) {
+	return nil, nil
+}
+func (f *fakeDashboardRepo) GetIntelligenceInsight(ctx context.Context, anomalyID string) (handlers.IntelligenceInsight, error) {
+	return handlers.IntelligenceInsight{}, nil
 }
 
 type fakeEngineDClient struct {
@@ -177,6 +200,7 @@ type testServer struct {
 	prioritization *fakePrioritizationRepo
 	engineD        *fakeEngineDClient
 	outcomes       *fakeOutcomesRepo
+	dashboard      *fakeDashboardRepo
 }
 
 // startTestGateway spins up the real GatewayGRPCServer over bufconn and
@@ -195,6 +219,7 @@ func startTestGateway(t *testing.T) (pb.GatewayServiceClient, *testServer, func(
 		prioritization: &fakePrioritizationRepo{},
 		engineD:        &fakeEngineDClient{},
 		outcomes:       newFakeOutcomesRepo(),
+		dashboard:      &fakeDashboardRepo{},
 	}
 
 	srv := NewGatewayGRPCServer(
@@ -207,6 +232,7 @@ func startTestGateway(t *testing.T) (pb.GatewayServiceClient, *testServer, func(
 		ts.prioritization,
 		ts.engineD,
 		ts.outcomes,
+		ts.dashboard,
 		nil, // *database.PostgresDB: EvaluateReliability only, see package doc
 		nil, // *bridge.EngineAClient: EvaluateReliability only, see package doc
 	)

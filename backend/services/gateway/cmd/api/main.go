@@ -21,7 +21,7 @@ import (
 
 	"gateway/bridge"
 	"gateway/database"
-	"gateway/handlers" // Added consumer import
+	"gateway/handlers"
 	"gateway/internal/alertstream"
 	"gateway/internal/config"
 	grpcserver "gateway/internal/grpc"
@@ -93,8 +93,6 @@ func main() {
 	if alertURL == "" {
 		alertURL = "http://localhost:8001"
 	}
-	// NOTE: cfg.AlertInternalKey must be added to config.LoadConfig (reads
-	// ALERT_INTERNAL_KEY and fails fast when missing). This file will not compile until it is.
 	alertKey := cfg.AlertInternalKey
 	alertClient := bridge.NewAlertBridgeClient(alertURL, alertKey)
 
@@ -113,6 +111,9 @@ func main() {
 	prioritizationRepo := handlers.NewSQLPrioritizationRepo(db)
 	outcomesRepo := interventionoutcomes.NewSQLRepository(db)
 	prioritizationHandler := handlers.NewPrioritizationHandler(prioritizationRepo, engineDClient, outcomesRepo)
+
+	// Initialize Dashboard repository for BFF aggregate queries
+	dashboardRepo := handlers.NewSQLDashboardRepo(db)
 
 	// Initialize AI Assistant specific repositories and handler
 	assistantAuditRepo := handlers.NewSQLAssistantAuditRepo(db)
@@ -161,7 +162,6 @@ func main() {
 	mux.Handle("/api/v1/alerts/stream", enableCORS(authProtectedAlertStream))
 
 	// 7. Configure the HTTP Server with strict timeouts to prevent resource exhaustion (Slowloris attacks)
-	// WriteTimeout increased to accommodate potentially slow LLM responses
 	srv := &http.Server{
 		Addr:         ":" + cfg.GatewayPort,
 		Handler:      mux,
@@ -189,7 +189,7 @@ func main() {
 		),
 	)
 
-	// Construct GatewayGRPCServer with 11 arguments (reusing existing instances)
+	// Construct GatewayGRPCServer with 12 arguments now (reusing existing instances)
 	grpcHandler := grpcserver.NewGatewayGRPCServer(
 		alertClient,        // 1. AlertBridgeClient
 		redisClient,        // 2. *redis.Client
@@ -200,8 +200,9 @@ func main() {
 		prioritizationRepo, // 7. handlers.PrioritizationRepository
 		engineDClient,      // 8. handlers.EngineDClient
 		outcomesRepo,       // 9. interventionoutcomes.Repository
-		db,                 // 10. *database.PostgresDB
-		engineAClient,      // 11. *bridge.EngineAClient
+		dashboardRepo,      // 10. handlers.DashboardRepository (INJECTED HERE)
+		db,                 // 11. *database.PostgresDB
+		engineAClient,      // 12. *bridge.EngineAClient
 	)
 
 	pb.RegisterGatewayServiceServer(grpcSrv, grpcHandler)
@@ -212,7 +213,6 @@ func main() {
 	}
 
 	// 9. Metrics server on its own port, so /metrics is never exposed on the public API mux.
-	// Bind it to an internal interface or keep the port unpublished.
 	metricsMux := http.NewServeMux()
 	metricsMux.Handle("/metrics", promhttp.Handler())
 	metricsSrv := &http.Server{
@@ -235,7 +235,6 @@ func main() {
 	// 11. Start all servers
 	log.Printf("Starting gRPC server on %s...", grpcAddr)
 	go func() {
-		// Serve returns nil after Stop/GracefulStop, so only real failures reach here.
 		if err := grpcSrv.Serve(grpcListener); err != nil {
 			log.Fatalf("FATAL: gRPC server error: %v", err)
 		}
@@ -247,7 +246,6 @@ func main() {
 		}
 	}()
 
-	// A metrics failure must not take the gateway down.
 	log.Printf("Starting metrics server on %s...", metricsSrv.Addr)
 	go func() {
 		if err := metricsSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -259,14 +257,11 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	// Block until a signal is received
 	<-quit
 	log.Println("Shutdown signal received, gracefully terminating...")
 
-	// Cancel the background context to stop the consumer loop
 	bgCancel()
 
-	// One shared 10s budget; every server drains concurrently within it.
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 
@@ -306,12 +301,9 @@ func main() {
 
 	wg.Wait()
 
-	// Deferred db.Close() and redisClient.Close() run when main returns.
 	log.Println("API Gateway stopped cleanly.")
 }
 
-// normalizeAddr turns a bare port ("50051"), a ":port", or a full "host:port"
-// into a listen address, using def when v is empty.
 func normalizeAddr(v, def string) string {
 	if v == "" {
 		v = def
@@ -322,8 +314,6 @@ func normalizeAddr(v, def string) string {
 	return v
 }
 
-// requireEnv returns the value of a mandatory environment variable and exits at
-// startup if it is missing, instead of silently falling back to a guessable default.
 func requireEnv(name string) string {
 	v := os.Getenv(name)
 	if v == "" {
@@ -332,15 +322,12 @@ func requireEnv(name string) string {
 	return v
 }
 
-// enableCORS is a basic middleware to allow requests from the Next.js frontend
 func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// In production, restrict "*" to your specific Next.js domain (e.g., http://localhost:3000)
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
 
-		// Handle preflight requests
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return

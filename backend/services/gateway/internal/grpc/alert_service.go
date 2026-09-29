@@ -16,7 +16,7 @@ import (
 
 	"gateway/bridge"
 	"gateway/database"
-	"gateway/handlers" // ASSUMED import path: Engine C repo/client interfaces, response type, sentinel errors
+	"gateway/handlers" 
 	interventionoutcomes "gateway/intervention_outcomes"
 	"gateway/middleware"
 	"gateway/models"
@@ -31,16 +31,14 @@ type AlertBridgeClient interface {
 }
 
 const (
-	alertRPCTimeout          = 10 * time.Second // parity with REST alert handlers
-	anomalyRPCTimeout        = 8 * time.Second  // parity with REST DetectAnomaly (Engine C)
-	predictionRPCTimeout     = 8 * time.Second  // parity with REST ExecuteInference (Engine B)
-	prioritizationRPCTimeout = 8 * time.Second  // parity with REST RankInterventions (Engine D)
-	reliabilityRPCTimeout    = 8 * time.Second  // parity with REST ReliabilityHandler.Evaluate (Engine A)
+	alertRPCTimeout          = 10 * time.Second 
+	anomalyRPCTimeout        = 8 * time.Second  
+	predictionRPCTimeout     = 8 * time.Second  
+	prioritizationRPCTimeout = 8 * time.Second  
+	reliabilityRPCTimeout    = 8 * time.Second  
 )
 
 // GatewayGRPCServer implements the pb.GatewayServiceServer interface.
-// Notice the absence of OpenTelemetry/Prometheus boilerplate. In gRPC, metrics and tracing
-// are handled cleanly via global Unary/Stream Interceptors mounted in main.go, keeping business logic pure.
 type GatewayGRPCServer struct {
 	pb.UnimplementedGatewayServiceServer
 	client      AlertBridgeClient
@@ -52,27 +50,28 @@ type GatewayGRPCServer struct {
 	anomalyGrp    singleflight.Group
 
 	// Engine B (failure-risk prediction)
-	// NOTE: separate singleflight group from Engine C. Both key on feederID, so
-	// sharing one group would let a DetectAnomaly call collide with a PredictRisk
-	// call for the same feeder and return the wrong type.
 	telemetryRepo handlers.TelemetryRepository
 	engineBClient handlers.AIClient
 	predictGrp    singleflight.Group
 
 	// Engine D (intervention prioritization)
-	// Separate singleflight group: keyed on query_id (an area ID), not a feeder ID.
 	prioritizationRepo handlers.PrioritizationRepository
 	engineDClient      handlers.EngineDClient
-	outcomesRepo       interventionoutcomes.Repository // may be nil; seeding is skipped if so
+	outcomesRepo       interventionoutcomes.Repository 
 	rankGrp            singleflight.Group
 
+	// ------------------------------------------------------------------------
+	// NEW: Dashboard (BFF Aggregate Queries)
+	// Injected repository strictly for read-only aggregation queries serving the UI.
+	// ------------------------------------------------------------------------
+	dashboardRepo handlers.DashboardRepository
+
 	// Engine A (deterministic reliability scoring)
-	// Concrete types, matching the REST ReliabilityHandler. No singleflight: REST had none.
 	db      *database.PostgresDB
 	engineA *bridge.EngineAClient
 }
 
-// NewGatewayGRPCServer constructs the gRPC handler.
+// NewGatewayGRPCServer constructs the gRPC handler with all required dependencies.
 func NewGatewayGRPCServer(
 	client AlertBridgeClient,
 	redisClient *redis.Client,
@@ -83,6 +82,7 @@ func NewGatewayGRPCServer(
 	prioritizationRepo handlers.PrioritizationRepository,
 	engineDClient handlers.EngineDClient,
 	outcomesRepo interventionoutcomes.Repository,
+	dashboardRepo handlers.DashboardRepository, // INJECTED HERE
 	db *database.PostgresDB,
 	engineA *bridge.EngineAClient,
 ) *GatewayGRPCServer {
@@ -96,24 +96,22 @@ func NewGatewayGRPCServer(
 		prioritizationRepo: prioritizationRepo,
 		engineDClient:      engineDClient,
 		outcomesRepo:       outcomesRepo,
+		dashboardRepo:      dashboardRepo, // ASSIGNED HERE
 		db:                 db,
 		engineA:            engineA,
 	}
 }
 
-// toGRPCError maps domain and infrastructure errors to gRPC status codes,
-// mirroring the REST handleError functions.
+// toGRPCError maps domain and infrastructure errors to gRPC status codes.
 func toGRPCError(err error, msg string) error {
 	var code codes.Code
 	switch {
-	// Domain errors (Engine C)
 	case errors.Is(err, handlers.ErrFeederNotFound):
 		code = codes.NotFound
 	case errors.Is(err, handlers.ErrInsufficientData), errors.Is(err, handlers.ErrInsufficientAssets):
 		code = codes.FailedPrecondition
 	case errors.Is(err, handlers.ErrAIValidation):
 		code = codes.Internal
-	// Infrastructure errors
 	case errors.Is(err, gobreaker.ErrOpenState):
 		code = codes.Unavailable
 	case errors.Is(err, gobreaker.ErrTooManyRequests):
@@ -130,8 +128,7 @@ func toGRPCError(err error, msg string) error {
 	return status.Errorf(code, "%s: %v", msg, err)
 }
 
-// callerID returns the authenticated user's ID (the JWT sub claim) that the auth
-// interceptor stored in the context. Handlers use it instead of any client-supplied identity.
+// callerID returns the authenticated user's ID (the JWT sub claim).
 func callerID(ctx context.Context) (string, error) {
 	id, ok := ctx.Value(middleware.UserIDKey).(string)
 	if !ok || id == "" {
@@ -142,7 +139,6 @@ func callerID(ctx context.Context) (string, error) {
 
 var errInvalidTimestamp = errors.New("invalid timestamp format (must be RFC3339 / ISO 8601)")
 
-// parseTimestamp parses an optional RFC3339 timestamp, returning fallback when s is empty.
 func parseTimestamp(s string, fallback time.Time) (time.Time, error) {
 	if s == "" {
 		return fallback, nil
@@ -185,7 +181,6 @@ func (s *GatewayGRPCServer) AcknowledgeAlert(ctx context.Context, req *pb.Acknow
 		return nil, status.Error(codes.InvalidArgument, "invalid request: alert ID is required")
 	}
 
-	// Identity comes from the authenticated token, never from the request body.
 	userID, err := callerID(ctx)
 	if err != nil {
 		return nil, err
@@ -212,7 +207,6 @@ func (s *GatewayGRPCServer) LogIntervention(ctx context.Context, req *pb.LogInte
 	ctx, cancel := context.WithTimeout(ctx, alertRPCTimeout)
 	defer cancel()
 
-	// Identity comes from the authenticated token, never from the request body.
 	operatorID, err := callerID(ctx)
 	if err != nil {
 		return nil, err
@@ -240,7 +234,6 @@ func (s *GatewayGRPCServer) LogIntervention(ctx context.Context, req *pb.LogInte
 }
 
 // DetectAnomaly runs Engine C multivariate anomaly detection for a feeder.
-// Replaces the REST AnomalyHandler.DetectAnomaly endpoint.
 func (s *GatewayGRPCServer) DetectAnomaly(ctx context.Context, req *pb.DetectAnomalyRequest) (*pb.DetectAnomalyResponse, error) {
 	feederID := req.GetFeederId()
 	if _, err := uuid.Parse(feederID); err != nil {
@@ -250,7 +243,6 @@ func (s *GatewayGRPCServer) DetectAnomaly(ctx context.Context, req *pb.DetectAno
 	ctx, cancel := context.WithTimeout(ctx, anomalyRPCTimeout)
 	defer cancel()
 
-	// Singleflight deduplication to prevent slamming Engine C for concurrent UI renders
 	v, err, _ := s.anomalyGrp.Do(feederID, func() (interface{}, error) {
 		return s.processAnomalyRequest(ctx, feederID)
 	})
@@ -270,11 +262,11 @@ func (s *GatewayGRPCServer) DetectAnomaly(ctx context.Context, req *pb.DetectAno
 	}
 
 	return &pb.DetectAnomalyResponse{
-		FeederId:        r.FeederID,
-		Timestamp:       r.Timestamp.Format(time.RFC3339),
-		IsAnomaly:       r.IsAnomaly,
-		Severity:        r.Severity,
-		ConfidenceScore: r.ConfidenceScore,
+		FeederId:           r.FeederID,
+		Timestamp:          r.Timestamp.Format(time.RFC3339),
+		IsAnomaly:          r.IsAnomaly,
+		Severity:           r.Severity,
+		ConfidenceScore:    r.ConfidenceScore,
 		LayerFlags: &pb.LayerFlags{
 			Layer1Stat:  r.LayerFlags.Layer1Stat,
 			Layer2Seas:  r.LayerFlags.Layer2Seas,
@@ -287,7 +279,7 @@ func (s *GatewayGRPCServer) DetectAnomaly(ctx context.Context, req *pb.DetectAno
 	}, nil
 }
 
-// processAnomalyRequest is the Engine C orchestration: telemetry fetch, inference, async persistence.
+// processAnomalyRequest orchestrates Engine C logic.
 func (s *GatewayGRPCServer) processAnomalyRequest(ctx context.Context, feederID string) (*handlers.AnomalyResponse, error) {
 	readings, err := s.anomalyRepo.FetchEngineCTelemetry(ctx, feederID)
 	if err != nil {
@@ -307,7 +299,6 @@ func (s *GatewayGRPCServer) processAnomalyRequest(ctx context.Context, feederID 
 		return nil, err
 	}
 
-	// Asynchronous persistence if an anomaly is actually detected.
 	if result.IsAnomaly {
 		go func(p handlers.AnomalyResponse) {
 			bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -322,7 +313,6 @@ func (s *GatewayGRPCServer) processAnomalyRequest(ctx context.Context, feederID 
 }
 
 // PredictRisk runs Engine B failure-risk prediction for a feeder.
-// Replaces the REST PredictionHandler.ExecuteInference endpoint.
 func (s *GatewayGRPCServer) PredictRisk(ctx context.Context, req *pb.PredictRiskRequest) (*pb.PredictRiskResponse, error) {
 	feederID := req.GetFeederId()
 	if _, err := uuid.Parse(feederID); err != nil {
@@ -332,7 +322,6 @@ func (s *GatewayGRPCServer) PredictRisk(ctx context.Context, req *pb.PredictRisk
 	ctx, cancel := context.WithTimeout(ctx, predictionRPCTimeout)
 	defer cancel()
 
-	// Singleflight deduplication to prevent slamming Engine B for concurrent UI renders
 	v, err, _ := s.predictGrp.Do(feederID, func() (interface{}, error) {
 		return s.processPredictionRequest(ctx, feederID)
 	})
@@ -361,7 +350,7 @@ func (s *GatewayGRPCServer) PredictRisk(ctx context.Context, req *pb.PredictRisk
 	}, nil
 }
 
-// processPredictionRequest is the Engine B orchestration: telemetry fetch, inference, async persistence.
+// processPredictionRequest orchestrates Engine B logic.
 func (s *GatewayGRPCServer) processPredictionRequest(ctx context.Context, feederID string) (*handlers.PredictionResponse, error) {
 	readings, err := s.telemetryRepo.FetchHistoricalTelemetry(ctx, feederID)
 	if err != nil {
@@ -388,8 +377,6 @@ func (s *GatewayGRPCServer) processPredictionRequest(ctx context.Context, feeder
 		return nil, err
 	}
 
-	// Asynchronous persistence so the client isn't blocked on the DB write,
-	// and response status isn't tied to persistence success.
 	go func(p handlers.PredictionResponse) {
 		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -402,9 +389,8 @@ func (s *GatewayGRPCServer) processPredictionRequest(ctx context.Context, feeder
 }
 
 // RankInterventions runs Engine D prioritization across the feeders of an area.
-// Replaces the REST PrioritizationHandler.RankInterventions endpoint.
 func (s *GatewayGRPCServer) RankInterventions(ctx context.Context, req *pb.RankInterventionsRequest) (*pb.RankInterventionsResponse, error) {
-	queryID := req.GetQueryId() // typically maps to an area_id
+	queryID := req.GetQueryId() 
 	if _, err := uuid.Parse(queryID); err != nil {
 		return nil, status.Error(codes.InvalidArgument, handlers.ErrInvalidQueryID.Error())
 	}
@@ -412,7 +398,6 @@ func (s *GatewayGRPCServer) RankInterventions(ctx context.Context, req *pb.RankI
 	ctx, cancel := context.WithTimeout(ctx, prioritizationRPCTimeout)
 	defer cancel()
 
-	// Singleflight deduplication to prevent slamming Engine D for concurrent UI renders
 	v, err, _ := s.rankGrp.Do(queryID, func() (interface{}, error) {
 		return s.processRankingRequest(ctx, queryID)
 	})
@@ -448,8 +433,7 @@ func (s *GatewayGRPCServer) RankInterventions(ctx context.Context, req *pb.RankI
 	}, nil
 }
 
-// processRankingRequest is the Engine D orchestration: fused signal fetch, ranking,
-// async persistence, and intervention outcome seeding.
+// processRankingRequest orchestrates Engine D logic.
 func (s *GatewayGRPCServer) processRankingRequest(ctx context.Context, queryID string) (*handlers.PrioritizationResponse, error) {
 	signals, err := s.prioritizationRepo.FetchFusedSignals(ctx, queryID)
 	if err != nil {
@@ -510,9 +494,6 @@ func (s *GatewayGRPCServer) processRankingRequest(ctx context.Context, queryID s
 	return rankingResult, nil
 }
 
-// toOutcomeShapAttributions maps handlers.ShapAttribution to
-// interventionoutcomes.ShapAttribution. This mirrors handlers.convertShapAttributions,
-// which is unexported and therefore not callable from this package.
 func toOutcomeShapAttributions(in []handlers.ShapAttribution) []interventionoutcomes.ShapAttribution {
 	out := make([]interventionoutcomes.ShapAttribution, len(in))
 	for i, s := range in {
@@ -525,40 +506,31 @@ func toOutcomeShapAttributions(in []handlers.ShapAttribution) []interventionoutc
 }
 
 // EvaluateReliability calculates the 24-hour reliability score for a feeder via Engine A.
-// Replaces the REST ReliabilityHandler.Evaluate endpoint.
 func (s *GatewayGRPCServer) EvaluateReliability(ctx context.Context, req *pb.EvaluateReliabilityRequest) (*pb.EvaluateReliabilityResponse, error) {
 	feederID := req.GetFeederId()
 	if feederID == "" {
 		return nil, status.Error(codes.InvalidArgument, "feeder_id is required")
 	}
 
-	// Default cycle timestamp to UTC now if not explicitly passed
 	cycleTime, err := parseTimestamp(req.GetTimestamp(), time.Now().UTC())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// Single time budget covering both the DB fetch and the Engine A dispatch.
 	ctx, cancel := context.WithTimeout(ctx, reliabilityRPCTimeout)
 	defer cancel()
 
-	// 1. Fetch grid asset data and 24-hour interruption history
 	payload, err := s.db.FetchOperationalPayload(ctx, feederID, cycleTime)
 	if err != nil {
 		slog.Error("database fetch failed", "feeder_id", feederID, "error", err)
-		// Mirrors REST: every fetch failure maps to not-found. FetchOperationalPayload
-		// exposes no sentinel to distinguish a missing asset from a DB outage.
 		return nil, status.Error(codes.NotFound, "asset not found or unable to fetch telemetry")
 	}
 
-	// 2. Dispatch the aggregated payload to Engine A
 	result, err := s.engineA.EvaluateReliability(ctx, payload)
 	if err != nil {
 		slog.Error("Engine A evaluation failed", "feeder_id", feederID, "error", err)
 
-		// Engine A errors carry no sentinels apart from the wrapped gobreaker errors,
-		// so anything not matched below maps to Unavailable (REST: 502).
-		code := codes.Unavailable // includes gobreaker.ErrOpenState
+		code := codes.Unavailable 
 		switch {
 		case errors.Is(err, gobreaker.ErrTooManyRequests):
 			code = codes.ResourceExhausted
@@ -570,7 +542,6 @@ func (s *GatewayGRPCServer) EvaluateReliability(ctx context.Context, req *pb.Eva
 		return nil, status.Errorf(code, "reliability evaluation failed: %v", err)
 	}
 
-	// 3. Map the deterministic output to the wire contract
 	windows := make([]*pb.VulnerabilityWindow, 0, len(result.VulnerabilityWindows))
 	for _, w := range result.VulnerabilityWindows {
 		windows = append(windows, &pb.VulnerabilityWindow{
@@ -600,15 +571,11 @@ func (s *GatewayGRPCServer) EvaluateReliability(ctx context.Context, req *pb.Eva
 }
 
 // BroadcastAnomaly completely replaces the HTTP/SSE proxy mechanism.
-// The core Gateway invokes this internally to push real-time events to Redis,
-// where the BFF's SubscriptionManager reads them and fans out to every
-// GraphQL subscriber (single-tenant: no routing key needed).
 func (s *GatewayGRPCServer) BroadcastAnomaly(ctx context.Context, event *pb.AnomalyEvent) error {
 	if event == nil {
 		return errors.New("event payload is required for broadcast")
 	}
 
-	// Match the GatewayEvent struct expected by the BFF's SubscriptionManager
 	envelope := map[string]interface{}{
 		"payload": event,
 	}

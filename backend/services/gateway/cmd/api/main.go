@@ -17,11 +17,12 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive" // Added keepalive package
+	"google.golang.org/grpc/keepalive"
 
 	"gateway/bridge"
 	"gateway/database"
-	"gateway/handlers"
+	"gateway/handlers" // Added consumer import
+	"gateway/internal/alertstream"
 	"gateway/internal/config"
 	grpcserver "gateway/internal/grpc"
 	interventionoutcomes "gateway/intervention_outcomes"
@@ -174,7 +175,7 @@ func main() {
 
 	grpcSrv := grpc.NewServer(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
-		// ADDED: Keepalive enforcement policy to allow frequent pings from the BFF
+		// Keepalive enforcement policy to allow frequent pings from the BFF
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			MinTime:             5 * time.Second, // Allow pings every 5 seconds
 			PermitWithoutStream: true,            // Allow pings even when there are no active streams
@@ -220,7 +221,18 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	// 10. Start all servers
+	// Create a global background context for the consumer loop that remains active
+	// for the lifecycle of the application (bypassing the 10s init timeout block).
+	bgCtx, bgCancel := context.WithCancel(context.Background())
+	defer bgCancel()
+
+	// 10. Initialize and run the Event Consumer
+	streamURL := cfg.AlertServiceURL + "/api/v1/alerts/stream"
+	eventConsumer := alertstream.NewConsumer(streamURL, cfg.AlertInternalKey, grpcHandler)
+	go eventConsumer.Run(bgCtx)
+	log.Println("Background event consumer started.")
+
+	// 11. Start all servers
 	log.Printf("Starting gRPC server on %s...", grpcAddr)
 	go func() {
 		// Serve returns nil after Stop/GracefulStop, so only real failures reach here.
@@ -243,13 +255,16 @@ func main() {
 		}
 	}()
 
-	// 11. Graceful Shutdown
+	// 12. Graceful Shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	// Block until a signal is received
 	<-quit
 	log.Println("Shutdown signal received, gracefully terminating...")
+
+	// Cancel the background context to stop the consumer loop
+	bgCancel()
 
 	// One shared 10s budget; every server drains concurrently within it.
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)

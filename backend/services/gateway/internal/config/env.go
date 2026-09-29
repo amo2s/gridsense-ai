@@ -17,6 +17,7 @@ type Config struct {
 	InternalServiceKey string // X-Gateway-Token to authenticate with Engine A
 	AuthServiceURL     string // Docker bridge URL for routing to your Auth Microservice (e.g., http://auth_service:8081)
 	AlertInternalKey   string // X-Gateway-Token to authenticate with the Alert microservice
+	AlertServiceURL    string // URL for Alert microservice SSE stream (e.g., http://alerts:8001)
 }
 
 // LoadConfig parses the environment variables and validates their presence.
@@ -34,6 +35,7 @@ func LoadConfig() *Config {
 		InternalServiceKey: getEnvOrFatal("INTERNAL_SERVICE_KEY"),
 		AuthServiceURL:     getEnvOrFatal("AUTH_SERVICE_URL"),
 		AlertInternalKey:   getEnvOrFatal("ALERT_INTERNAL_KEY"),
+		AlertServiceURL:    getEnvOrFatal("ALERT_SERVICE_URL"),
 	}
 
 	return cfg

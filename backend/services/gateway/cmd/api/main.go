@@ -125,11 +125,19 @@ func main() {
 		log.Fatalf("FATAL: Could not initialize Alert handler: %v", err)
 	}
 
+	// Initialize Auth handler
+	authHandler := handlers.NewAuthHandler(cfg.AuthServiceURL)
+
 	// 6. Setup Router (ServeMux) and apply Middleware
 	mux := http.NewServeMux()
 
 	// Public Health Probe (Unauthenticated)
 	mux.Handle("/healthz", enableCORS(http.HandlerFunc(healthHandler.HealthCheck)))
+
+	// Auth Service proxy routes (Public, auth validation is handled downstream)
+	// Note: We use standard ServeMux trailing-slash prefix matching instead of Chi's /* wildcard
+	mux.Handle("/api/auth/", enableCORS(http.HandlerFunc(authHandler.ProxyRequest)))
+	mux.Handle("/api/admin/", enableCORS(http.HandlerFunc(authHandler.ProxyRequest)))
 
 	// Wrap the endpoint with the JWT Authentication Middleware
 	authProtectedReliability := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(reliabilityHandler.Evaluate))

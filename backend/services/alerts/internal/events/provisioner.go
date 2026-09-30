@@ -29,6 +29,7 @@ func NewProvisioner(client *redis.Client, logger *zap.Logger) *Provisioner {
 func (p *Provisioner) Initialize(ctx context.Context, cfg *config.Config) error {
 	p.logger.Info("Provisioning Redis Streams and Consumer Groups",
 		zap.String("stream", cfg.AlertStreamName),
+		zap.String("auth_stream", cfg.AuthStreamName),
 		zap.String("dlq", cfg.DeadLetterStreamName),
 		zap.String("group", cfg.ConsumerGroup),
 	)
@@ -38,6 +39,10 @@ func (p *Provisioner) Initialize(ctx context.Context, cfg *config.Config) error 
 	}
 
 	if err := p.createGroupMkStream(ctx, cfg.DeadLetterStreamName, cfg.ConsumerGroup); err != nil {
+		return err
+	}
+
+	if err := p.createGroupMkStream(ctx, cfg.AuthStreamName, cfg.ConsumerGroup); err != nil {
 		return err
 	}
 

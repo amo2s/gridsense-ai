@@ -138,6 +138,11 @@ func main() {
 		return nil, router.ProcessEvent(msg)
 	})
 
+	// Bind the auth event processing logic to the auth stream
+	router.RegisterHandler("auth_event_consumer", cfg.AuthStreamName, pub, sub, func(msg *message.Message) ([]*message.Message, error) {
+		return nil, router.ProcessEvent(msg)
+	})
+
 	// Execute the routing engine. This blocks until the context is canceled via OS signal.
 	if err := router.Run(ctx); err != nil {
 		logger.Fatal("Event router terminated with error", zap.Error(err))

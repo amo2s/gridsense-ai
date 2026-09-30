@@ -3,9 +3,11 @@ package register
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	// Update this import path to match your module name in go.mod
+	"gridsense/auth/internal/events"
 	"gridsense/auth/internal/shared"
 )
 
@@ -18,12 +20,13 @@ type RegisterRequest struct {
 
 // Handler binds the HTTP transport layer to the business logic service.
 type Handler struct {
-	service Service
+	service   Service
+	publisher *events.Publisher
 }
 
 // NewHandler acts as the dependency injection constructor.
-func NewHandler(s Service) *Handler {
-	return &Handler{service: s}
+func NewHandler(s Service, publisher *events.Publisher) *Handler {
+	return &Handler{service: s, publisher: publisher}
 }
 
 // HandleRegister is the main HTTP endpoint function.
@@ -67,4 +70,20 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	// The blueprint mandates returning a success response WITHOUT exposing tokens.
 	// Since our `User` struct uses `json:"-"` on the PasswordHash, it is automatically sanitized.
 	shared.RespondSuccess(w, http.StatusCreated, user)
+
+	// Fire registration event asynchronously (non-blocking, best-effort)
+	if h.publisher != nil {
+		go func() {
+			evt := events.AuthEvent{
+				EventType: "USER_REGISTER",
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				Action:    "register",
+			}
+			if err := h.publisher.PublishAuthEvent(evt); err != nil {
+				log.Printf("WARNING: Failed to publish register event: %v", err)
+			}
+		}()
+	}
 }

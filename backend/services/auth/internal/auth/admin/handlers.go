@@ -2,22 +2,25 @@ package admin
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
 	// Using the exact module path from your go.mod
+	"gridsense/auth/internal/events"
 	"gridsense/auth/internal/shared"
 )
 
 // Handler binds the HTTP transport layer to the administrative business logic.
 type Handler struct {
-	service Service
+	service   Service
+	publisher *events.Publisher
 }
 
 // NewHandler acts as the dependency injection constructor.
-func NewHandler(s Service) *Handler {
-	return &Handler{service: s}
+func NewHandler(s Service, publisher *events.Publisher) *Handler {
+	return &Handler{service: s, publisher: publisher}
 }
 
 // =========================================================================
@@ -63,6 +66,20 @@ func (h *Handler) HandleApproveUser(w http.ResponseWriter, r *http.Request) {
 
 	payload := map[string]string{"message": "User account has been successfully approved."}
 	shared.RespondSuccess(w, http.StatusOK, payload)
+
+	// Fire admin approval event asynchronously
+	if h.publisher != nil {
+		go func() {
+			evt := events.AuthEvent{
+				EventType: "USER_APPROVED",
+				UserID:    userID,
+				Action:    "approve",
+			}
+			if err := h.publisher.PublishAuthEvent(evt); err != nil {
+				log.Printf("WARNING: Failed to publish approval event: %v", err)
+			}
+		}()
+	}
 }
 
 // HandleDeleteUser processes DELETE requests to permanently wipe a user record.
@@ -91,4 +108,18 @@ func (h *Handler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	payload := map[string]string{"message": "User record has been permanently deleted."}
 	shared.RespondSuccess(w, http.StatusOK, payload)
+
+	// Fire admin deletion event asynchronously
+	if h.publisher != nil {
+		go func() {
+			evt := events.AuthEvent{
+				EventType: "USER_DELETED",
+				UserID:    userID,
+				Action:    "delete",
+			}
+			if err := h.publisher.PublishAuthEvent(evt); err != nil {
+				log.Printf("WARNING: Failed to publish deletion event: %v", err)
+			}
+		}()
+	}
 }

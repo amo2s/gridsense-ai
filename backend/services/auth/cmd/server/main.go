@@ -16,6 +16,7 @@ import (
 
 	// Using your exact module name
 	"gridsense/auth/internal/config"
+	"gridsense/auth/internal/events"
 	"gridsense/auth/internal/shared"
 
 	// Import our newly built domain packages
@@ -53,6 +54,15 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	// Initialize Watermill Event Publisher (non-fatal: event publishing is best-effort)
+	eventPublisher, err := events.NewPublisher(cfg.UpstashRedisURL)
+	if err != nil {
+		log.Printf("WARNING: Event publisher initialization failed (auth events will not be emitted): %v", err)
+	}
+	if eventPublisher != nil {
+		defer eventPublisher.Close()
+	}
+
 	// =========================================================================
 	// 3. Dependency Injection (Wiring the Microservice)
 	// =========================================================================
@@ -65,11 +75,11 @@ func main() {
 	// B. Registration Domain
 	regRepo := register.NewRepository(dbPool) // Re-added the missing repository declaration
 	regSvc := register.NewService(regRepo)
-	regHandler := register.NewHandler(regSvc)
+	regHandler := register.NewHandler(regSvc, eventPublisher)
 
 	// C. Login Domain
 	loginSvc := login.NewService(dbPool, redisClient, jwtSecretBytes)
-	loginHandler := login.NewHandler(loginSvc, cfg.CookieSecure)
+	loginHandler := login.NewHandler(loginSvc, cfg.CookieSecure, eventPublisher)
 
 	// D. Logout Domain
 	logoutSvc := logout.NewService(redisClient, jwtSecretBytes)
@@ -78,7 +88,7 @@ func main() {
 	// E. Admin Management Domain
 	adminRepo := admin.NewRepository(dbPool)
 	adminSvc := admin.NewService(adminRepo)
-	adminHandler := admin.NewHandler(adminSvc)
+	adminHandler := admin.NewHandler(adminSvc, eventPublisher)
 
 	// =========================================================================
 	// 4. Router & Global Middleware Setup

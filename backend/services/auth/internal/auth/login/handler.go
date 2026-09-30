@@ -3,10 +3,12 @@ package login
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
 	// Update this import path to match your module name in go.mod
+	"gridsense/auth/internal/events"
 	"gridsense/auth/internal/shared"
 )
 
@@ -18,15 +20,17 @@ type LoginRequest struct {
 
 // Handler connects the HTTP transport layer to the business logic service.
 type Handler struct {
-	service Service
-	secure  bool // Toggles the Secure flag on cookies based on the environment
+	service   Service
+	secure    bool // Toggles the Secure flag on cookies based on the environment
+	publisher *events.Publisher
 }
 
 // NewHandler creates a new handler with the required dependencies.
-func NewHandler(s Service, secureCookie bool) *Handler {
+func NewHandler(s Service, secureCookie bool, publisher *events.Publisher) *Handler {
 	return &Handler{
-		service: s,
-		secure:  secureCookie,
+		service:   s,
+		secure:    secureCookie,
+		publisher: publisher,
 	}
 }
 
@@ -101,4 +105,21 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	shared.RespondSuccess(w, http.StatusOK, payload)
+
+	// Fire auth event asynchronously (non-blocking, best-effort)
+	if h.publisher != nil {
+		go func() {
+			evt := events.AuthEvent{
+				EventType: "USER_LOGIN",
+				UserID:    result.User.ID,
+				UserName:  result.User.Email,
+				UserEmail: result.User.Email,
+				Action:    "login",
+				IPAddress: r.RemoteAddr,
+			}
+			if err := h.publisher.PublishAuthEvent(evt); err != nil {
+				log.Printf("WARNING: Failed to publish login event: %v", err)
+			}
+		}()
+	}
 }

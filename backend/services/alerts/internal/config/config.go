@@ -14,6 +14,7 @@ type Config struct {
 	InternalServiceKey   string `env:"INTERNAL_SERVICE_KEY,required"`
 	RedisURL             string `env:"UPSTASH_REDIS_URL,required"`
 	AlertStreamName      string `env:"ALERT_STREAM_NAME" envDefault:"gridsense:alerts:stream"`
+	AuthStreamName       string `env:"AUTH_STREAM_NAME" envDefault:"admin.auth.events"`
 	DeadLetterStreamName string `env:"ALERT_DLQ_NAME" envDefault:"gridsense:alerts:dlq"`
 	ConsumerGroup        string `env:"ALERT_CONSUMER_GROUP" envDefault:"alerts-processor-group"`
 }

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/subtle"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -9,6 +10,13 @@ import (
 
 // RegisterRoutes mounts the Alert Microservice endpoints and enforces gateway authentication.
 func RegisterRoutes(r chi.Router, controller *AlertController, serviceKey string, logger *zap.Logger) {
+	// Unprotected health probe endpoint
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status": "ok", "service": "alerts"}`))
+	})
+
 	// Group routes to apply the gateway authentication middleware uniformly
 	r.Group(func(r chi.Router) {
 		r.Use(gatewayAuthMiddleware(serviceKey, logger))
@@ -25,7 +33,7 @@ func gatewayAuthMiddleware(expectedKey string, logger *zap.Logger) func(http.Han
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token := r.Header.Get("X-Gateway-Token")
 			
-			if token == "" || token != expectedKey {
+			if token == "" || subtle.ConstantTimeCompare([]byte(token), []byte(expectedKey)) != 1 {
 				logger.Warn("Unauthorized access attempt rejected",
 					zap.String("ip", r.RemoteAddr),
 					zap.String("path", r.URL.Path),

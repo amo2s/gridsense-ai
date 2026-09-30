@@ -91,7 +91,7 @@ func main() {
 	// Alert Microservice config & client
 	alertURL := os.Getenv("ALERT_SERVICE_URL")
 	if alertURL == "" {
-		alertURL = "http://localhost:8001"
+		alertURL = "http://localhost:8006"
 	}
 	alertKey := cfg.AlertInternalKey
 	alertClient := bridge.NewAlertBridgeClient(alertURL, alertKey)

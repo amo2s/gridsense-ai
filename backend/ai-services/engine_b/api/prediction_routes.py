@@ -1,11 +1,30 @@
+import os
 import asyncio
-from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Header, Depends
 
 from schemas.inference_contracts import PredictionRequest, PredictionResponse
 from models.risk_classifier import RiskClassifier
 from core.events import evaluate_and_publish_alert  # Abstracted hook for Phase 8 stream publishing
 
-router = APIRouter(prefix="/internal/v1", tags=["Inference"])
+# SECURITY UPDATE: Extract the expected internal key from the environment
+EXPECTED_SERVICE_KEY = os.getenv("INTERNAL_SERVICE_KEY")
+
+# SECURITY UPDATE: Define a dependency to enforce and validate the authorization header
+async def verify_internal_key(x_internal_service_key: str = Header(..., alias="X-Internal-Service-Key")):
+    if not EXPECTED_SERVICE_KEY:
+        # Failsafe: Prevent open access if the container environment was misconfigured
+        raise HTTPException(status_code=500, detail="Server configuration error: missing internal service key.")
+    
+    if x_internal_service_key != EXPECTED_SERVICE_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden: Invalid internal service key.")
+
+# SECURITY UPDATE: Inject the verification dependency directly into the router 
+# This automatically protects /predict and any future endpoints added to this router
+router = APIRouter(
+    prefix="/internal/v1", 
+    tags=["Inference"],
+    dependencies=[Depends(verify_internal_key)]
+)
 
 
 @router.post("/predict", response_model=PredictionResponse)

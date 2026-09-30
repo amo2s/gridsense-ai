@@ -72,14 +72,23 @@ var (
 
 type Config struct {
 	EngineBURL string
+	// SECURITY UPDATE: Added field to hold the internal service key for Engine B authentication
+	InternalServiceKey string
 }
 
 func LoadConfig() Config {
 	url := os.Getenv("ENGINE_B_URL")
 	if url == "" {
-		url = "http://localhost:8000/internal/v1/predict"
+		url = "http://localhost:8002/internal/v1/predict"
 	}
-	return Config{EngineBURL: url}
+
+	// SECURITY UPDATE: Extract the internal service key from the environment
+	key := os.Getenv("INTERNAL_SERVICE_KEY")
+
+	return Config{
+		EngineBURL:         url,
+		InternalServiceKey: key, // SECURITY UPDATE: Bind the key to the config struct
+	}
 }
 
 // ==========================================
@@ -124,14 +133,18 @@ type AIClient interface {
 // ==========================================
 
 type engineBClient struct {
-	url        string
-	httpClient *http.Client
-	cb         *gobreaker.CircuitBreaker
+	url string
+	// SECURITY UPDATE: Store the key securely in the client struct for use in outgoing requests
+	internalServiceKey string
+	httpClient         *http.Client
+	cb                 *gobreaker.CircuitBreaker
 }
 
 func NewEngineBClient(cfg Config) AIClient {
 	return &engineBClient{
 		url: cfg.EngineBURL,
+		// SECURITY UPDATE: Initialize the stored key from the loaded configuration
+		internalServiceKey: cfg.InternalServiceKey,
 		httpClient: &http.Client{
 			Transport: &http.Transport{
 				MaxIdleConns:        100,
@@ -209,6 +222,11 @@ func (c *engineBClient) doWithRetries(ctx context.Context, payloadBytes []byte) 
 			return nil, fmt.Errorf("failed to build request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
+
+		// SECURITY UPDATE: Actively inject the internal service key header into the HTTP request
+		if c.internalServiceKey != "" {
+			req.Header.Set("X-Internal-Service-Key", c.internalServiceKey)
+		}
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {

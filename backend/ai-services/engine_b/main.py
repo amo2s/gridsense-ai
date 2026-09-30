@@ -80,3 +80,18 @@ async def health_check():
         "service": "engine_b_risk",
         "model_version": app.state.classifier.model_version
     }
+
+@app.get("/health", tags=["System"])
+def health_check_standard():
+    """
+    Standard health probe for Docker container orchestration and network routing.
+    """
+    return {"status": "healthy", "service": "engine_b_risk"}
+
+# PORT UPDATE: Dynamically bind to the PORT environment variable to satisfy Phase 1
+# blueprint requirements and Kubernetes routing. Defaulting to 8002 to prevent Engine A collisions.
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8002))
+    logging.info(f"Starting Engine B ASGI server on port {port}...")
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)

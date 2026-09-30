@@ -12,7 +12,7 @@ WORKDIR /build
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install dependencies from the clean UTF-8 requirements.txt
+# Install dependencies from requirements.txt
 COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
@@ -23,10 +23,11 @@ RUN pip install --upgrade pip && \
 FROM python:3.13-slim
 
 # Enforce strict container environment settings
+# Set default PORT to match the service allocation (8001 for Engine A, 8002 for Engine B)
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
-    PORT=8000
+    PORT=8001
 
 # Create a non-root system user for security
 RUN groupadd -r gridsense && useradd -r -g gridsense engine
@@ -48,5 +49,5 @@ USER engine
 # Document the expected port
 EXPOSE $PORT
 
-# Execute Granian ASGI server, binding dynamically to the environment PORT
-CMD granian --interface asgi main:app --host 0.0.0.0 --port ${PORT}
+# Execute Granian ASGI server using shell-wrapped exec for guaranteed variable expansion
+CMD ["sh", "-c", "exec granian --interface asgi main:app --host 0.0.0.0 --port ${PORT}"]

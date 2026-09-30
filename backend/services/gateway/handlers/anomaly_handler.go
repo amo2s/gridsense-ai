@@ -81,9 +81,9 @@ type EngineCConfig struct {
 func LoadEngineCConfig() EngineCConfig {
 	url := os.Getenv("ENGINE_C_URL")
 	if url == "" {
-		url = "http://localhost:8000/internal/v1/anomalies/detect"
+		url = "http://localhost:8003/internal/v1/anomalies/detect"
 	}
-		token := mustGetEnv("ENGINE_C_INTERNAL_KEY")
+	token := mustGetEnv("ENGINE_C_INTERNAL_KEY")
 	return EngineCConfig{EngineCURL: url, ServiceToken: token}
 }
 

@@ -1,5 +1,6 @@
 import os
 import asyncio
+import secrets
 from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Header, Depends
 
 from schemas.inference_contracts import PredictionRequest, PredictionResponse
@@ -14,8 +15,7 @@ async def verify_internal_key(x_internal_service_key: str = Header(..., alias="X
     if not EXPECTED_SERVICE_KEY:
         # Failsafe: Prevent open access if the container environment was misconfigured
         raise HTTPException(status_code=500, detail="Server configuration error: missing internal service key.")
-    
-    if x_internal_service_key != EXPECTED_SERVICE_KEY:
+    if not secrets.compare_digest(x_internal_service_key, EXPECTED_SERVICE_KEY):
         raise HTTPException(status_code=403, detail="Forbidden: Invalid internal service key.")
 
 # SECURITY UPDATE: Inject the verification dependency directly into the router 

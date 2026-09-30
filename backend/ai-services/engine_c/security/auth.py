@@ -9,7 +9,12 @@ load_dotenv()
 API_KEY_NAME = "X-Internal-Service-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
-INTERNAL_SERVICE_SECRET = os.getenv("ENGINE_C_INTERNAL_KEY", "default-fallback-insecure-key")
+_raw_secret = os.getenv("ENGINE_C_INTERNAL_KEY")
+if not _raw_secret:
+    raise RuntimeError(
+        "CRITICAL CONFIGURATION ERROR: ENGINE_C_INTERNAL_KEY environment variable is missing or empty."
+    )
+INTERNAL_SERVICE_SECRET: str = _raw_secret
 
 def verify_internal_token(header_key: str = Security(api_key_header)) -> str:
     """

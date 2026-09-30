@@ -81,13 +81,10 @@ func LoadConfig() Config {
 	if url == "" {
 		url = "http://localhost:8002/internal/v1/predict"
 	}
-
-	// SECURITY UPDATE: Extract the internal service key from the environment
-	key := os.Getenv("INTERNAL_SERVICE_KEY")
-
+	key := mustGetEnv("INTERNAL_SERVICE_KEY")
 	return Config{
 		EngineBURL:         url,
-		InternalServiceKey: key, // SECURITY UPDATE: Bind the key to the config struct
+		InternalServiceKey: key,
 	}
 }
 
@@ -222,11 +219,7 @@ func (c *engineBClient) doWithRetries(ctx context.Context, payloadBytes []byte) 
 			return nil, fmt.Errorf("failed to build request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-
-		// SECURITY UPDATE: Actively inject the internal service key header into the HTTP request
-		if c.internalServiceKey != "" {
-			req.Header.Set("X-Internal-Service-Key", c.internalServiceKey)
-		}
+		req.Header.Set("X-Internal-Service-Key", c.internalServiceKey)
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {

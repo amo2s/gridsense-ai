@@ -115,5 +115,12 @@ def health_check():
     """
     return {
         "status": "healthy",
+        "service": "engine_c_anomaly",
         "model_version": getattr(app.state, "metadata", {}).get("version", "unknown")
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8003))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)

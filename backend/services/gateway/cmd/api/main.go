@@ -83,7 +83,7 @@ func main() {
 	// AI Assistant config & client (key is required: no insecure fallback)
 	assistantURL := os.Getenv("ASSISTANT_SERVICE_URL")
 	if assistantURL == "" {
-		assistantURL = "http://localhost:8000"
+		assistantURL = "http://localhost:8005"
 	}
 	assistantKey := requireEnv("ASSISTANT_INTERNAL_KEY")
 	assistantClient := bridge.NewAssistantClient(assistantURL, assistantKey)

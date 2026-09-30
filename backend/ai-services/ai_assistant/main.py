@@ -1,5 +1,6 @@
 import logging
 import os
+import secrets
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -25,7 +26,11 @@ logging.basicConfig(
 logger = logging.getLogger("GridSense-AI-Assistant")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-INTERNAL_SERVICE_KEY = os.getenv("ASSISTANT_INTERNAL_KEY")
+
+_raw_key = os.getenv("ASSISTANT_INTERNAL_KEY")
+if not _raw_key:
+    raise RuntimeError("CRITICAL CONFIGURATION ERROR: ASSISTANT_INTERNAL_KEY environment variable is missing or empty.")
+ASSISTANT_INTERNAL_KEY: str = _raw_key
 
 _raw_origins = os.getenv("ASSISTANT_ALLOWED_ORIGINS", "")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
@@ -45,11 +50,6 @@ async def lifespan(app: FastAPI):
     Manages application lifecycle: establishes the asyncpg connection pool at startup
     and binds it to the application state for dependency injection.
     """
-    if not INTERNAL_SERVICE_KEY:
-        logger.warning(
-            "ASSISTANT_INTERNAL_KEY is not set - all requests to /api/assistant "
-            "will be rejected until this is configured."
-        )
 
     if not DATABASE_URL:
         logger.critical("DATABASE_URL is not set. Service cannot initialize.")
@@ -99,15 +99,15 @@ async def verify_internal_service_key(request: Request, call_next):
     if request.url.path == "/health":
         return await call_next(request)
 
-    provided_key = request.headers.get("X-Internal-Service-Key")
-    if not INTERNAL_SERVICE_KEY or provided_key != INTERNAL_SERVICE_KEY:
+    provided_key = request.headers.get("X-Internal-Service-Key", "")
+    if not provided_key or not secrets.compare_digest(provided_key, ASSISTANT_INTERNAL_KEY):
         logger.warning(
             "Rejected request with missing/invalid internal service key",
             extra={"path": request.url.path},
         )
         return JSONResponse(
             status_code=401,
-            content={"detail": "Missing or invalid internal service credentials"},
+            content={"detail": "Unauthorized: Invalid internal service key."},
         )
 
     return await call_next(request)
@@ -132,8 +132,8 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    # Dynamically read the PORT environment variable, fallback to 8000 for local dev
-    port = int(os.getenv("PORT", 8000))
+    # Dynamically read the PORT environment variable, fallback to 8005 for local dev
+    port = int(os.getenv("PORT", 8005))
     
     # Only enable auto-reload if we are not in a Docker/Production environment
     is_prod = os.getenv("ENV", "development").lower() == "production"

@@ -14,6 +14,7 @@ type Config struct {
 	DatabaseURL           string
 	UpstashRedisRestURL   string
 	UpstashRedisRestToken string
+	UpstashRedisURL       string // Standard rediss:// TCP URL for Watermill event publisher
 	JWTSecret             []byte // Pre-allocated as bytes for direct cryptographic use
 	Environment           string
 	CookieSecure          bool
@@ -35,6 +36,7 @@ func LoadConfig() *Config {
 		DatabaseURL:           requireEnv("DATABASE_URL"),
 		UpstashRedisRestURL:   requireEnv("UPSTASH_REDIS_REST_URL"),
 		UpstashRedisRestToken: requireEnv("UPSTASH_REDIS_REST_TOKEN"),
+		UpstashRedisURL:       requireEnv("UPSTASH_REDIS_URL"),
 		JWTSecret:             []byte(requireEnv("JWT_SECRET")),
 	}
 

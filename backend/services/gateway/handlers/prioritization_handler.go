@@ -88,7 +88,7 @@ type EngineDConfig struct {
 func LoadEngineDConfig() EngineDConfig {
 	url := os.Getenv("ENGINE_D_URL")
 	if url == "" {
-		url = "http://localhost:8000/api/v1/priorities/rank"
+		url = "http://localhost:8004/api/v1/priorities/rank"
 	}
 	token := mustGetEnv("ENGINE_D_INTERNAL_KEY")
 	return EngineDConfig{EngineDURL: url, ServiceToken: token}
@@ -529,6 +529,8 @@ func convertShapAttributions(in []ShapAttribution) []interventionoutcomes.ShapAt
 
 func (h *PrioritizationHandler) handleError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, ErrInvalidQueryID):
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	case errors.Is(err, ErrInsufficientAssets):
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 	case errors.Is(err, ErrAIValidation):

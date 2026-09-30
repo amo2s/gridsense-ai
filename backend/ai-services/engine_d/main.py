@@ -4,8 +4,10 @@ Application entry point. Initializes FastAPI, locks the ONNX model into memory,
 and mounts the routing infrastructure.
 """
 
+import hmac
 import logging
 import os
+import secrets
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -37,7 +39,12 @@ ARTIFACT_PATH = os.path.join(os.path.dirname(__file__), "artifacts", "hybrid_ran
 
 # Shared secret with the Go Gateway. Must match ENGINE_D_INTERNAL_KEY used
 # in gateway/services/gateway/handlers.go's X-Internal-Service-Key header.
-INTERNAL_SERVICE_KEY = os.getenv("ENGINE_D_INTERNAL_KEY")
+_raw_key = os.getenv("ENGINE_D_INTERNAL_KEY")
+if not _raw_key:
+    raise RuntimeError(
+        "CRITICAL CONFIGURATION ERROR: ENGINE_D_INTERNAL_KEY environment variable is missing or empty."
+    )
+INTERNAL_SERVICE_KEY: str = _raw_key
 
 # Comma-separated list of allowed origins, e.g. "http://gateway.internal:8080".
 # No wildcard default in production - an unset env var means CORS stays
@@ -52,11 +59,6 @@ async def lifespan(app: FastAPI):
     Manages the application lifecycle.
     Loads the ONNX binary into memory once at startup to ensure sub-millisecond inference.
     """
-    if not INTERNAL_SERVICE_KEY:
-        logger.warning(
-            "ENGINE_D_INTERNAL_KEY is not set - all requests to /api/v1/priorities "
-            "will be rejected until this is configured."
-        )
 
     if not os.path.exists(ARTIFACT_PATH):
         logger.critical("ONNX artifact not found at %s", ARTIFACT_PATH)
@@ -118,15 +120,15 @@ async def verify_internal_service_key(request: Request, call_next):
     if request.url.path == "/health":
         return await call_next(request)
 
-    provided_key = request.headers.get("X-Internal-Service-Key")
-    if not INTERNAL_SERVICE_KEY or provided_key != INTERNAL_SERVICE_KEY:
+    provided_key = request.headers.get("X-Internal-Service-Key", "")
+    if not provided_key or not secrets.compare_digest(provided_key, INTERNAL_SERVICE_KEY):
         logger.warning(
             "Rejected request with missing/invalid internal service key",
             extra={"path": request.url.path},
         )
         return JSONResponse(
             status_code=401,
-            content={"detail": "Missing or invalid internal service credentials"},
+            content={"detail": "Unauthorized: Invalid internal service key."},
         )
 
     return await call_next(request)
@@ -143,3 +145,10 @@ async def health_check():
         "engine": "D",
         "model_loaded": hasattr(app.state, "ort_session") and app.state.ort_session is not None
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8004))
+    logger.info(f"Starting Engine D ASGI server on port {port}...")
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)

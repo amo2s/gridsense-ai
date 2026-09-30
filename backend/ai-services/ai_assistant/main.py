@@ -132,4 +132,10 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # Dynamically read the PORT environment variable, fallback to 8000 for local dev
+    port = int(os.getenv("PORT", 8000))
+    
+    # Only enable auto-reload if we are not in a Docker/Production environment
+    is_prod = os.getenv("ENV", "development").lower() == "production"
+    
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=not is_prod)

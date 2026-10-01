@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: engine-c-service
+  namespace: gridsense
+  labels:
+    app: engine-c
+spec:
+  type: ClusterIP
+  selector:
+    app: engine-c
+  ports:
+    - name: http
+      port: 8003
+      targetPort: 8003
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: engine-c
+  namespace: gridsense
+  labels:
+    app: engine-c
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: engine-c
+  template:
+    metadata:
+      labels:
+        app: engine-c
+    spec:
+      containers:
+        - name: engine-c
+          image: <region>.ocir.io/<tenancy>/gridsense/engine_c:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8003
+          env:
+            - name: PORT
+              value: "8003"
+          envFrom:
+            - configMapRef:
+                name: gridsense-config
+            - secretRef:
+                name: gridsense-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 20
+            periodSeconds: 15

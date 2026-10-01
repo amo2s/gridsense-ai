@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: engine-d-service
+  namespace: gridsense
+  labels:
+    app: engine-d
+spec:
+  type: ClusterIP
+  selector:
+    app: engine-d
+  ports:
+    - name: http
+      port: 8004
+      targetPort: 8004
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: engine-d
+  namespace: gridsense
+  labels:
+    app: engine-d
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: engine-d
+  template:
+    metadata:
+      labels:
+        app: engine-d
+    spec:
+      containers:
+        - name: engine-d
+          image: <region>.ocir.io/<tenancy>/gridsense/engine_d:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8004
+          env:
+            - name: PORT
+              value: "8004"
+          envFrom:
+            - configMapRef:
+                name: gridsense-config
+            - secretRef:
+                name: gridsense-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 20
+            periodSeconds: 15

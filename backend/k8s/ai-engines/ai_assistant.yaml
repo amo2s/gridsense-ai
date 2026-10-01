@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-assistant-service
+  namespace: gridsense
+  labels:
+    app: ai-assistant
+spec:
+  type: ClusterIP
+  selector:
+    app: ai-assistant
+  ports:
+    - name: http
+      port: 8005
+      targetPort: 8005
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-assistant
+  namespace: gridsense
+  labels:
+    app: ai-assistant
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-assistant
+  template:
+    metadata:
+      labels:
+        app: ai-assistant
+    spec:
+      containers:
+        - name: ai-assistant
+          image: <region>.ocir.io/<tenancy>/gridsense/ai_assistant:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8005
+          env:
+            - name: PORT
+              value: "8005"
+          envFrom:
+            - configMapRef:
+                name: gridsense-config
+            - secretRef:
+                name: gridsense-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 20
+            periodSeconds: 15

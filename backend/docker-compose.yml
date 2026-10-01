@@ -1,0 +1,327 @@
+﻿# =============================================================================
+# GridSense AI - Master Local Orchestration
+# Phase 2: Unified Subnet for All Microservices & Datastores
+# =============================================================================
+# Usage:
+#   docker compose up --build         # First run (builds all images from source)
+#   docker compose up -d              # Subsequent runs (detached)
+#   docker compose down -v            # Tear down all services and volumes
+#
+# Required secrets (set in a root .env file or via shell environment):
+#   POSTGRES_PASSWORD, JWT_SECRET, INTERNAL_SERVICE_KEY,
+#   ALERT_INTERNAL_KEY, ASSISTANT_INTERNAL_KEY
+# =============================================================================
+
+networks:
+  gridsense-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # DATASTORES
+  # ---------------------------------------------------------------------------
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: gridsense-postgres
+    restart: unless-stopped
+    networks:
+      - gridsense-net
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gridsense}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-gridsense}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gridsense} -d ${POSTGRES_DB:-gridsense}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  redis:
+    image: redis:7-alpine
+    container_name: gridsense-redis
+    restart: unless-stopped
+    networks:
+      - gridsense-net
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # PYTHON AI ENGINE FLEET  (Engines A-D + AI Assistant)
+  # Ports: 8001, 8002, 8003, 8004, 8005
+  # ---------------------------------------------------------------------------
+
+  engine-a:
+    build:
+      context: ./ai-services/engine_a
+    container_name: gridsense-engine-a
+    restart: unless-stopped
+    networks:
+      - gridsense-net
+    ports:
+      - "8001:8001"
+    environment:
+      PORT: "8001"
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?INTERNAL_SERVICE_KEY is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  engine-b:
+    build:
+      context: ./ai-services/engine_b
+    container_name: gridsense-engine-b
+    restart: unless-stopped
+    networks:
+      - gridsense-net
+    ports:
+      - "8002:8002"
+    environment:
+      PORT: "8002"
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?INTERNAL_SERVICE_KEY is required}
+      UPSTASH_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8002/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  engine-c:
+    build:
+      context: ./ai-services/engine_c
+    container_name: gridsense-engine-c
+    restart: unless-stopped
+    networks:
+      - gridsense-net
+    ports:
+      - "8003:8003"
+    environment:
+      PORT: "8003"
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?INTERNAL_SERVICE_KEY is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8003/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  engine-d:
+    build:
+      context: ./ai-services/engine_d
+    container_name: gridsense-engine-d
+    restart: unless-stopped
+    networks:
+      - gridsense-net
+    ports:
+      - "8004:8004"
+    environment:
+      PORT: "8004"
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?INTERNAL_SERVICE_KEY is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8004/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  ai-assistant:
+    build:
+      context: ./ai-services/ai_assistant
+    container_name: gridsense-ai-assistant
+    restart: unless-stopped
+    networks:
+      - gridsense-net
+    ports:
+      - "8005:8005"
+    environment:
+      PORT: "8005"
+      INTERNAL_SERVICE_KEY: ${ASSISTANT_INTERNAL_KEY:?ASSISTANT_INTERNAL_KEY is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8005/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # GO MICROSERVICE FLEET
+  # ---------------------------------------------------------------------------
+
+  auth:
+    build:
+      context: ./services/auth
+    container_name: gridsense-auth
+    restart: unless-stopped
+    networks:
+      - gridsense-net
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: "8081"
+      DATABASE_URL: postgres://${POSTGRES_USER:-gridsense}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:-gridsense}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      UPSTASH_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  alerts:
+    build:
+      context: ./services/alerts
+    container_name: gridsense-alerts
+    restart: unless-stopped
+    networks:
+      - gridsense-net
+    ports:
+      - "8006:8006"
+    environment:
+      PORT: "8006"
+      DATABASE_URL: postgres://${POSTGRES_USER:-gridsense}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:-gridsense}?sslmode=disable
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?INTERNAL_SERVICE_KEY is required}
+      UPSTASH_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8006/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  dashboard-bff:
+    build:
+      context: ./services/dashboard-bff
+    container_name: gridsense-dashboard-bff
+    restart: unless-stopped
+    networks:
+      - gridsense-net
+    ports:
+      - "8082:8082"
+    environment:
+      BFF_PORT: "8082"
+      GATEWAY_GRPC_URL: gateway:50051
+      REDIS_URL: redis://redis:6379/1
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  gateway:
+    build:
+      context: ./services/gateway
+    container_name: gridsense-gateway
+    restart: unless-stopped
+    networks:
+      - gridsense-net
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+      - "9090:9090"
+    environment:
+      GATEWAY_PORT: "8080"
+      GRPC_PORT: "50051"
+      METRICS_PORT: "9090"
+      DATABASE_URL: postgres://${POSTGRES_USER:-gridsense}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:-gridsense}?sslmode=disable
+      UPSTASH_REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      AUTH_SERVICE_URL: http://auth:8081
+      ALERT_SERVICE_URL: http://alerts:8006
+      ENGINE_A_URL: http://engine-a:8001
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:?INTERNAL_SERVICE_KEY is required}
+      ALERT_INTERNAL_KEY: ${ALERT_INTERNAL_KEY:?ALERT_INTERNAL_KEY is required}
+      ASSISTANT_SERVICE_URL: http://ai-assistant:8005
+      ASSISTANT_INTERNAL_KEY: ${ASSISTANT_INTERNAL_KEY:?ASSISTANT_INTERNAL_KEY is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+      alerts:
+        condition: service_healthy
+      dashboard-bff:
+        condition: service_healthy
+      engine_a:
+        condition: service_healthy
+      engine_b:
+        condition: service_healthy
+      engine_c:
+        condition: service_healthy
+      engine_d:
+        condition: service_healthy
+      ai_assistant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s

@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gridsense-config
+  namespace: gridsense
+data:
+  # General Application Configuration
+  LOG_LEVEL: "info"
+  
+  # Database Configuration (Non-sensitive)
+  POSTGRES_USER: "gridsense"
+  POSTGRES_DB: "gridsense"
+  
+  # Go Microservice Internal DNS Endpoints
+  AUTH_SERVICE_URL: "http://auth-service.gridsense.svc.cluster.local:8081"
+  ALERT_SERVICE_URL: "http://alerts-service.gridsense.svc.cluster.local:8006"
+  GATEWAY_GRPC_URL: "gateway-service.gridsense.svc.cluster.local:50051"
+  
+  # Python AI Engine Internal DNS Endpoints
+  ENGINE_A_URL: "http://engine-a.gridsense.svc.cluster.local:8001"
+  ENGINE_B_URL: "http://engine-b.gridsense.svc.cluster.local:8002"
+  ENGINE_C_URL: "http://engine-c.gridsense.svc.cluster.local:8003"
+  ENGINE_D_URL: "http://engine-d.gridsense.svc.cluster.local:8004"
+  ASSISTANT_SERVICE_URL: "http://ai-assistant.gridsense.svc.cluster.local:8005"

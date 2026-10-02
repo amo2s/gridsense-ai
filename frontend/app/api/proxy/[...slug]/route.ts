@@ -27,7 +27,7 @@ async function proxyHandler(
     const targetPath = slug.join("/");
     const searchParams = req.nextUrl.search;
 
-    const targetUrl = targetPath === "healthz"
+    const targetUrl = targetPath === "healthz" || targetPath === "query"
       ? `${GATEWAY_URL}/${targetPath}${searchParams}`
       : `${GATEWAY_URL}/api/${targetPath}${searchParams}`;
 

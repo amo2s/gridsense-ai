@@ -23,12 +23,8 @@ RUN cd /app/backend/services/dashboard-bff && CGO_ENABLED=0 go build -ldflags="-
 # =============================================================================
 # Install Python Engine Dependencies
 # =============================================================================
-RUN pip install --no-cache-dir \
-    -r /app/backend/ai-services/engine_a/requirements.txt \
-    -r /app/backend/ai-services/engine_b/requirements.txt \
-    -r /app/backend/ai-services/engine_c/requirements.txt \
-    -r /app/backend/ai-services/engine_d/requirements.txt \
-    -r /app/backend/ai-services/ai_assistant/requirements.txt
+COPY backend/unified_requirements.txt /app/backend/unified_requirements.txt
+RUN pip install --no-cache-dir -r /app/backend/unified_requirements.txt
 
 # Configure NGINX and Supervisor
 COPY hf-deployment/nginx.conf /etc/nginx/nginx.conf

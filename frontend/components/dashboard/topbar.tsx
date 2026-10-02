@@ -18,13 +18,13 @@ import {
 interface TopbarProps {
   email: string;
   role: string;
+  name?: string;
 }
 
-export default function Topbar({ email: initialEmail, role: initialRole }: TopbarProps) {
+export default function Topbar({ email, role, name }: TopbarProps) {
   const pathname = usePathname();
   const searchInputRef = useRef<HTMLInputElement>(null);
   
-  const [profile, setProfile] = useState<{ email: string; role: string; name?: string } | null>(null);
   const [greeting, setGreeting] = useState("");
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -34,26 +34,8 @@ export default function Topbar({ email: initialEmail, role: initialRole }: Topba
   const [unreadAlertsCount, setUnreadAlertsCount] = useState(3);
 
   // Normalize role
-  const displayEmail = profile?.email || initialEmail;
-  const displayRole = profile?.role || initialRole;
-  const normalizedRole = displayRole?.toUpperCase() || "STAFF";
-
-  // Fetch operator profile
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch("/api/proxy/auth/me");
-        if (res.ok) {
-          const data = await res.json();
-          // Adjust to match the returned JSON structure if nested under "user"
-          setProfile(data.user || data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch profile", err);
-      }
-    };
-    fetchProfile();
-  }, []);
+  const normalizedRole = role?.toUpperCase() || "STAFF";
+  const displayEmail = email;
 
   // 1. Time-Aware Greeting Logic
   useEffect(() => {
@@ -245,13 +227,9 @@ export default function Topbar({ email: initialEmail, role: initialRole }: Topba
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               className="flex items-center gap-2 p-1 pl-2 pr-3 rounded-full hover:bg-white/50 transition-colors border border-transparent hover:border-white/60"
             >
-              {!profile ? (
-                <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse"></div>
-              ) : (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold border border-emerald-200">
-                  {displayEmail ? displayEmail.charAt(0).toUpperCase() : "U"}
-                </div>
-              )}
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold border border-emerald-200">
+                {name ? name.charAt(0).toUpperCase() : (displayEmail ? displayEmail.charAt(0).toUpperCase() : "U")}
+              </div>
             </button>
 
             {/* Liquid Glass Dropdown Panel - Profile */}
@@ -265,21 +243,12 @@ export default function Topbar({ email: initialEmail, role: initialRole }: Topba
                   className="absolute right-0 mt-3 w-56 liquid-panel overflow-hidden"
                 >
                   <div className="p-4 border-b border-white/40 bg-white/30">
-                    {!profile ? (
-                      <div className="animate-pulse space-y-2">
-                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-sm font-semibold text-emerald-900 truncate">
-                          {displayEmail || "Unknown User"}
-                        </p>
-                        <p className="text-xs text-emerald-700 capitalize mt-0.5">
-                          {normalizedRole.toLowerCase()}
-                        </p>
-                      </>
-                    )}
+                    <p className="text-sm font-semibold text-emerald-900 truncate">
+                      {name || displayEmail || "Unknown User"}
+                    </p>
+                    <p className="text-xs text-emerald-700 capitalize mt-0.5">
+                      {normalizedRole.toLowerCase()}
+                    </p>
                   </div>
                   
                   <div className="p-2 bg-white/20">

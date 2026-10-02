@@ -3,6 +3,9 @@ import Link from "next/link";
 import { Users, Activity, ShieldCheck, ArrowRight, Clock, CheckCircle2, Zap, AlertTriangle, CheckCircle } from "lucide-react";
 import { getGraphQLClient } from "@/lib/graphql/client";
 import { GET_DASHBOARD_METRICS } from "@/lib/graphql/queries";
+import OperatorGreeting from "@/components/dashboard/operator-greeting";
+import OperatorGreetingSkeleton from "@/components/dashboard/skeletons/operator-greeting-skeleton";
+import { Suspense } from "react";
 
 async function getUserRole() {
   try {
@@ -48,20 +51,9 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8 max-w-7xl mx-auto p-8">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 to-emerald-700 p-8 text-white shadow-xl">
-        <div className="absolute -right-10 -bottom-10 h-64 w-64 rounded-full bg-white/10 blur-2xl"></div>
-        <div className="relative z-10">
-          <span className="inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider mb-3">
-            {role} Command Center
-          </span>
-          <h1 className="text-3xl font-extrabold tracking-tight capitalize">
-            Welcome back, {username}
-          </h1>
-          <p className="mt-2 text-emerald-100 max-w-xl text-sm leading-relaxed">
-            Live telemetry data synchronized via Dashboard BFF. Monitor real-time grid reliability scores and priority areas below.
-          </p>
-        </div>
-      </div>
+      <Suspense fallback={<OperatorGreetingSkeleton />}>
+        <OperatorGreeting name={username} role={role} />
+      </Suspense>
 
       {/* KPI Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

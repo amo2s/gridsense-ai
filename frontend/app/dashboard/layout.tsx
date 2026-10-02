@@ -3,36 +3,7 @@ import { redirect } from "next/navigation";
 import Topbar from "@/components/dashboard/topbar";
 import Sidebar from "@/components/dashboard/sidebar"; // Adjust path if your components are in a different folder
 import GraphQLProvider from "@/components/providers/graphql-provider";
-
-// Define the expected structure of your Go backend's JWT payload
-interface JWTPayload {
-  email: string;
-  role: string;
-  exp: number;
-  [key: string]: any;
-}
-
-/**
- * Intelligently decodes the JWT payload without needing the secret key.
- * The secret key is only needed for signature validation, which your Go Gateway 
- * handles on API calls. We only need the payload for UI state.
- */
-function decodeJwtPayload(token: string): JWTPayload | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-
-    const payloadBase64Url = parts[1];
-    // Convert base64url to standard base64 and decode using Node's Buffer
-    const base64 = payloadBase64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = Buffer.from(base64, "base64").toString("utf-8");
-
-    return JSON.parse(jsonPayload);
-  } catch (error) {
-    console.error("Layout Security: Failed to parse JWT payload", error);
-    return null;
-  }
-}
+import { decodeOperatorToken } from "@/utils/jwt";
 
 export default async function DashboardLayout({
   children,
@@ -50,7 +21,7 @@ export default async function DashboardLayout({
   }
 
   // 3. Decode the JWT
-  const payload = decodeJwtPayload(token);
+  const payload = decodeOperatorToken(token);
 
   // 4. Secondary Security Gate: Invalid token format or expired token
   if (!payload || !payload.exp) {
@@ -65,6 +36,7 @@ export default async function DashboardLayout({
   // 5. Extract strictly typed credentials
   const email = payload.email || "";
   const role = payload.role || "STAFF";
+  const name = payload.name || "";
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50 text-slate-900 selection:bg-green-200">
@@ -74,7 +46,7 @@ export default async function DashboardLayout({
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden relative">
         {/* Topbar */}
-        <Topbar email={email} role={role} />
+        <Topbar email={email} role={role} name={name} />
 
         {/* Page Content Viewport */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-gradient-to-br from-white to-slate-50">

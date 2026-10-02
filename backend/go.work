@@ -1,10 +1,6 @@
 go 1.26.0
 
 use (
-	./ai-services/engine_a
-	./ai-services/engine_b
-	./ai-services/engine_c
-	./ai-services/engine_d
 	./services/alerts
 	./services/auth
 	./services/dashboard-bff

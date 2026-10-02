@@ -24,7 +24,7 @@ RUN cd /app/backend/services/dashboard-bff && CGO_ENABLED=0 go build -ldflags="-
 # Install Python Engine Dependencies
 # =============================================================================
 COPY backend/unified_requirements.txt /app/backend/unified_requirements.txt
-RUN pip install --no-cache-dir -r /app/backend/unified_requirements.txt
+RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r /app/backend/unified_requirements.txt
 
 # Configure NGINX and Supervisor
 COPY hf-deployment/nginx.conf /etc/nginx/nginx.conf

@@ -9,7 +9,10 @@ import {
   Command, 
   ChevronRight,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Activity,
+  LogOut,
+  UserCircle
 } from "lucide-react";
 
 interface TopbarProps {
@@ -23,8 +26,14 @@ export default function Topbar({ email, role }: TopbarProps) {
   
   const [greeting, setGreeting] = useState("");
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [systemHealth, setSystemHealth] = useState<"connecting" | "optimal" | "offline">("connecting");
-  const [hasUnread, setHasUnread] = useState(true); // Set to true for UI testing
+  
+  // Real-time alerts counter state
+  const [unreadAlertsCount, setUnreadAlertsCount] = useState(3);
+
+  // Normalize role
+  const normalizedRole = role?.toUpperCase() || "STAFF";
 
   // 1. Time-Aware Greeting Logic
   useEffect(() => {
@@ -50,7 +59,6 @@ export default function Topbar({ email, role }: TopbarProps) {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        // Routed through your Next.js proxy to hit Go's /healthz
         const res = await fetch("/api/proxy/healthz");
         if (res.ok) {
           setSystemHealth("optimal");
@@ -62,9 +70,7 @@ export default function Topbar({ email, role }: TopbarProps) {
       }
     };
 
-    // Initial check
     checkHealth();
-    // Poll every 60 seconds
     const interval = setInterval(checkHealth, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -78,121 +84,186 @@ export default function Topbar({ email, role }: TopbarProps) {
       
       return (
         <div key={path} className="flex items-center">
-          <span className={`${isLast ? "text-green-800 font-semibold" : "text-green-600/70"}`}>
+          <span className={`${isLast ? "text-emerald-800 font-semibold" : "text-emerald-600/70"}`}>
             {formattedPath}
           </span>
-          {!isLast && <ChevronRight className="h-4 w-4 mx-2 text-green-600/40" />}
+          {!isLast && <ChevronRight className="h-4 w-4 mx-2 text-emerald-600/40" />}
         </div>
       );
     });
   };
 
-  return (
-    <header 
-      className="sticky top-0 z-40 w-full flex items-center justify-between px-6 py-4 
-                 bg-gradient-to-r from-white/40 to-white/10 backdrop-blur-2xl 
-                 border-b border-white/60 shadow-[0_4px_32px_rgba(21,128,61,0.03)]"
-    >
-      {/* Left side: Greeting & Breadcrumbs */}
-      <div className="flex flex-col">
-        <h2 className="text-xl font-bold text-green-900 tracking-tight">
-          {greeting}, <span className="capitalize">{role.toLowerCase()}</span>
-        </h2>
-        <div className="flex items-center text-sm mt-1">
-          {generateBreadcrumbs()}
-        </div>
-      </div>
+  const handleLogout = () => {
+    // Basic sign out for now
+    window.location.href = "/portal";
+  };
 
-      {/* Right side: Search, Health, Notifications */}
-      <div className="flex items-center gap-6">
+  return (
+    <header className="sticky top-4 z-40 w-full px-4 pt-4 mb-4">
+      <div className="flex items-center justify-between px-6 py-3 liquid-panel">
         
-        {/* Global Search */}
-        <div className="relative group hidden md:block">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-green-700/50 group-focus-within:text-green-600 transition-colors" />
-          </div>
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search..."
-            className="w-64 pl-10 pr-12 py-2 rounded-xl bg-white/50 border border-white/60 
-                       text-green-900 placeholder-green-700/50 focus:outline-none focus:ring-2 
-                       focus:ring-green-500/30 focus:bg-white transition-all shadow-inner"
-          />
-          <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-            <span className="flex items-center text-[10px] font-medium text-green-700/50 bg-white/60 px-1.5 py-0.5 rounded border border-green-700/10">
-              <Command className="h-3 w-3 mr-0.5" /> K
+        {/* Left side: Branding & Breadcrumbs */}
+        <div className="flex items-center gap-8">
+          {/* Brand Logo/Header */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.5)]">
+              <Activity className="h-6 w-6 text-white drop-shadow-md" />
+            </div>
+            <span className="whitespace-nowrap text-xl font-bold text-emerald-900 tracking-tight">
+              GridSense AI
             </span>
           </div>
+
+          <div className="hidden lg:flex flex-col border-l border-emerald-100 pl-8">
+            <h2 className="text-sm font-medium text-emerald-900/60">
+              {greeting}
+            </h2>
+            <div className="flex items-center text-sm mt-0.5">
+              {generateBreadcrumbs()}
+            </div>
+          </div>
         </div>
 
-        {/* Live System Health Indicator */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm">
-          {systemHealth === "optimal" ? (
-            <>
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+        {/* Right side: Search, Health, Notifications, Profile */}
+        <div className="flex items-center gap-5">
+          
+          {/* Global Search */}
+          <div className="relative group hidden md:block">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-emerald-700/50 group-focus-within:text-emerald-600 transition-colors" />
+            </div>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search..."
+              className="w-64 pl-10 pr-12 py-2 rounded-xl bg-white/50 border border-white/60 
+                         text-emerald-900 placeholder-emerald-700/50 focus:outline-none focus:ring-2 
+                         focus:ring-emerald-500/30 focus:bg-white transition-all shadow-inner"
+            />
+            <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+              <span className="flex items-center text-[10px] font-medium text-emerald-700/50 bg-white/60 px-1.5 py-0.5 rounded border border-emerald-700/10">
+                <Command className="h-3 w-3 mr-0.5" /> K
               </span>
-              <span className="text-xs font-semibold text-green-800">System Optimal</span>
-            </>
-          ) : systemHealth === "connecting" ? (
-            <>
-              <div className="h-2.5 w-2.5 rounded-full bg-yellow-400 animate-pulse"></div>
-              <span className="text-xs font-semibold text-yellow-700">Connecting...</span>
-            </>
-          ) : (
-            <>
-              <AlertCircle className="h-3 w-3 text-red-500" />
-              <span className="text-xs font-semibold text-red-600">Degraded</span>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
 
-        {/* Intelligent Notification Hub */}
-        <div className="relative">
-          <button 
-            onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-            className="relative p-2 rounded-xl hover:bg-white/50 transition-colors border border-transparent hover:border-white/60 text-green-800"
-          >
-            <Bell className="h-5 w-5" />
-            {hasUnread && (
-              <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white"></span>
+          {/* Live System Health Indicator */}
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm">
+            {systemHealth === "optimal" ? (
+              <>
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span className="text-xs font-semibold text-emerald-800">System Optimal</span>
+              </>
+            ) : systemHealth === "connecting" ? (
+              <>
+                <div className="h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse"></div>
+                <span className="text-xs font-semibold text-amber-700">Connecting...</span>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="h-3 w-3 text-red-500" />
+                <span className="text-xs font-semibold text-red-600">Degraded</span>
+              </>
             )}
-          </button>
+          </div>
 
-          {/* Liquid Glass Dropdown Panel */}
-          <AnimatePresence>
-            {isNotificationsOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-                className="absolute right-0 mt-3 w-80 rounded-2xl bg-white/80 backdrop-blur-3xl 
-                           border border-white shadow-[0_10px_40px_rgba(21,128,61,0.1)] overflow-hidden"
-              >
-                <div className="p-4 border-b border-green-100/50 flex items-center justify-between bg-white/50">
-                  <h3 className="font-semibold text-green-900">Notifications</h3>
-                  <button className="text-xs font-medium text-green-600 hover:text-green-700">Mark all read</button>
-                </div>
-                
-                <div className="max-h-80 overflow-y-auto p-2">
-                  {/* Placeholder for future alerts - keeping it clean for now */}
-                  <div className="p-3 rounded-xl hover:bg-white/60 transition-colors flex gap-3 cursor-pointer">
-                    <div className="mt-0.5">
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-green-900">Grid Monitoring Active</p>
-                      <p className="text-xs text-green-700/70 mt-0.5">Telemetry streams are connected.</p>
-                      <p className="text-[10px] text-green-600/50 mt-1">Just now</p>
+          {/* Intelligent Notification Hub */}
+          <div className="relative">
+            <button 
+              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+              className="relative p-2 rounded-xl hover:bg-white/50 transition-colors border border-transparent hover:border-white/60 text-emerald-800"
+            >
+              <Bell className="h-5 w-5" />
+              {unreadAlertsCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 border border-white flex items-center justify-center">
+                  <span className="text-[9px] font-bold text-white">{unreadAlertsCount}</span>
+                </span>
+              )}
+            </button>
+
+            {/* Liquid Glass Dropdown Panel - Notifications */}
+            <AnimatePresence>
+              {isNotificationsOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="absolute right-0 mt-3 w-80 liquid-panel overflow-hidden"
+                >
+                  <div className="p-4 border-b border-white/40 flex items-center justify-between bg-white/30">
+                    <h3 className="font-semibold text-emerald-900">Alerts</h3>
+                    <button className="text-xs font-medium text-emerald-600 hover:text-emerald-700">Mark all read</button>
+                  </div>
+                  
+                  <div className="max-h-80 overflow-y-auto p-2 bg-white/20">
+                    <div className="p-3 rounded-xl hover:bg-white/60 transition-colors flex gap-3 cursor-pointer">
+                      <div className="mt-0.5">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-emerald-900">Grid Monitoring Active</p>
+                        <p className="text-xs text-emerald-700/70 mt-0.5">Telemetry streams are connected.</p>
+                        <p className="text-[10px] text-emerald-600/50 mt-1">Just now</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* User Profile Dropdown */}
+          <div className="relative ml-2">
+            <button 
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className="flex items-center gap-2 p-1 pl-2 pr-3 rounded-full hover:bg-white/50 transition-colors border border-transparent hover:border-white/60"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold border border-emerald-200">
+                {email ? email.charAt(0).toUpperCase() : "U"}
+              </div>
+            </button>
+
+            {/* Liquid Glass Dropdown Panel - Profile */}
+            <AnimatePresence>
+              {isProfileOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="absolute right-0 mt-3 w-56 liquid-panel overflow-hidden"
+                >
+                  <div className="p-4 border-b border-white/40 bg-white/30">
+                    <p className="text-sm font-semibold text-emerald-900 truncate">
+                      {email || "Unknown User"}
+                    </p>
+                    <p className="text-xs text-emerald-700 capitalize mt-0.5">
+                      {normalizedRole.toLowerCase()}
+                    </p>
+                  </div>
+                  
+                  <div className="p-2 bg-white/20">
+                    <button className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-emerald-800 hover:bg-white/60 transition-colors">
+                      <UserCircle className="h-4 w-4" />
+                      Account Settings
+                    </button>
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors mt-1"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
         </div>
       </div>
     </header>

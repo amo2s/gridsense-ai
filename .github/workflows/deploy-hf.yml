@@ -34,6 +34,8 @@ jobs:
           # 3. Track model binaries with Git LFS
           git lfs track "*.onnx"
           git lfs track "*.joblib"
+          git lfs track "*.pt"
+          git lfs track "*.bin"
           git add .gitattributes
 
           # 4. Remove unnecessary frontend and doc binaries that HF rejected
@@ -48,6 +50,7 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          git config lfs.allowincompletepush true
           git remote add huggingface https://Sliverboy:$HF_TOKEN@huggingface.co/spaces/Sliverboy/heal-her-backend
           git lfs push --all huggingface main || true
           git push huggingface HEAD:main --force

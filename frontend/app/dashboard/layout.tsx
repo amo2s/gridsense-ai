@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Topbar from "@/components/dashboard/topbar";
 import Sidebar from "@/components/dashboard/sidebar"; // Adjust path if your components are in a different folder
+import GraphQLProvider from "@/components/providers/graphql-provider";
 
 // Define the expected structure of your Go backend's JWT payload
 interface JWTPayload {
@@ -78,7 +79,9 @@ export default async function DashboardLayout({
         {/* Page Content Viewport */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-gradient-to-br from-white to-slate-50">
           <div className="mx-auto max-w-7xl">
-            {children}
+            <GraphQLProvider token={token}>
+              {children}
+            </GraphQLProvider>
           </div>
         </main>
       </div>

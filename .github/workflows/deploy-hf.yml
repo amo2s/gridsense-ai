@@ -1,0 +1,34 @@
+name: Sync Backend to Hugging Face Spaces
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Prepare Root Files for HF Build
+        run: |
+          # Hugging Face requires the Dockerfile at the repository root
+          cp hf-deployment/Dockerfile ./Dockerfile
+          cp hf-deployment/nginx.conf ./nginx.conf
+          cp hf-deployment/supervisord.conf ./supervisord.conf
+          
+          git config --global user.email "bot@gridsense.ai"
+          git config --global user.name "GridSense Deploy Bot"
+          git add Dockerfile nginx.conf supervisord.conf
+          git commit -m "chore: inject HF Dockerfile at root for deployment"
+
+      - name: Push to Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git remote add huggingface https://Sliverboy:$HF_TOKEN@huggingface.co/spaces/Sliverboy/heal-her-backend
+          git push huggingface HEAD:main --force

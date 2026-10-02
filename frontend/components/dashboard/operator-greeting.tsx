@@ -16,6 +16,11 @@ export default function OperatorGreeting({ name, role }: OperatorGreetingProps) 
   const [isReceiving, setIsReceiving] = useState(false);
   const [isBriefOpen, setIsBriefOpen] = useState(false);
   const [briefText, setBriefText] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const fullBrief = "Grid stability is nominal at 90%. No active high-risk sectors detected. LightGBM anomaly prediction models show a 0.2% probability of feeder failure in the next 6 hours.";
 
@@ -137,7 +142,7 @@ export default function OperatorGreeting({ name, role }: OperatorGreetingProps) 
             key={i} 
             className={`w-1 rounded-t-sm transition-colors duration-500 ${isReceiving ? 'bg-amber-400' : 'bg-emerald-500 animate-pulse'}`}
             style={{ 
-              height: `${20 + Math.random() * 80}%`, 
+              height: !isMounted ? `${i * 20}%` : `${20 + Math.random() * 80}%`, 
               animationDelay: `${i * 100}ms` 
             }}
           />

@@ -39,6 +39,10 @@ export function useOperationalStream() {
                 anomalyTimeline: [newEvent, ...currentAnomalies],
               };
             });
+
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('websocket-message'));
+            }
           }
         },
         error: (err: any) => {

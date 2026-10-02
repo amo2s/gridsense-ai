@@ -37,6 +37,7 @@ jobs:
           cp hf-deployment/Dockerfile ./Dockerfile
           cp hf-deployment/nginx.conf ./nginx.conf
           cp hf-deployment/supervisord.conf ./supervisord.conf
+          cp hf-deployment/README.md ./README.md
 
           # 4. Erase offending files so they never exist in this new repo
           rm -rf frontend/

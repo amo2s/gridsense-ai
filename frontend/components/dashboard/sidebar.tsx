@@ -83,22 +83,18 @@ export default function Sidebar({ role }: SidebarProps) {
                 <div
                   className={`group flex items-center gap-4 rounded-xl px-3 py-3 transition-all duration-300 ${
                     isActive
-                      ? "text-[#10B981] bg-emerald-50/50 shadow-[0_0_12px_rgba(16,185,129,0.2)] border border-emerald-200/50"
+                      ? "text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]"
                       : "text-gray-600 hover:bg-white/40 hover:text-emerald-700"
                   }`}
                 >
-                  <item.icon className={`h-5 w-5 shrink-0 transition-all ${
-                    isActive ? "drop-shadow-[0_0_8px_rgba(16,185,129,0.6)]" : ""
-                  }`} />
+                  <item.icon className="h-5 w-5 shrink-0 transition-all" />
                   <AnimatePresence initial={false}>
                     {!isCollapsed && (
                       <motion.span
                         initial={{ opacity: 0, width: 0 }}
                         animate={{ opacity: 1, width: "auto" }}
                         exit={{ opacity: 0, width: 0 }}
-                        className={`whitespace-nowrap font-medium overflow-hidden ${
-                          isActive ? "text-shadow-sm" : ""
-                        }`}
+                        className="whitespace-nowrap font-medium overflow-hidden"
                       >
                         {item.name}
                       </motion.span>

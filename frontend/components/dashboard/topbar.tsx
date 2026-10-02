@@ -20,10 +20,11 @@ interface TopbarProps {
   role: string;
 }
 
-export default function Topbar({ email, role }: TopbarProps) {
+export default function Topbar({ email: initialEmail, role: initialRole }: TopbarProps) {
   const pathname = usePathname();
   const searchInputRef = useRef<HTMLInputElement>(null);
   
+  const [profile, setProfile] = useState<{ email: string; role: string; name?: string } | null>(null);
   const [greeting, setGreeting] = useState("");
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -33,7 +34,26 @@ export default function Topbar({ email, role }: TopbarProps) {
   const [unreadAlertsCount, setUnreadAlertsCount] = useState(3);
 
   // Normalize role
-  const normalizedRole = role?.toUpperCase() || "STAFF";
+  const displayEmail = profile?.email || initialEmail;
+  const displayRole = profile?.role || initialRole;
+  const normalizedRole = displayRole?.toUpperCase() || "STAFF";
+
+  // Fetch operator profile
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch("/api/proxy/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          // Adjust to match the returned JSON structure if nested under "user"
+          setProfile(data.user || data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch profile", err);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   // 1. Time-Aware Greeting Logic
   useEffect(() => {
@@ -112,6 +132,9 @@ export default function Topbar({ email, role }: TopbarProps) {
             <span className="whitespace-nowrap text-xl font-bold text-emerald-900 tracking-tight">
               GridSense AI
             </span>
+            <div className="ml-2 px-3 py-1 text-sm bg-gray-100 rounded-full border border-gray-200 text-emerald-800 font-medium">
+              Global View
+            </div>
           </div>
 
           <div className="hidden lg:flex flex-col border-l border-emerald-100 pl-8">
@@ -222,9 +245,13 @@ export default function Topbar({ email, role }: TopbarProps) {
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               className="flex items-center gap-2 p-1 pl-2 pr-3 rounded-full hover:bg-white/50 transition-colors border border-transparent hover:border-white/60"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold border border-emerald-200">
-                {email ? email.charAt(0).toUpperCase() : "U"}
-              </div>
+              {!profile ? (
+                <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse"></div>
+              ) : (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold border border-emerald-200">
+                  {displayEmail ? displayEmail.charAt(0).toUpperCase() : "U"}
+                </div>
+              )}
             </button>
 
             {/* Liquid Glass Dropdown Panel - Profile */}
@@ -238,12 +265,21 @@ export default function Topbar({ email, role }: TopbarProps) {
                   className="absolute right-0 mt-3 w-56 liquid-panel overflow-hidden"
                 >
                   <div className="p-4 border-b border-white/40 bg-white/30">
-                    <p className="text-sm font-semibold text-emerald-900 truncate">
-                      {email || "Unknown User"}
-                    </p>
-                    <p className="text-xs text-emerald-700 capitalize mt-0.5">
-                      {normalizedRole.toLowerCase()}
-                    </p>
+                    {!profile ? (
+                      <div className="animate-pulse space-y-2">
+                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm font-semibold text-emerald-900 truncate">
+                          {displayEmail || "Unknown User"}
+                        </p>
+                        <p className="text-xs text-emerald-700 capitalize mt-0.5">
+                          {normalizedRole.toLowerCase()}
+                        </p>
+                      </>
+                    )}
                   </div>
                   
                   <div className="p-2 bg-white/20">

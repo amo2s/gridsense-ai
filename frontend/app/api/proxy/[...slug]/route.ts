@@ -27,7 +27,9 @@ async function proxyHandler(
     const targetPath = slug.join("/");
     const searchParams = req.nextUrl.search;
 
-    const targetUrl = `${GATEWAY_URL}/api/${targetPath}${searchParams}`;
+    const targetUrl = targetPath === "healthz"
+      ? `${GATEWAY_URL}/${targetPath}${searchParams}`
+      : `${GATEWAY_URL}/api/${targetPath}${searchParams}`;
 
     // 1. Forward incoming headers, strip hop-by-hop metadata
     const forwardHeaders = new Headers();

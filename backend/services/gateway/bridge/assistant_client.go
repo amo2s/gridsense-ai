@@ -18,21 +18,21 @@ import (
 )
 
 // 2 MiB cap to safely accommodate generous LLM JSON responses without unbounded reads
-const maxAssistantResponseBodyBytes = 2 << 20 
+const maxAssistantResponseBodyBytes = 2 << 20
 
 // AssistantClient manages HTTP communication with the Python AI Assistant microservice.
 type AssistantClient struct {
-	baseURL        string
-	serviceKey     string
-	httpClient     *http.Client
-	cb             *gobreaker.CircuitBreaker
+	baseURL    string
+	serviceKey string
+	httpClient *http.Client
+	cb         *gobreaker.CircuitBreaker
 
 	maxRetries     int
 	initialBackoff time.Duration
 }
 
 // NewAssistantClient initializes the bridge client with optimized connection pooling,
-// jittered-backoff retry, and a circuit breaker to protect the Go Gateway from 
+// jittered-backoff retry, and a circuit breaker to protect the Go Gateway from
 // cascading failures if the Cerebras API or Python service stalls.
 func NewAssistantClient(baseURL, serviceKey string) *AssistantClient {
 	return &AssistantClient{
@@ -65,7 +65,7 @@ func NewAssistantClient(baseURL, serviceKey string) *AssistantClient {
 	}
 }
 
-// QueryAssistant dispatches a GatewayQueryPayload to the Python Assistant service and 
+// QueryAssistant dispatches a GatewayQueryPayload to the Python Assistant service and
 // returns the structured AssistantResponse.
 func (c *AssistantClient) QueryAssistant(ctx context.Context, payload *models.GatewayQueryPayload) (*models.AssistantResponse, error) {
 	bodyBytes, err := json.Marshal(payload)
@@ -112,7 +112,7 @@ func (c *AssistantClient) doWithRetries(ctx context.Context, bodyBytes []byte) (
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
-		
+
 		req.Header.Set("Content-Type", "application/json")
 		// Injects the security token verified by main.py's verify_internal_service_key middleware
 		req.Header.Set("X-Internal-Service-Key", c.serviceKey)

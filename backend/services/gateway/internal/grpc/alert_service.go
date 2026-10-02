@@ -16,7 +16,7 @@ import (
 
 	"gateway/bridge"
 	"gateway/database"
-	"gateway/handlers" 
+	"gateway/handlers"
 	interventionoutcomes "gateway/intervention_outcomes"
 	"gateway/middleware"
 	"gateway/models"
@@ -31,11 +31,11 @@ type AlertBridgeClient interface {
 }
 
 const (
-	alertRPCTimeout          = 10 * time.Second 
-	anomalyRPCTimeout        = 8 * time.Second  
-	predictionRPCTimeout     = 8 * time.Second  
-	prioritizationRPCTimeout = 8 * time.Second  
-	reliabilityRPCTimeout    = 8 * time.Second  
+	alertRPCTimeout          = 10 * time.Second
+	anomalyRPCTimeout        = 8 * time.Second
+	predictionRPCTimeout     = 8 * time.Second
+	prioritizationRPCTimeout = 8 * time.Second
+	reliabilityRPCTimeout    = 8 * time.Second
 )
 
 // GatewayGRPCServer implements the pb.GatewayServiceServer interface.
@@ -57,7 +57,7 @@ type GatewayGRPCServer struct {
 	// Engine D (intervention prioritization)
 	prioritizationRepo handlers.PrioritizationRepository
 	engineDClient      handlers.EngineDClient
-	outcomesRepo       interventionoutcomes.Repository 
+	outcomesRepo       interventionoutcomes.Repository
 	rankGrp            singleflight.Group
 
 	// ------------------------------------------------------------------------
@@ -262,11 +262,11 @@ func (s *GatewayGRPCServer) DetectAnomaly(ctx context.Context, req *pb.DetectAno
 	}
 
 	return &pb.DetectAnomalyResponse{
-		FeederId:           r.FeederID,
-		Timestamp:          r.Timestamp.Format(time.RFC3339),
-		IsAnomaly:          r.IsAnomaly,
-		Severity:           r.Severity,
-		ConfidenceScore:    r.ConfidenceScore,
+		FeederId:        r.FeederID,
+		Timestamp:       r.Timestamp.Format(time.RFC3339),
+		IsAnomaly:       r.IsAnomaly,
+		Severity:        r.Severity,
+		ConfidenceScore: r.ConfidenceScore,
 		LayerFlags: &pb.LayerFlags{
 			Layer1Stat:  r.LayerFlags.Layer1Stat,
 			Layer2Seas:  r.LayerFlags.Layer2Seas,
@@ -390,7 +390,7 @@ func (s *GatewayGRPCServer) processPredictionRequest(ctx context.Context, feeder
 
 // RankInterventions runs Engine D prioritization across the feeders of an area.
 func (s *GatewayGRPCServer) RankInterventions(ctx context.Context, req *pb.RankInterventionsRequest) (*pb.RankInterventionsResponse, error) {
-	queryID := req.GetQueryId() 
+	queryID := req.GetQueryId()
 	if _, err := uuid.Parse(queryID); err != nil {
 		return nil, status.Error(codes.InvalidArgument, handlers.ErrInvalidQueryID.Error())
 	}
@@ -530,7 +530,7 @@ func (s *GatewayGRPCServer) EvaluateReliability(ctx context.Context, req *pb.Eva
 	if err != nil {
 		slog.Error("Engine A evaluation failed", "feeder_id", feederID, "error", err)
 
-		code := codes.Unavailable 
+		code := codes.Unavailable
 		switch {
 		case errors.Is(err, gobreaker.ErrTooManyRequests):
 			code = codes.ResourceExhausted

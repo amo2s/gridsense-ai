@@ -70,7 +70,7 @@ func GenerateTokenPair(userID, email, role, status string, secret []byte) (strin
 func ValidateToken(tokenString string, secret []byte) (*TokenClaims, error) {
 	// Parse the token with a strict callback function to verify the signing algorithm
 	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, func(t *jwt.Token) (interface{}, error) {
-		// BRUTAL SECURITY: Enforce HMAC SHA-256. 
+		// BRUTAL SECURITY: Enforce HMAC SHA-256.
 		// If an attacker changes the header to "alg": "none" or "RS256", reject it immediately.
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])

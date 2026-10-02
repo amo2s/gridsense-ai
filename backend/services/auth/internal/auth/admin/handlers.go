@@ -59,7 +59,7 @@ func (h *Handler) HandleApproveUser(w http.ResponseWriter, r *http.Request) {
 			shared.RespondBadRequest(w, "The provided User ID format is invalid", err)
 			return
 		}
-		
+
 		shared.RespondInternal(w, err)
 		return
 	}

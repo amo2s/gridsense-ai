@@ -18,10 +18,10 @@ func NewDBPool(databaseURL string) (*pgxpool.Pool, error) {
 	}
 
 	// 2. Strict Pool Tuning for Supabase Limits & High Concurrency
-	config.MaxConns = 25                      // Caps concurrent connections to avoid choking Supabase
-	config.MinConns = 5                       // Maintains warm connections for instant query execution
-	config.MaxConnLifetime = 1 * time.Hour    // Safely cycles out aging connections
-	config.MaxConnIdleTime = 15 * time.Minute // Drops connections sitting idle to free up resources
+	config.MaxConns = 25                       // Caps concurrent connections to avoid choking Supabase
+	config.MinConns = 5                        // Maintains warm connections for instant query execution
+	config.MaxConnLifetime = 1 * time.Hour     // Safely cycles out aging connections
+	config.MaxConnIdleTime = 15 * time.Minute  // Drops connections sitting idle to free up resources
 	config.HealthCheckPeriod = 1 * time.Minute // Actively verifies idle connections are still alive
 
 	// 3. Fail-Fast Context: Give the system exactly 10 seconds to connect on startup.
@@ -30,7 +30,7 @@ func NewDBPool(databaseURL string) (*pgxpool.Pool, error) {
 	defer cancel()
 
 	log.Println("Establishing connection pool to Supabase...")
-	
+
 	// 4. Create the pool using the advanced configuration
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {

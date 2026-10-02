@@ -40,6 +40,13 @@ func (h *AuthHandler) ProxyRequest(w http.ResponseWriter, r *http.Request) {
 		req.Header.Set("Cookie", cookie)
 	}
 
+	// Propagate original client IP
+	clientIP := r.Header.Get("X-Forwarded-For")
+	if clientIP == "" {
+		clientIP = r.RemoteAddr
+	}
+	req.Header.Set("X-Forwarded-For", clientIP)
+
 	resp, err := h.client.Do(req)
 	if err != nil {
 		http.Error(w, "Auth service unreachable", http.StatusBadGateway)
@@ -53,7 +60,7 @@ func (h *AuthHandler) ProxyRequest(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add(key, value)
 		}
 	}
-	
+
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 }

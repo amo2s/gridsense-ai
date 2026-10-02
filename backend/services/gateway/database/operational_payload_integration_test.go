@@ -98,7 +98,7 @@ func TestFetchOperationalPayload_RealPostgres_InterruptionsWithinWindowOnly(t *t
 	seedAsset(t, db, feederID)
 
 	cycleEnd := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
-	inWindow := cycleEnd.Add(-12 * time.Hour)  // within the 24h window
+	inWindow := cycleEnd.Add(-12 * time.Hour)     // within the 24h window
 	beforeWindow := cycleEnd.Add(-30 * time.Hour) // outside: > 24h before cycleEnd
 	afterWindow := cycleEnd.Add(1 * time.Hour)    // outside: after cycleEnd
 

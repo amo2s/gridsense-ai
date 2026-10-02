@@ -26,7 +26,7 @@ func WriteJSON(w http.ResponseWriter, statusCode int, payload APIResponse) {
 	}
 }
 
-// WriteError intercepts failures, logs the naked error for developers, 
+// WriteError intercepts failures, logs the naked error for developers,
 // and sends a sanitized APIResponse to the client.
 func WriteError(w http.ResponseWriter, statusCode int, errorCode, publicMessage string, rawErr error) {
 	// 1. Log the naked, technical error to the backend console ONLY.

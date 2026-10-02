@@ -39,7 +39,7 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields() // Reject payloads containing unexpected fields
-	
+
 	if err := decoder.Decode(&req); err != nil {
 		shared.RespondBadRequest(w, "Invalid JSON payload format", err)
 		return
@@ -54,7 +54,7 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 			shared.WriteError(w, http.StatusConflict, "CONFLICT", "This email is already in use.", err)
 			return
 		}
-		
+
 		// If it's a generic bad request (like missing fields)
 		if err.Error() == "name, email and password are required" {
 			shared.RespondBadRequest(w, err.Error(), err)
@@ -74,12 +74,18 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	// Fire registration event asynchronously (non-blocking, best-effort)
 	if h.publisher != nil {
 		go func() {
+			clientIP := r.Header.Get("X-Forwarded-For")
+			if clientIP == "" {
+				clientIP = r.RemoteAddr
+			}
+
 			evt := events.AuthEvent{
 				EventType: "USER_REGISTER",
 				UserID:    user.ID,
 				UserName:  user.Name,
 				UserEmail: user.Email,
 				Action:    "register",
+				IPAddress: clientIP,
 			}
 			if err := h.publisher.PublishAuthEvent(evt); err != nil {
 				log.Printf("WARNING: Failed to publish register event: %v", err)

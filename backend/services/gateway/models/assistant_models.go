@@ -23,7 +23,7 @@ type GatewayQueryPayload struct {
 // Egress Contracts (Python Assistant -> Go Gateway)
 // ==========================================
 
-// Citation provides deterministic proof of the LLM's claims by mapping directly 
+// Citation provides deterministic proof of the LLM's claims by mapping directly
 // back to the PostgreSQL pgvector retrieved records, fulfilling the XAI mandate.
 type Citation struct {
 	RecordID    string `json:"record_id"`

@@ -41,7 +41,7 @@ func (h *Handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 	accessToken := parts[1]
 
-	// 2. Trigger the Service Layer 
+	// 2. Trigger the Service Layer
 	// This writes the token to the Redis blocklist and deletes the refresh session cache.
 	err := h.service.Logout(r.Context(), accessToken)
 	if err != nil {

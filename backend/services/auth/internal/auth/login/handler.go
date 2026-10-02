@@ -74,8 +74,8 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Value:    result.RefreshToken,
 		Path:     "/api/auth/refresh", // Restrict where the browser sends this cookie
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
-		HttpOnly: true,             // Hide from JavaScript
-		Secure:   h.secure,         // Require HTTPS in production
+		HttpOnly: true,                    // Hide from JavaScript
+		Secure:   h.secure,                // Require HTTPS in production
 		SameSite: http.SameSiteStrictMode, // Prevent CSRF attacks
 	}
 	http.SetCookie(w, refreshCookie)
@@ -91,9 +91,9 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Value:    result.AccessToken,
 		Path:     "/",
 		Expires:  time.Now().Add(15 * time.Minute), // match access token TTL — adjust if GenerateTokenPair uses a different value
-		HttpOnly: true,                              // Hide from JavaScript
-		Secure:   h.secure,                           // Require HTTPS in production
-		SameSite: http.SameSiteLaxMode,                // Lax (not Strict) so it survives the :3000 -> :8081 proxy hop
+		HttpOnly: true,                             // Hide from JavaScript
+		Secure:   h.secure,                         // Require HTTPS in production
+		SameSite: http.SameSiteLaxMode,             // Lax (not Strict) so it survives the :3000 -> :8081 proxy hop
 	}
 	http.SetCookie(w, sessionCookie)
 
@@ -109,13 +109,18 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Fire auth event asynchronously (non-blocking, best-effort)
 	if h.publisher != nil {
 		go func() {
+			clientIP := r.Header.Get("X-Forwarded-For")
+			if clientIP == "" {
+				clientIP = r.RemoteAddr
+			}
+
 			evt := events.AuthEvent{
 				EventType: "USER_LOGIN",
 				UserID:    result.User.ID,
 				UserName:  result.User.Email,
 				UserEmail: result.User.Email,
 				Action:    "login",
-				IPAddress: r.RemoteAddr,
+				IPAddress: clientIP,
 			}
 			if err := h.publisher.PublishAuthEvent(evt); err != nil {
 				log.Printf("WARNING: Failed to publish login event: %v", err)

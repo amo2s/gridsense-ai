@@ -33,7 +33,7 @@ var (
 type User struct {
 	ID           string    `json:"id"`
 	Email        string    `json:"email"`
-	FullName     string    `json:"full_name"`
+	Name         string    `json:"name"`
 	PasswordHash string    `json:"-"`
 	Role         string    `json:"role"`
 	Status       string    `json:"status"`
@@ -87,7 +87,7 @@ func (s *loginService) Login(ctx context.Context, email, password string) (*Logi
 
 	// 2. Fetch User Record from PostgreSQL
 	query := `
-		SELECT id, email, full_name, password_hash, role, status, created_at, updated_at
+		SELECT id, email, name, password_hash, role, status, created_at, updated_at
 		FROM users
 		WHERE email = $1
 	`
@@ -95,7 +95,7 @@ func (s *loginService) Login(ctx context.Context, email, password string) (*Logi
 
 	// Pass ctx so the query cancels instantly if the HTTP request times out
 	err := s.db.QueryRow(ctx, query, cleanEmail).Scan(
-		&u.ID, &u.Email, &u.FullName, &u.PasswordHash, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt,
+		&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.Role, &u.Status, &u.CreatedAt, &u.UpdatedAt,
 	)
 
 	if err != nil {
@@ -135,7 +135,7 @@ func (s *loginService) Login(ctx context.Context, email, password string) (*Logi
 	accessToken, refreshToken, err := shared.GenerateTokenPair(
 		u.ID,
 		u.Email,
-		u.FullName,
+		u.Name,
 		u.Role,
 		u.Status,
 		s.jwtSecret,

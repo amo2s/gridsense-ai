@@ -17,27 +17,27 @@ var (
 // TokenClaims maps the exact data payload we are injecting into our JWTs.
 // It embeds jwt.RegisteredClaims to automatically handle expiry (exp) and issued-at (iat) logic.
 type TokenClaims struct {
-	UserID   string `json:"user_id"`
-	Email    string `json:"email"`
-	FullName string `json:"full_name"`
-	Role     string `json:"role"`
-	Status   string `json:"status"`
+	UserID string `json:"user_id"`
+	Email  string `json:"email"`
+	Name   string `json:"name"`
+	Role   string `json:"role"`
+	Status string `json:"status"`
 	jwt.RegisteredClaims
 }
 
 // GenerateTokenPair creates both a short-lived access token and a long-lived refresh token.
 // Access Token: Used for rapid, stateless API calls (15 mins).
 // Refresh Token: Minimal payload, used only to get a new Access Token (7 days).
-func GenerateTokenPair(userID, email, fullName, role, status string, secret []byte) (string, string, error) {
+func GenerateTokenPair(userID, email, name, role, status string, secret []byte) (string, string, error) {
 	now := time.Now()
 
 	// 1. Construct Access Token Claims (15 Minutes)
 	accessClaims := TokenClaims{
-		UserID:   userID,
-		Email:    email,
-		FullName: fullName,
-		Role:     role,
-		Status:   status,
+		UserID: userID,
+		Email:  email,
+		Name:   name,
+		Role:   role,
+		Status: status,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID,
 			IssuedAt:  jwt.NewNumericDate(now),

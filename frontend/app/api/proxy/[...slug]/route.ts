@@ -1,29 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// --- Backend targets ---
-const AUTH_SERVICE_URL = process.env.AUTH_API_URL || "http://localhost:8081";
-const GATEWAY_URL = process.env.BACKEND_API_URL || "http://localhost:8080";
+// --- Single upstream target ---
+// All traffic (auth, admin, and data routes) goes through the Go API Gateway,
+// which internally proxies to the Auth Microservice for /api/auth/* and /api/admin/*.
+// Source: gateway/cmd/api/main.go L139-140:
+//   mux.Handle("/api/auth/", ... authHandler.ProxyRequest)
+//   mux.Handle("/api/admin/", ... authHandler.ProxyRequest)
+//
+// In production this points at the Hugging Face Space deployment.
+// In local development it points at the local Gateway process.
+const GATEWAY_URL =
+  process.env.BACKEND_API_URL || "https://sliverboy-heal-her-backend.hf.space";
 
 // --- Request size limit ---
-const MAX_REQUEST_BYTES = 10 * 1024 * 1024; // 10MB — adjust to fit your largest legitimate payload
+const MAX_REQUEST_BYTES = 10 * 1024 * 1024; // 10MB
 
 // --- Backend fetch timeout ---
-const BACKEND_TIMEOUT_MS = 15_000; // 15s — adjust per your slowest legitimate endpoint
-
-/**
- * Path-based router: decides which upstream service owns a given request.
- * Add new prefixes here as new services come online.
- */
-function resolveBackend(targetPath: string): string {
-  const firstSegment = targetPath.split("/")[0];
-
-  if (firstSegment === "auth" || firstSegment === "admin") {
-    return AUTH_SERVICE_URL;
-  }
-
-  // Everything else (grid telemetry, Engine A routes, etc.) goes to the general gateway
-  return GATEWAY_URL;
-}
+const BACKEND_TIMEOUT_MS = 15_000; // 15s
 
 async function proxyHandler(
   req: NextRequest,
@@ -34,13 +27,14 @@ async function proxyHandler(
     const targetPath = slug.join("/");
     const searchParams = req.nextUrl.search;
 
-    const backendBase = resolveBackend(targetPath);
-    const targetUrl = `${backendBase}/api/${targetPath}${searchParams}`;
+    const targetUrl = `${GATEWAY_URL}/api/${targetPath}${searchParams}`;
 
-    // 1. Forward incoming headers while stripping hop-by-hop metadata
+    // 1. Forward incoming headers, strip hop-by-hop metadata
     const forwardHeaders = new Headers();
     req.headers.forEach((value, key) => {
       const lowerKey = key.toLowerCase();
+      // Always forward Cookie — the Gateway relies on auth_token + refresh_token.
+      // Strip only transport-layer headers that must not be forwarded.
       if (!["host", "connection", "content-length"].includes(lowerKey)) {
         forwardHeaders.set(key, value);
       }
@@ -93,7 +87,7 @@ async function proxyHandler(
       }
     }
 
-    // 3. Dispatch forward request to the resolved backend
+    // 3. Dispatch forward request to the Gateway
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), BACKEND_TIMEOUT_MS);
 
@@ -110,7 +104,12 @@ async function proxyHandler(
       clearTimeout(timeoutId);
     }
 
-    // 4. Build response headers and correctly handle cookies
+    // 4. Build response headers with correct Set-Cookie handling.
+    // The Go login handler sets TWO cookies (login/handler.go L72-98):
+    //   - "auth_token"    (Path="/",               SameSite=Lax,    15 min)
+    //   - "refresh_token" (Path="/api/auth/refresh", SameSite=Strict, 7 days)
+    // getSetCookie() is required (not headers.get('set-cookie')) to preserve
+    // multiple Set-Cookie entries which would otherwise be collapsed into one.
     const responseHeaders = new Headers();
 
     if (typeof backendResponse.headers.getSetCookie === "function") {

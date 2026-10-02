@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Mail, Lock, Loader2, CheckCircle2, ShieldCheck, AlertCircle } from "lucide-react";
+import { Mail, Lock, User, Loader2, CheckCircle2, ShieldCheck, AlertCircle } from "lucide-react";
 import api from "../../src/lib/api";
 
 const container = {
@@ -32,12 +32,13 @@ function getPasswordStrength(password: string) {
 }
 
 export default function RegisterForm() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [focusedField, setFocusedField] = useState<"email" | "password" | null>(null);
+  const [focusedField, setFocusedField] = useState<"name" | "email" | "password" | null>(null);
 
   const strength = useMemo(() => getPasswordStrength(password), [password]);
   const strengthColors = [
@@ -55,10 +56,13 @@ export default function RegisterForm() {
     setError("");
 
     try {
-      await api.post("/auth/register", { email, password });
+      // Payload must match RegisterRequest exactly (register/handler.go L15-19).
+      // The Go handler uses DisallowUnknownFields — extra keys cause 400 Bad Request.
+      // All three fields are required: name + email + password.
+      await api.post("/auth/register", { name, email, password });
       setSuccess(true);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Registration failed. Try again.");
+      setError(err.response?.data?.message || err.response?.data?.error || "Registration failed. Try again.");
     } finally {
       setIsLoading(false);
     }
@@ -131,6 +135,38 @@ export default function RegisterForm() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Full Name field — required by Go RegisterRequest (register/handler.go L16) */}
+          <motion.div variants={item} className="relative">
+            <motion.div
+              animate={{
+                color: focusedField === "name" ? "#059669" : "rgba(5,150,105,0.5)",
+              }}
+              className="pointer-events-none absolute left-3 top-3"
+            >
+              <User className="h-5 w-5" />
+            </motion.div>
+            <input
+              type="text"
+              placeholder="Full Name"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onFocus={() => setFocusedField("name")}
+              onBlur={() => setFocusedField(null)}
+              className="w-full rounded-xl border border-emerald-100 bg-gradient-to-b from-emerald-50/50 to-emerald-50/20 py-3 pl-10 pr-4 text-sm text-emerald-950 outline-none transition-colors duration-200 placeholder:text-emerald-900/30 focus:border-emerald-500 focus:bg-white"
+            />
+            <motion.div
+              className="pointer-events-none absolute inset-0 rounded-xl ring-emerald-500/10"
+              animate={{
+                boxShadow:
+                  focusedField === "name"
+                    ? "0 0 0 4px rgba(16,185,129,0.12)"
+                    : "0 0 0 0px rgba(16,185,129,0)",
+              }}
+              transition={{ duration: 0.2 }}
+            />
+          </motion.div>
 
           {/* Email field */}
           <motion.div variants={item} className="relative">

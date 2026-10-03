@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	// Update this import path to match your module name in go.mod
@@ -109,9 +111,22 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Fire auth event asynchronously (non-blocking, best-effort)
 	if h.publisher != nil {
 		go func() {
-			clientIP := r.Header.Get("X-Forwarded-For")
-			if clientIP == "" {
-				clientIP = r.RemoteAddr
+			var clientIP string
+			if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+				parts := strings.Split(xff, ",")
+				clientIP = strings.TrimSpace(parts[0])
+			} else if xrip := r.Header.Get("X-Real-IP"); xrip != "" {
+				clientIP = strings.TrimSpace(xrip)
+			} else {
+				clientIP = strings.TrimSpace(r.RemoteAddr)
+			}
+
+			if host, _, err := net.SplitHostPort(clientIP); err == nil {
+				clientIP = host
+			}
+
+			if net.ParseIP(clientIP) == nil {
+				clientIP = "0.0.0.0"
 			}
 
 			evt := events.AuthEvent{

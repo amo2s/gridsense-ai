@@ -42,22 +42,21 @@ func NewRouter(logger *zap.Logger, pub message.Publisher, cfg *config.Config, ev
 	// Graceful shutdown plugin linked to OS interrupt signals
 	engine.AddPlugin(plugin.SignalsHandler)
 
-	// Middlewares execute in the exact order they are added.
-	// 1. Recoverer: catches panics in handlers to prevent microservice crashes.
-	engine.AddMiddleware(middleware.Recoverer)
-
-	// 2. CorrelationID: propagates tracing IDs across distributed messages.
-	engine.AddMiddleware(middleware.CorrelationID)
-
-	// 3. Timeout: strictly enforces a 10-second deadline for handlers.
-	engine.AddMiddleware(middleware.Timeout(10 * time.Second))
-
-	// 4. Poison Queue (Dead-Letter Queue): routes permanently failed events here to unblock stream.
-	pq, err := middleware.PoisonQueue(pub, cfg.DeadLetterStreamName)
+	// 1. Poison Queue (Dead-Letter Queue): routes permanently failed events here to unblock stream.
+	pq, err := middleware.PoisonQueue(pub, "dead_letter_events")
 	if err != nil {
 		return nil, fmt.Errorf("failed to build poison queue middleware: %w", err)
 	}
 	engine.AddMiddleware(pq)
+
+	// 2. Recoverer: catches panics in handlers to prevent microservice crashes.
+	engine.AddMiddleware(middleware.Recoverer)
+
+	// 3. CorrelationID: propagates tracing IDs across distributed messages.
+	engine.AddMiddleware(middleware.CorrelationID)
+
+	// 4. Timeout: strictly enforces a 10-second deadline for handlers.
+	engine.AddMiddleware(middleware.Timeout(10 * time.Second))
 
 	// 5. Exponential Backoff: retries transient errors before failing down to the Poison Queue.
 	retry := middleware.Retry{
@@ -100,30 +99,30 @@ func (r *Router) ProcessEvent(msg *message.Message) error {
 	case domain.EventTypeAuth:
 		var payload domain.AuthPayload
 		if err := sonic.Unmarshal(msg.Payload, &payload); err != nil {
-			return err
+			panic(fmt.Errorf("unrecoverable auth unmarshal error: %w", err))
 		}
 		if err := domain.Validate.Struct(payload); err != nil {
-			return err
+			panic(fmt.Errorf("unrecoverable auth validation error: %w", err))
 		}
 		return r.evaluator.ProcessAuthEvent(ctx, &payload)
 
 	case domain.EventTypeError:
 		var payload domain.ErrorPayload
 		if err := sonic.Unmarshal(msg.Payload, &payload); err != nil {
-			return err
+			panic(fmt.Errorf("unrecoverable error payload unmarshal error: %w", err))
 		}
 		if err := domain.Validate.Struct(payload); err != nil {
-			return err
+			panic(fmt.Errorf("unrecoverable error payload validation error: %w", err))
 		}
 		return r.evaluator.ProcessErrorEvent(ctx, &payload)
 
 	case domain.EventTypeAnomaly:
 		var payload domain.AnomalyPayload
 		if err := sonic.Unmarshal(msg.Payload, &payload); err != nil {
-			return err
+			panic(fmt.Errorf("unrecoverable anomaly unmarshal error: %w", err))
 		}
 		if err := domain.Validate.Struct(payload); err != nil {
-			return err
+			panic(fmt.Errorf("unrecoverable anomaly validation error: %w", err))
 		}
 		return r.evaluator.ProcessAnomalyEvent(ctx, &payload)
 

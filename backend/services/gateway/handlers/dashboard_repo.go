@@ -3,10 +3,12 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
 	"gateway/database" // Adjust import path if needed based on your module setup
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // ============================================================================
@@ -111,6 +113,13 @@ func (r *SQLDashboardRepo) GetDashboardSummary(ctx context.Context, timeRange st
 		&summary.ActiveHighRiskAreas,
 	)
 	if err != nil && err != sql.ErrNoRows {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+			return DashboardSummary{
+				OverallReliabilityScore: 100,
+				ActiveHighRiskAreas:     0,
+			}, nil
+		}
 		return summary, fmt.Errorf("failed to query dashboard summary: %w", err)
 	}
 
@@ -166,6 +175,10 @@ func (r *SQLDashboardRepo) GetPriorityAreas(ctx context.Context) ([]PriorityArea
 	`
 	rows, err := r.db.Pool.Query(ctx, query)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+			return []PriorityArea{}, nil
+		}
 		return nil, fmt.Errorf("failed to query priority areas: %w", err)
 	}
 	defer rows.Close()

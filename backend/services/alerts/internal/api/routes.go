@@ -11,7 +11,7 @@ import (
 // RegisterRoutes mounts the Alert Microservice endpoints and enforces gateway authentication.
 func RegisterRoutes(r chi.Router, controller *AlertController, serviceKey string, logger *zap.Logger) {
 	// Unprotected health probe endpoint
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status": "ok", "service": "alerts"}`))

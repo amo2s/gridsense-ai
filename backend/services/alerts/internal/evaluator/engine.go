@@ -86,9 +86,16 @@ func (e *RuleEngine) ProcessErrorEvent(ctx context.Context, event *domain.ErrorP
 
 // ProcessAnomalyEvent evaluates intelligence risk spikes from FastAPI engines.
 func (e *RuleEngine) ProcessAnomalyEvent(ctx context.Context, event *domain.AnomalyPayload) error {
+	if event == nil {
+		return fmt.Errorf("anomaly event payload is nil")
+	}
+	
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// Throttle: limit intelligence alerts per feeder to 1 per 2 minutes to prevent UI storms
 	throttleKey := fmt.Sprintf("throttle:feeder:%s", event.FeederID)
-	allowed, err := e.limiter.Allow(ctx, throttleKey, 1, 2*time.Minute)
+	allowed, err := e.limiter.Allow(timeoutCtx, throttleKey, 1, 2*time.Minute)
 	if err != nil {
 		return err
 	}

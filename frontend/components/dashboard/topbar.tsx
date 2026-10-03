@@ -14,6 +14,7 @@ import {
   LogOut,
   UserCircle
 } from "lucide-react";
+import { useDashboardStore } from "@/store/dashboard-store";
 
 interface TopbarProps {
   email: string;
@@ -28,7 +29,8 @@ export default function Topbar({ email, role, name }: TopbarProps) {
   const [greeting, setGreeting] = useState("");
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [systemHealth, setSystemHealth] = useState<"connecting" | "optimal" | "offline">("connecting");
+  
+  const wsStatus = useDashboardStore((state) => state.wsStatus);
   
   // Real-time alerts counter state
   const [unreadAlertsCount, setUnreadAlertsCount] = useState(3);
@@ -57,25 +59,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // 3. Live System Health Polling via Proxy
-  useEffect(() => {
-    const checkHealth = async () => {
-      try {
-        const res = await fetch("/api/proxy/healthz");
-        if (res.ok) {
-          setSystemHealth("optimal");
-        } else {
-          setSystemHealth("offline");
-        }
-      } catch (error) {
-        setSystemHealth("offline");
-      }
-    };
 
-    checkHealth();
-    const interval = setInterval(checkHealth, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   // 4. Context-Aware Breadcrumbs Generator
   const generateBreadcrumbs = () => {
@@ -154,7 +138,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
 
           {/* Live System Health Indicator */}
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm">
-            {systemHealth === "optimal" ? (
+            {wsStatus === "optimal" ? (
               <>
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -162,7 +146,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
                 </span>
                 <span className="text-xs font-semibold text-emerald-800">System Optimal</span>
               </>
-            ) : systemHealth === "connecting" ? (
+            ) : wsStatus === "connecting" ? (
               <>
                 <div className="h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse"></div>
                 <span className="text-xs font-semibold text-amber-700">Connecting...</span>

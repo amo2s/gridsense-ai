@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Mail, Lock, User, Loader2, CheckCircle2, ShieldCheck, AlertCircle } from "lucide-react";
+import { Mail, Lock, User, Loader2, CheckCircle2, ShieldCheck, AlertCircle, Eye, EyeOff } from "lucide-react";
 import api from "../../src/lib/api";
 
 const container = {
@@ -35,10 +35,13 @@ export default function RegisterForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [focusedField, setFocusedField] = useState<"name" | "email" | "password" | null>(null);
+  const [focusedField, setFocusedField] = useState<"name" | "email" | "password" | "confirmPassword" | null>(null);
 
   const strength = useMemo(() => getPasswordStrength(password), [password]);
   const strengthColors = [
@@ -52,6 +55,10 @@ export default function RegisterForm() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
     setIsLoading(true);
     setError("");
 
@@ -212,7 +219,7 @@ export default function RegisterForm() {
                 <Lock className="h-5 w-5" />
               </motion.div>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="Choose a strong password"
                 required
                 minLength={8}
@@ -220,8 +227,15 @@ export default function RegisterForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 onFocus={() => setFocusedField("password")}
                 onBlur={() => setFocusedField(null)}
-                className="w-full rounded-xl border border-emerald-100 bg-gradient-to-b from-emerald-50/50 to-emerald-50/20 py-3 pl-10 pr-4 text-sm text-emerald-950 outline-none transition-colors duration-200 placeholder:text-emerald-900/30 focus:border-emerald-500 focus:bg-white"
+                className="w-full rounded-xl border border-emerald-100 bg-gradient-to-b from-emerald-50/50 to-emerald-50/20 py-3 pl-10 pr-12 text-sm text-emerald-950 outline-none transition-colors duration-200 placeholder:text-emerald-900/30 focus:border-emerald-500 focus:bg-white"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 text-emerald-600/60 hover:text-emerald-600 focus:outline-none"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
               <motion.div
                 className="pointer-events-none absolute inset-0 rounded-xl"
                 animate={{
@@ -264,6 +278,48 @@ export default function RegisterForm() {
                 </motion.div>
               )}
             </AnimatePresence>
+          </motion.div>
+
+          {/* Confirm Password field */}
+          <motion.div variants={item} className="relative">
+            <div className="relative">
+              <motion.div
+                animate={{
+                  color: focusedField === "confirmPassword" ? "#059669" : "rgba(5,150,105,0.5)",
+                }}
+                className="pointer-events-none absolute left-3 top-3"
+              >
+                <Lock className="h-5 w-5" />
+              </motion.div>
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Confirm your password"
+                required
+                minLength={8}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onFocus={() => setFocusedField("confirmPassword")}
+                onBlur={() => setFocusedField(null)}
+                className="w-full rounded-xl border border-emerald-100 bg-gradient-to-b from-emerald-50/50 to-emerald-50/20 py-3 pl-10 pr-12 text-sm text-emerald-950 outline-none transition-colors duration-200 placeholder:text-emerald-900/30 focus:border-emerald-500 focus:bg-white"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-3 text-emerald-600/60 hover:text-emerald-600 focus:outline-none"
+              >
+                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+              <motion.div
+                className="pointer-events-none absolute inset-0 rounded-xl"
+                animate={{
+                  boxShadow:
+                    focusedField === "confirmPassword"
+                      ? "0 0 0 4px rgba(16,185,129,0.12)"
+                      : "0 0 0 0px rgba(16,185,129,0)",
+                }}
+                transition={{ duration: 0.2 }}
+              />
+            </div>
           </motion.div>
 
           <motion.button

@@ -21,7 +21,8 @@ async function getUserRole() {
     
     return { 
       role: payload.role || "STAFF", 
-      email: payload.email || "" 
+      email: payload.email || "",
+      name: payload.name || ""
     };
   } catch (error) {
     return { role: "STAFF", email: "" };
@@ -29,8 +30,8 @@ async function getUserRole() {
 }
 
 export default async function DashboardPage() {
-  const { role, email } = await getUserRole();
-  const username = email ? email.split("@")[0] : "Operator";
+  const { role, email, name } = await getUserRole();
+  const username = name || (email ? email.split("@")[0] : "Operator");
 
   // Fetch Live Data
   const client = await getGraphQLClient();

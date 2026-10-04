@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -63,7 +64,15 @@ func main() {
 	}
 
 	// 2. Initialize Supabase PostgreSQL Pool
-	dbPool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	dbUrl := cfg.DatabaseURL
+	if !strings.Contains(dbUrl, "default_query_exec_mode=") {
+		if strings.Contains(dbUrl, "?") {
+			dbUrl += "&default_query_exec_mode=exec"
+		} else {
+			dbUrl += "?default_query_exec_mode=exec"
+		}
+	}
+	dbPool, err := pgxpool.New(ctx, dbUrl)
 	if err != nil {
 		logger.Fatal("Failed to connect to PostgreSQL", zap.Error(err))
 	}

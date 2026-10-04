@@ -18,9 +18,9 @@ func NewHealthHandler(db *database.PostgresDB) *HealthHandler {
 }
 
 type healthResponse struct {
-	Status   string `json:"status"`
-	Database string `json:"database"`
-	Uptime   string `json:"uptime"`
+	Status      string `json:"status"`
+	DBConnected bool   `json:"db_connected"`
+	Uptime      string `json:"uptime"`
 }
 
 var startTime = time.Now()
@@ -34,26 +34,20 @@ func (h *HealthHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
-	dbStatus := "connected"
-	statusCode := http.StatusOK
+	dbConnected := true
 
 	// Ping the Supabase connection pool
 	if err := h.db.Pool.Ping(ctx); err != nil {
-		dbStatus = "disconnected"
-		statusCode = http.StatusServiceUnavailable
+		dbConnected = false
 	}
 
 	resp := healthResponse{
-		Status:   "ok",
-		Database: dbStatus,
-		Uptime:   time.Since(startTime).Truncate(time.Second).String(),
-	}
-
-	if statusCode != http.StatusOK {
-		resp.Status = "degraded"
+		Status:      "ok",
+		DBConnected: dbConnected,
+		Uptime:      time.Since(startTime).Truncate(time.Second).String(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
+	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(resp)
 }

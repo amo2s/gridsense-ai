@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -11,6 +12,13 @@ import (
 
 // NewDBPool initializes a highly optimized, resilient PostgreSQL connection pool.
 func NewDBPool(databaseURL string) (*pgxpool.Pool, error) {
+	if !strings.Contains(databaseURL, "default_query_exec_mode=") {
+		if strings.Contains(databaseURL, "?") {
+			databaseURL += "&default_query_exec_mode=exec"
+		} else {
+			databaseURL += "?default_query_exec_mode=exec"
+		}
+	}
 	// 1. Parse the raw Supabase URL into a pgxpool configuration object.
 	config, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {

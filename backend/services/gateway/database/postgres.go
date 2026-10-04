@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"gateway/models"
@@ -18,6 +19,13 @@ type PostgresDB struct {
 
 // InitPool establishes a highly concurrent, thread-safe connection pool to Supabase.
 func InitPool(ctx context.Context, databaseURL string) (*PostgresDB, error) {
+	if !strings.Contains(databaseURL, "default_query_exec_mode=") {
+		if strings.Contains(databaseURL, "?") {
+			databaseURL += "&default_query_exec_mode=exec"
+		} else {
+			databaseURL += "?default_query_exec_mode=exec"
+		}
+	}
 	config, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse database config: %w", err)

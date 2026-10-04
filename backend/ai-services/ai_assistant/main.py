@@ -59,8 +59,10 @@ async def lifespan(app: FastAPI):
         app.state.db_pool = await asyncpg.create_pool(
             dsn=DATABASE_URL,
             init=init_db_connection,
-            min_size=2,
-            max_size=10
+            min_size=1,
+            max_size=5,
+            statement_cache_size=0,
+            command_timeout=60,
         )
         logger.info("Successfully established PostgreSQL connection pool.")
     except Exception:

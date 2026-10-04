@@ -1,0 +1,28 @@
+subscription OperationalEventStream {
+  operationalEventStream {
+    id
+    areaId
+    eventType
+    severity
+    timestamp
+    description
+  }
+}
+
+query DashboardSummary($timeRange: String!) {
+  dashboardSummary(timeRange: $timeRange) {
+    overallReliabilityScore
+    activeHighRiskAreas
+    totalActiveAlerts
+  }
+}
+
+query PriorityAreas {
+  priorityAreas {
+    id
+    name
+    urgencyRank
+    riskScore
+    status
+  }
+}

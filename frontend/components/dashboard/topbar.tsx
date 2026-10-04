@@ -60,30 +60,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
   }, []);
 
 
-  // 3. Health Check Polling
-  const setWsStatus = useDashboardStore((state) => state.setWsStatus);
-
-  useEffect(() => {
-    const checkHealth = async () => {
-      try {
-        const res = await fetch("/api/proxy/healthz");
-        if (res.ok) {
-          const data = await res.json();
-          if (data.status === "ok") {
-            setWsStatus("optimal");
-          }
-        } else {
-          setWsStatus("offline");
-        }
-      } catch (error) {
-        setWsStatus("offline");
-      }
-    };
-
-    checkHealth();
-    const interval = setInterval(checkHealth, 15000);
-    return () => clearInterval(interval);
-  }, [setWsStatus]);
+  // 3. Health Check Polling (Removed in favor of WebSocket heartbeat)
 
   // 4. Context-Aware Breadcrumbs Generator
   const generateBreadcrumbs = () => {

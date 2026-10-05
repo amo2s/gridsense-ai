@@ -1,26 +1,20 @@
 "use client";
 
-import { usePriorityRanking } from "@/hooks/use-priority-ranking";
 import { useDashboardStore } from "@/store/dashboard-store";
+import { PriorityArea } from "@/lib/graphql/generated";
 
-export function PriorityDecisionTable() {
-  const { data, isLoading, isError } = usePriorityRanking();
-  
+interface PriorityDecisionTableProps {
+  priorityData?: PriorityArea[];
+}
+
+export function PriorityDecisionTable({ priorityData = [] }: PriorityDecisionTableProps) {
   // Assuming a context setter exists on the store; fallback to console if store missing it for now
-  const setContext = useDashboardStore((state) => state.setActiveArea || (() => {}));
+  const setContext = useDashboardStore((state) => state.setActiveFeeder || (() => {}));
 
-  if (isLoading) {
+  if (!priorityData || priorityData.length === 0) {
     return (
-      <div className="animate-pulse rounded-3xl bg-white/60 shadow-sm border border-white/80 p-6 h-64 w-full flex items-center justify-center">
-        <span className="text-zinc-400 text-sm">Loading priority matrix...</span>
-      </div>
-    );
-  }
-
-  if (isError || !data) {
-    return (
-      <div className="rounded-3xl border border-red-100 bg-red-50/50 p-6 text-center text-red-600 shadow-sm h-64 flex items-center justify-center">
-        <p className="text-sm font-medium">Failed to load priority rankings.</p>
+      <div className="rounded-3xl border border-emerald-100 bg-white/60 p-6 text-center text-zinc-500 shadow-sm h-64 flex items-center justify-center">
+        <p className="text-sm font-medium">No priority areas found.</p>
       </div>
     );
   }
@@ -41,7 +35,7 @@ export function PriorityDecisionTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/40">
-            {data.map((area) => (
+            {priorityData.map((area) => (
               <tr 
                 key={area.id}
                 onClick={() => setContext(area.id)}

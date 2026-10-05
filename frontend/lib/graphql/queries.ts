@@ -20,5 +20,9 @@ export const GET_DASHBOARD_METRICS = `
       timestamp
       description
     }
+    reliabilityTrend(timeRange: $timeRange) {
+      timestamp
+      value
+    }
   }
 `;

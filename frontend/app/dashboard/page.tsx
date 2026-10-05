@@ -7,6 +7,9 @@ import { SummaryMetrics } from "@/components/dashboard/summary-metrics";
 import { ReliabilityTrendChart } from "@/components/dashboard/reliability-trend-chart";
 import { PriorityDecisionTable } from "@/components/dashboard/priority-decision-table";
 
+import { getGraphQLClient } from "@/lib/graphql/client";
+import { GET_DASHBOARD_METRICS } from "@/lib/graphql/queries";
+
 async function getUserRole() {
   try {
     const cookieStore = await cookies();
@@ -33,6 +36,18 @@ export default async function DashboardPage() {
   const { role, email, name } = await getUserRole();
   const username = name || (email ? email.split("@")[0] : "Operator");
 
+  // Fetch Live Data
+  const client = await getGraphQLClient();
+  let data: any = null;
+  try {
+    data = await client.request(GET_DASHBOARD_METRICS, {
+      timeRange: "24h",
+      areaId: "global"
+    });
+  } catch (error) {
+    console.error("GraphQL Fetch Error:", error);
+  }
+
   return (
     <main className="min-h-screen bg-[#fafafa] p-6 lg:p-8">
       <div className="mx-auto max-w-7xl space-y-8">
@@ -47,17 +62,17 @@ export default async function DashboardPage() {
           
           {/* Top Section: Summary Metrics */}
           <div className="col-span-full lg:col-span-12">
-            <SummaryMetrics />
+            <SummaryMetrics summaryData={data?.dashboardSummary} />
           </div>
 
           {/* Middle Section: Trend Chart */}
           <div className="col-span-full lg:col-span-12 min-h-[400px]">
-            <ReliabilityTrendChart />
+            <ReliabilityTrendChart trendData={data?.reliabilityTrend} />
           </div>
 
           {/* Bottom Section: Priority Table */}
           <div className="col-span-full lg:col-span-12 overflow-hidden rounded-3xl">
-            <PriorityDecisionTable />
+            <PriorityDecisionTable priorityData={data?.priorityAreas} />
           </div>
 
         </div>

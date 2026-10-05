@@ -1,6 +1,5 @@
 "use client";
 
-import { useReliabilityTrend } from "@/hooks/use-reliability-trend";
 import {
   AreaChart,
   Area,
@@ -10,28 +9,23 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
+import { TrendDataPoint } from "@/lib/graphql/generated";
 
-export function ReliabilityTrendChart() {
-  const { data, isLoading, isError } = useReliabilityTrend("24h");
+interface ReliabilityTrendChartProps {
+  trendData?: TrendDataPoint[];
+}
 
-  if (isLoading) {
+export function ReliabilityTrendChart({ trendData = [] }: ReliabilityTrendChartProps) {
+  if (!trendData || trendData.length === 0) {
     return (
-      <div className="animate-pulse rounded-3xl bg-white/60 shadow-sm border border-white/80 p-6 h-72 w-full flex items-center justify-center">
-        <span className="text-zinc-400 text-sm">Loading trend data...</span>
-      </div>
-    );
-  }
-
-  if (isError || !data) {
-    return (
-      <div className="rounded-3xl border border-red-100 bg-red-50/50 p-6 text-center text-red-600 shadow-sm h-72 flex items-center justify-center">
-        <p className="text-sm font-medium">Failed to load trend data.</p>
+      <div className="rounded-3xl border border-emerald-100 bg-white/60 p-6 text-center text-zinc-500 shadow-sm h-72 flex items-center justify-center">
+        <p className="text-sm font-medium">No trend data available.</p>
       </div>
     );
   }
 
   // Format data for Recharts
-  const formattedData = data.map((d) => {
+  const formattedData = trendData.map((d) => {
     const date = new Date(d.timestamp);
     return {
       ...d,

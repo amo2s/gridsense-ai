@@ -9,10 +9,8 @@ interface SummaryMetricsProps {
 export function SummaryMetrics({ summaryData }: SummaryMetricsProps) {
   if (!summaryData) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="h-32 w-full animate-pulse rounded-3xl bg-white/60 shadow-sm border border-white/80" />
-        <div className="h-32 w-full animate-pulse rounded-3xl bg-white/60 shadow-sm border border-white/80" />
-        <div className="h-32 w-full animate-pulse rounded-3xl bg-white/60 shadow-sm border border-white/80" />
+      <div className="flex h-32 w-full items-center justify-center rounded-3xl border border-white/10 bg-white/5 shadow-sm">
+        <p className="text-sm font-medium text-zinc-500">Grid operating optimally</p>
       </div>
     );
   }

@@ -18,8 +18,8 @@ interface ReliabilityTrendChartProps {
 export function ReliabilityTrendChart({ trendData = [] }: ReliabilityTrendChartProps) {
   if (!trendData || trendData.length === 0) {
     return (
-      <div className="rounded-3xl border border-emerald-100 bg-white/60 p-6 text-center text-zinc-500 shadow-sm h-72 flex items-center justify-center">
-        <p className="text-sm font-medium">No trend data available.</p>
+      <div className="flex h-72 w-full flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/5 shadow-sm">
+        <p className="text-sm font-medium text-zinc-500">No data available</p>
       </div>
     );
   }

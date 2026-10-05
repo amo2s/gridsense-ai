@@ -102,6 +102,81 @@ async function proxyHandler(
         cache: "no-store",
         signal: controller.signal,
       });
+
+      // Token Rotation Logic
+      if (backendResponse.status === 401) {
+        const refreshToken = req.cookies.get("refresh_token")?.value;
+        if (refreshToken) {
+          // Attempt refresh
+          const refreshHeaders = new Headers();
+          refreshHeaders.set("Cookie", `refresh_token=${refreshToken}`);
+          
+          const refreshRes = await fetch(`${GATEWAY_URL}/api/auth/refresh`, {
+            method: "POST",
+            headers: refreshHeaders,
+            cache: "no-store",
+          });
+
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json().catch(() => ({}));
+            const newAccessToken = refreshData.access_token || refreshData.accessToken;
+            
+            // Re-build forward headers with new auth
+            const retryHeaders = new Headers(forwardHeaders);
+            if (newAccessToken) {
+              retryHeaders.set("Authorization", `Bearer ${newAccessToken}`);
+            }
+            
+            // Extract the new cookies to append to the final response
+            const refreshCookies = refreshRes.headers.getSetCookie ? refreshRes.headers.getSetCookie() : [];
+            if (refreshCookies.length > 0) {
+              // Update the Cookie header for the retry request to include the new auth_token
+              const newAuthTokenCookie = refreshCookies.find(c => c.startsWith("auth_token="));
+              if (newAuthTokenCookie) {
+                const newAuthToken = newAuthTokenCookie.split(';')[0].split('=')[1];
+                let currentCookieStr = retryHeaders.get("Cookie") || "";
+                currentCookieStr = currentCookieStr.replace(/auth_token=[^;]+/, `auth_token=${newAuthToken}`);
+                if (!currentCookieStr.includes("auth_token=")) {
+                  currentCookieStr += (currentCookieStr ? "; " : "") + `auth_token=${newAuthToken}`;
+                }
+                retryHeaders.set("Cookie", currentCookieStr);
+              }
+            }
+
+            // Replay original request
+            backendResponse = await fetch(targetUrl, {
+              method: req.method,
+              headers: retryHeaders,
+              body: requestBody, // Body is safe to replay as it's a string/blob
+              cache: "no-store",
+            });
+
+            // We must append the new Set-Cookie headers from the refresh response
+            // so they make it to the browser.
+            const finalResponseHeaders = new Headers();
+            if (typeof backendResponse.headers.getSetCookie === "function") {
+              backendResponse.headers.getSetCookie().forEach(c => finalResponseHeaders.append("set-cookie", c));
+            }
+            refreshCookies.forEach(c => {
+              // Avoid duplicating cookies if the backend retry also sets them
+              if (!finalResponseHeaders.get("set-cookie")?.includes(c)) {
+                finalResponseHeaders.append("set-cookie", c);
+              }
+            });
+            backendResponse.headers.forEach((value, key) => {
+              if (key.toLowerCase() !== "set-cookie") finalResponseHeaders.set(key, value);
+            });
+
+            const responseBody = await backendResponse.arrayBuffer();
+            return new NextResponse(responseBody, {
+              status: backendResponse.status,
+              statusText: backendResponse.statusText,
+              headers: finalResponseHeaders,
+            });
+          }
+        }
+      }
+
     } finally {
       clearTimeout(timeoutId);
     }

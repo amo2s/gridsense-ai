@@ -45,3 +45,18 @@ export const GET_AREA_DRILL_DOWN_METRICS = `
     }
   }
 `;
+
+export const GET_INTELLIGENCE_INSIGHT = `
+  query GetIntelligenceInsight($anomalyId: ID!) {
+    intelligenceInsight(anomalyId: $anomalyId) {
+      anomalyId
+      confidenceScore
+      reasons
+      featureDeviations {
+        featureName
+        shapAttribution
+        deviationDescription
+      }
+    }
+  }
+`;

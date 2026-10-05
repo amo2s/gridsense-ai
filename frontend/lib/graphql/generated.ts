@@ -25,3 +25,24 @@ export type TrendDataPoint = {
   timestamp: string;
   value: number;
 };
+
+export type FeatureDeviation = {
+  featureName: string;
+  shapAttribution: number;
+  deviationDescription: string;
+};
+
+export type IntelligenceInsight = {
+  anomalyId: string;
+  confidenceScore: number;
+  reasons: string[];
+  featureDeviations: FeatureDeviation[];
+};
+
+export type AcknowledgeAlertResult = {
+  success: boolean;
+};
+
+export type LogInterventionResult = {
+  success: boolean;
+};

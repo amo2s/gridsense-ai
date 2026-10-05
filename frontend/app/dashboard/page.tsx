@@ -7,7 +7,7 @@ import { SummaryMetrics } from "@/components/dashboard/summary-metrics";
 import { ReliabilityTrendChart } from "@/components/dashboard/reliability-trend-chart";
 import { PriorityDecisionTable } from "@/components/dashboard/priority-decision-table";
 
-import { getGraphQLClient } from "@/lib/graphql/client";
+import { getGraphQLClient } from "@/lib/graphql/server-client";
 import { GET_DASHBOARD_METRICS } from "@/lib/graphql/queries";
 
 async function getUserRole() {

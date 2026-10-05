@@ -1,5 +1,4 @@
 import { GraphQLClient } from 'graphql-request';
-import { cookies } from 'next/headers';
 
 const GRAPHQL_ENDPOINT = typeof window !== 'undefined'
   ? '/api/proxy/query'
@@ -23,14 +22,3 @@ export const graphQLClient = new GraphQLClient(GRAPHQL_ENDPOINT, {
     return request;
   },
 });
-
-export async function getGraphQLClient() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token')?.value;
-
-  return new GraphQLClient(GRAPHQL_ENDPOINT, {
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-}

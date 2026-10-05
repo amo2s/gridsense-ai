@@ -12,7 +12,7 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-import RequestsGreeting from "@/components/dashboard/requests-greeting";
+import RequestsGreeting from "@/components/dashboard/requests/requests-greeting";
 
 type PendingUser = {
   id: string;

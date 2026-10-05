@@ -1,11 +1,11 @@
+import { Suspense } from "react";
 import { cookies } from "next/headers";
-import Link from "next/link";
-import { Users, Activity, ShieldCheck, ArrowRight, Clock, CheckCircle2, Zap, AlertTriangle, CheckCircle } from "lucide-react";
-import { getGraphQLClient } from "@/lib/graphql/client";
-import { GET_DASHBOARD_METRICS } from "@/lib/graphql/queries";
+
 import OperatorGreeting from "@/components/dashboard/operator-greeting";
 import OperatorGreetingSkeleton from "@/components/dashboard/skeletons/operator-greeting-skeleton";
-import { Suspense } from "react";
+import { SummaryMetrics } from "@/components/dashboard/summary-metrics";
+import { ReliabilityTrendChart } from "@/components/dashboard/reliability-trend-chart";
+import { PriorityDecisionTable } from "@/components/dashboard/priority-decision-table";
 
 async function getUserRole() {
   try {
@@ -33,153 +33,35 @@ export default async function DashboardPage() {
   const { role, email, name } = await getUserRole();
   const username = name || (email ? email.split("@")[0] : "Operator");
 
-  // Fetch Live Data
-  const client = await getGraphQLClient();
-  let data: any = null;
-  try {
-    data = await client.request(GET_DASHBOARD_METRICS, {
-      timeRange: "24h",
-      areaId: "global"
-    });
-  } catch (error) {
-    console.error("GraphQL Fetch Error:", error);
-  }
-
-  const summary = data?.dashboardSummary || { overallReliabilityScore: 0, activeHighRiskAreas: 0, totalActiveAlerts: 0 };
-  const priorityAreas = data?.priorityAreas || [];
-  const anomalies = data?.anomalyTimeline || [];
-
   return (
-    <div className="space-y-8 max-w-7xl mx-auto p-8">
-      {/* Welcome Banner */}
-      <Suspense fallback={<OperatorGreetingSkeleton />}>
-        <OperatorGreeting name={username} role={role} />
-      </Suspense>
-
-      {/* KPI Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="liquid-panel p-6 border border-gray-100">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-semibold text-gray-500">Overall Reliability</h3>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-              <Activity className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="text-3xl font-bold text-gray-900">{summary.overallReliabilityScore.toFixed(1)}</div>
-          <p className="text-xs text-gray-500 mt-2">Aggregate score across all feeders</p>
-        </div>
+    <main className="min-h-screen bg-[#fafafa] p-6 lg:p-8">
+      <div className="mx-auto max-w-7xl space-y-8">
         
-        <div className="liquid-panel p-6 border border-gray-100">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-semibold text-gray-500">High Risk Areas</h3>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-              <AlertTriangle className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="text-3xl font-bold text-gray-900">{summary.activeHighRiskAreas}</div>
-          <p className="text-xs text-gray-500 mt-2">Areas requiring immediate attention</p>
-        </div>
+        {/* Foundation Layout Wrapper: Welcome Banner */}
+        <Suspense fallback={<OperatorGreetingSkeleton />}>
+          <OperatorGreeting name={username} role={role} />
+        </Suspense>
 
-        <div className="liquid-panel p-6 border border-gray-100">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-semibold text-gray-500">Active Alerts</h3>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-              <Zap className="h-5 w-5" />
-            </div>
+        {/* Phase 3 CSS Grid Architecture */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* Top Section: Summary Metrics */}
+          <div className="col-span-full lg:col-span-12">
+            <SummaryMetrics />
           </div>
-          <div className="text-3xl font-bold text-gray-900">{summary.totalActiveAlerts}</div>
-          <p className="text-xs text-gray-500 mt-2">Unacknowledged events detected</p>
+
+          {/* Middle Section: Trend Chart */}
+          <div className="col-span-full lg:col-span-12 min-h-[400px]">
+            <ReliabilityTrendChart />
+          </div>
+
+          {/* Bottom Section: Priority Table */}
+          <div className="col-span-full lg:col-span-12 overflow-hidden rounded-3xl">
+            <PriorityDecisionTable />
+          </div>
+
         </div>
       </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Feeder Status Overview */}
-        <div className="lg:col-span-2 liquid-panel p-6 border border-gray-100">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Priority Areas</h2>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm whitespace-nowrap">
-              <thead className="uppercase tracking-wider border-b border-gray-100 text-gray-500">
-                <tr>
-                  <th className="pb-3 px-4 font-semibold">Area / Feeder</th>
-                  <th className="pb-3 px-4 font-semibold">Urgency Rank</th>
-                  <th className="pb-3 px-4 font-semibold">Risk Score</th>
-                  <th className="pb-3 px-4 font-semibold">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {priorityAreas.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-gray-500">
-                      No priority areas flagged.
-                    </td>
-                  </tr>
-                ) : (
-                  priorityAreas.map((area: any) => (
-                    <tr key={area.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="py-4 px-4 font-medium text-gray-900">{area.name}</td>
-                      <td className="py-4 px-4 text-gray-600">#{area.urgencyRank}</td>
-                      <td className="py-4 px-4 font-bold text-gray-700">{area.riskScore.toFixed(1)}</td>
-                      <td className="py-4 px-4">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          area.status === 'CRITICAL' ? 'bg-red-100 text-red-700' :
-                          area.status === 'WARNING' ? 'bg-amber-100 text-amber-700' :
-                          'bg-emerald-100 text-emerald-700'
-                        }`}>
-                          {area.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Anomaly Timeline */}
-        <div className="liquid-panel p-6 border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Anomaly Events</h2>
-          
-          {anomalies.length === 0 ? (
-            <div className="py-8 text-center text-gray-500 flex flex-col items-center">
-              <CheckCircle className="h-10 w-10 text-emerald-400 mb-2" />
-              <p>No recent anomalies detected.</p>
-            </div>
-          ) : (
-            <div className="relative border-l border-emerald-200 ml-3 space-y-6">
-              {anomalies.map((anomaly: any) => (
-                <div key={anomaly.id} className="pl-6 relative">
-                  <div className={`absolute w-3 h-3 rounded-full -left-[6.5px] top-1.5 border-2 border-white ${
-                    anomaly.severity === 'HIGH' ? 'bg-red-500' :
-                    anomaly.severity === 'MEDIUM' ? 'bg-amber-500' :
-                    'bg-blue-500'
-                  }`}></div>
-                  
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className="font-semibold text-gray-900 text-sm">{anomaly.eventType}</h4>
-                    <span className="text-xs text-gray-500">
-                      {new Date(anomaly.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  
-                  <p className="text-xs font-medium text-gray-600 mb-1 border border-gray-100 inline-block px-2 py-0.5 rounded-md bg-gray-50">
-                    {anomaly.areaId}
-                  </p>
-                  <p className="text-sm text-gray-600 line-clamp-2">
-                    {anomaly.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-      </div>
-    </div>
+    </main>
   );
 }

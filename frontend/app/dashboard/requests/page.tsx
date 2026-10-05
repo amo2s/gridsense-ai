@@ -138,9 +138,9 @@ export default function RequestsPage() {
   return (
     <main className="space-y-8">
       {/* Header */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-green-600 via-green-600 to-green-700 p-7 text-white shadow-xl">
-        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-24 left-1/3 h-48 w-48 rounded-full bg-emerald-300/10 blur-3xl" />
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-900 via-teal-900 to-teal-950 p-7 text-white shadow-[0_8px_32px_rgba(4,43,21,0.4)] border border-white/10">
+        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-emerald-400/20 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 left-1/3 h-48 w-48 rounded-full bg-emerald-300/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>

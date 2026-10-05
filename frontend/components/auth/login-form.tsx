@@ -7,6 +7,7 @@ import { Mail, Lock, Loader2, AlertCircle, ArrowRight } from "lucide-react";
 // Assuming api.ts is in src/lib/api.ts
 import api from "../../src/lib/api";
 import { AuthResponse } from "../../src/types/auth";
+import { Button } from "@/components/ui/button";
 
 const container = {
   hidden: { opacity: 0 },
@@ -187,46 +188,15 @@ export default function LoginForm() {
             />
           </motion.div>
 
-          <motion.button
+          <Button
             variants={item}
             type="submit"
-            disabled={isLoading}
-            whileHover={{ scale: isLoading ? 1 : 1.01 }}
-            whileTap={{ scale: isLoading ? 1 : 0.97 }}
-            transition={{ type: "spring", stiffness: 400, damping: 20 }}
-            className="group relative mt-2 flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-600 to-emerald-700 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-600/25 disabled:opacity-70"
+            isLoading={isLoading}
+            className="group w-full bg-gradient-to-r from-emerald-600 via-emerald-600 to-emerald-700 text-white shadow-emerald-600/25"
           >
-            <motion.span
-              className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent"
-              initial={{ x: "-120%" }}
-              animate={{ x: "120%" }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
-            />
-            <AnimatePresence mode="wait" initial={false}>
-              {isLoading ? (
-                <motion.span
-                  key="loading"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="relative z-10"
-                >
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="label"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="relative z-10 flex items-center gap-1.5"
-                >
-                  Sign In
-                  <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </motion.button>
+            Sign In
+            <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+          </Button>
         </motion.form>
       )}
     </AnimatePresence>

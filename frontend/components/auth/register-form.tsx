@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Mail, Lock, User, Loader2, CheckCircle2, ShieldCheck, AlertCircle, Eye, EyeOff } from "lucide-react";
 import api from "../../src/lib/api";
+import { Button } from "@/components/ui/button";
 
 const container = {
   hidden: { opacity: 0 },
@@ -322,45 +323,14 @@ export default function RegisterForm() {
             </div>
           </motion.div>
 
-          <motion.button
+          <Button
             variants={item}
             type="submit"
-            disabled={isLoading}
-            whileHover={{ scale: isLoading ? 1 : 1.01 }}
-            whileTap={{ scale: isLoading ? 1 : 0.97 }}
-            transition={{ type: "spring", stiffness: 400, damping: 20 }}
-            className="relative mt-2 flex w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/30 disabled:opacity-70"
+            isLoading={isLoading}
+            className="mt-2 w-full bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 text-white shadow-emerald-900/30"
           >
-            <motion.span
-              className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
-              initial={{ x: "-120%" }}
-              animate={{ x: "120%" }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
-            />
-            <AnimatePresence mode="wait" initial={false}>
-              {isLoading ? (
-                <motion.span
-                  key="loading"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="relative z-10"
-                >
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="label"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="relative z-10"
-                >
-                  Request Access
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </motion.button>
+            Request Access
+          </Button>
         </motion.form>
       )}
     </AnimatePresence>

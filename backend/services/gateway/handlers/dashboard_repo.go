@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gateway/database" // Adjust import path if needed based on your module setup
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -133,7 +134,13 @@ func (r *SQLDashboardRepo) GetReliabilityMetrics(ctx context.Context, areaID str
 	// 1. Fetch the current risk score
 	scoreQuery := `SELECT COALESCE(risk_score, 100.0) FROM grid_assets WHERE id = $1`
 	err := r.db.Pool.QueryRow(ctx, scoreQuery, areaID).Scan(&metrics.CurrentRiskScore)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, pgx.ErrNoRows) {
+			// Graceful defaults: safe baseline score and empty slice for trend
+			metrics.CurrentRiskScore = 0
+			metrics.Trend = []TrendDataPoint{}
+			return metrics, nil
+		}
 		return metrics, fmt.Errorf("failed to query current risk score: %w", err)
 	}
 

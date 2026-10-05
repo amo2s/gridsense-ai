@@ -95,7 +95,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
         <div className="flex items-center gap-8">
           {/* Brand Logo/Header */}
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.5)]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-transparent">
               <Image src="/gridsense-logo.png" alt="GridSense Logo" width={24} height={24} className="drop-shadow-md" />
             </div>
             <span className="whitespace-nowrap text-xl font-bold text-emerald-900 tracking-tight">

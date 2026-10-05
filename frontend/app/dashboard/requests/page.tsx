@@ -12,6 +12,7 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
+import RequestsGreeting from "@/components/dashboard/requests-greeting";
 
 type PendingUser = {
   id: string;
@@ -137,6 +138,9 @@ export default function RequestsPage() {
 
   return (
     <main className="space-y-8">
+      {/* Dynamic Requests Greeting */}
+      <RequestsGreeting pendingCount={users.length} activeCount={0} resolvedCount={0} />
+
       {/* Header */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-900 via-teal-900 to-teal-950 p-7 text-white shadow-[0_8px_32px_rgba(4,43,21,0.4)] border border-white/10">
         <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-emerald-400/20 blur-3xl pointer-events-none" />

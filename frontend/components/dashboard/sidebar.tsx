@@ -6,10 +6,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, 
-  Map, 
-  Zap, 
-  BarChart3, 
-  BellRing,
+  ClipboardList,
   ChevronLeft, 
   ChevronRight
 } from "lucide-react";
@@ -19,13 +16,10 @@ interface SidebarProps {
   role: string;
 }
 
-// Configuration for Phase 1 Links
+// Configuration for Navigation Links
 const MENU_ITEMS = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard", roles: ["ADMIN", "MANAGER", "STAFF"] },
-  { name: "Areas", icon: Map, path: "/dashboard/areas", roles: ["ADMIN", "MANAGER", "STAFF"] },
-  { name: "Feeders", icon: Zap, path: "/dashboard/feeders", roles: ["ADMIN", "MANAGER", "STAFF"] },
-  { name: "Analytics", icon: BarChart3, path: "/dashboard/analytics", roles: ["ADMIN", "MANAGER"] },
-  { name: "Alerts", icon: BellRing, path: "/dashboard/alerts", roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { name: "Requests", icon: ClipboardList, path: "/dashboard/requests", roles: ["ADMIN", "MANAGER", "STAFF"] },
 ];
 
 export default function Sidebar({ role }: SidebarProps) {
@@ -81,10 +75,10 @@ export default function Sidebar({ role }: SidebarProps) {
             return (
               <Link key={item.path} href={item.path}>
                 <div
-                  className={`group flex items-center gap-4 rounded-xl px-3 py-3 transition-all duration-300 ${
+                  className={`group flex items-center gap-4 rounded-xl px-3 py-3 transition-all duration-300 border ${
                     isActive
-                      ? "text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]"
-                      : "text-gray-600 hover:bg-white/40 hover:text-emerald-700"
+                      ? "text-emerald-600 bg-white/10 border-white/20 shadow-sm"
+                      : "text-zinc-600 border-transparent hover:bg-white/10 hover:border-white/10 hover:text-emerald-600 hover:shadow-sm"
                   }`}
                 >
                   <item.icon className="h-5 w-5 shrink-0 transition-all" />

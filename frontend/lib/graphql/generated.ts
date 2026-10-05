@@ -20,3 +20,8 @@ export type PriorityArea = {
   riskScore: number;
   status: string;
 };
+
+export type TrendDataPoint = {
+  timestamp: string;
+  value: number;
+};

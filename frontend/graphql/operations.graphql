@@ -26,3 +26,10 @@ query PriorityAreas {
     status
   }
 }
+
+query ReliabilityTrend($timeRange: String!) {
+  reliabilityTrend(timeRange: $timeRange) {
+    timestamp
+    value
+  }
+}

@@ -38,18 +38,37 @@ export default function GraphQLProvider({
       },
     });
 
-    client.on('connected', () => useDashboardStore.getState().setWsStatus('optimal'));
-    client.on('closed', () => useDashboardStore.getState().setWsStatus('offline'));
-    client.on('error', () => useDashboardStore.getState().setWsStatus('offline'));
-    client.on('connecting', () => useDashboardStore.getState().setWsStatus('connecting'));
-    client.on('pong', () => useDashboardStore.getState().setWsStatus('optimal'));
-    
-    // Setup ping interval if needed or rely on server pings.
-    // graphql-ws natively sends pings if keepAlive is enabled server-side.
-    // We update status on pong.
-
     return client;
   });
+
+  React.useEffect(() => {
+    let isMounted = true;
+    
+    const checkHealth = async () => {
+      try {
+        const res = await fetch("/api/proxy/healthz");
+        if (isMounted) {
+          if (res.ok) {
+            useDashboardStore.getState().setWsStatus('optimal');
+          } else {
+            useDashboardStore.getState().setWsStatus('offline');
+          }
+        }
+      } catch (error) {
+        if (isMounted) {
+          useDashboardStore.getState().setWsStatus('offline');
+        }
+      }
+    };
+
+    checkHealth(); // run immediately on mount
+    const interval = setInterval(checkHealth, 60000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   return (
     <GraphQLWsContext.Provider value={wsClient}>

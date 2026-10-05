@@ -1,6 +1,6 @@
 "use client";
 
-import { useDashboardStore } from "@/store/dashboard-store";
+import { useRouter } from "next/navigation";
 import { PriorityArea } from "@/lib/graphql/generated";
 
 interface PriorityDecisionTableProps {
@@ -8,8 +8,7 @@ interface PriorityDecisionTableProps {
 }
 
 export function PriorityDecisionTable({ priorityData = [] }: PriorityDecisionTableProps) {
-  // Assuming a context setter exists on the store; fallback to console if store missing it for now
-  const setContext = useDashboardStore((state) => state.setActiveFeeder || (() => {}));
+  const router = useRouter();
 
   if (!priorityData || priorityData.length === 0) {
     return (
@@ -38,7 +37,7 @@ export function PriorityDecisionTable({ priorityData = [] }: PriorityDecisionTab
             {priorityData.map((area) => (
               <tr 
                 key={area.id}
-                onClick={() => setContext(area.id)}
+                onClick={() => router.push('/areas/' + area.id)}
                 className="cursor-pointer transition-all duration-300 hover:bg-white/90 hover:shadow-[inset_0_0_20px_rgba(16,185,129,0.03)] group"
               >
                 <td className="px-6 py-4 font-semibold text-zinc-700">{area.urgencyRank}</td>

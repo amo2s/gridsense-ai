@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { PriorityArea } from "@/lib/graphql/generated";
 
 interface PriorityDecisionTableProps {
@@ -35,10 +36,12 @@ export function PriorityDecisionTable({ priorityData = [] }: PriorityDecisionTab
           </thead>
           <tbody className="divide-y divide-white/40">
             {priorityData.map((area) => (
-              <tr 
+              <motion.tr 
                 key={area.id}
+                layoutId={`area-${area.id}`}
+                transition={{ type: "spring", stiffness: 350, damping: 25 }}
                 onClick={() => router.push('/areas/' + area.id)}
-                className="cursor-pointer transition-all duration-300 hover:bg-white/90 hover:shadow-[inset_0_0_20px_rgba(16,185,129,0.03)] group"
+                className="cursor-pointer hover:bg-white/90 hover:shadow-[inset_0_0_20px_rgba(16,185,129,0.03)] group"
               >
                 <td className="px-6 py-4 font-semibold text-zinc-700">{area.urgencyRank}</td>
                 <td className="px-6 py-4 text-zinc-600 font-medium group-hover:text-emerald-700 transition-colors">{area.name}</td>
@@ -52,7 +55,7 @@ export function PriorityDecisionTable({ priorityData = [] }: PriorityDecisionTab
                     {area.status.replace('_', ' ')}
                   </span>
                 </td>
-              </tr>
+              </motion.tr>
             ))}
           </tbody>
         </table>

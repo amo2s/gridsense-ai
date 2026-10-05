@@ -5,6 +5,7 @@ import { GET_AREA_DRILL_DOWN_METRICS } from "@/lib/graphql/queries";
 import { AnomalyTimeline, AnomalyTimelineEvent } from "@/components/areas/anomaly-timeline";
 import { RiskForecastChart, PredictiveRiskData } from "@/components/areas/risk-forecast-chart";
 import { IntelligenceInsightPanel } from "@/components/areas/intelligence-insight-panel";
+import { MotionMain } from "@/components/areas/motion-wrapper";
 
 export default async function AreaDrillDownPage(context: { params: Promise<{ id: string }> }) {
   const params = await context.params;
@@ -33,7 +34,7 @@ export default async function AreaDrillDownPage(context: { params: Promise<{ id:
   const latestAnomalyId = timelineData.length > 0 ? timelineData[0].id : "";
 
   return (
-    <main className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 min-h-screen bg-[#FAFAFA]">
+    <MotionMain layoutId={`area-${params.id}`} className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 min-h-screen bg-[#FAFAFA]">
       <div className="col-span-full lg:col-span-12 mb-4">
         <Link 
           href="/dashboard"
@@ -58,6 +59,6 @@ export default async function AreaDrillDownPage(context: { params: Promise<{ id:
       <div className="col-span-full lg:col-span-12 rounded-3xl bg-zinc-950 shadow-xl border border-zinc-900 p-2">
         <IntelligenceInsightPanel anomalyId={latestAnomalyId} feederId={params.id} />
       </div>
-    </main>
+    </MotionMain>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, 
@@ -31,6 +32,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   const wsStatus = useDashboardStore((state) => state.wsStatus);
+  const [isSynthetic, setIsSynthetic] = useState(false);
   
   // Real-time alerts counter state
   const [unreadAlertsCount, setUnreadAlertsCount] = useState(3);
@@ -94,7 +96,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
           {/* Brand Logo/Header */}
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.5)]">
-              <Activity className="h-6 w-6 text-white drop-shadow-md" />
+              <Image src="/gridsense-logo.png" alt="GridSense Logo" width={24} height={24} className="drop-shadow-md" />
             </div>
             <span className="whitespace-nowrap text-xl font-bold text-emerald-900 tracking-tight">
               GridSense AI
@@ -137,25 +139,32 @@ export default function Topbar({ email, role, name }: TopbarProps) {
             </div>
           </div>
 
-          {/* Live System Health Indicator */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm">
-            {wsStatus === "optimal" ? (
+          {/* Data Governance Badge */}
+          <div 
+            onClick={() => setIsSynthetic(!isSynthetic)}
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm cursor-pointer select-none"
+            title="Double-click to toggle data mode"
+          >
+            {isSynthetic ? (
+              <>
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+                </span>
+                <span className="text-xs font-semibold text-cyan-800">Synthetic Data</span>
+              </>
+            ) : wsStatus === "optimal" ? (
               <>
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                 </span>
-                <span className="text-xs font-semibold text-emerald-800">System Optimal</span>
-              </>
-            ) : wsStatus === "connecting" ? (
-              <>
-                <div className="h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse"></div>
-                <span className="text-xs font-semibold text-amber-700">Connecting...</span>
+                <span className="text-xs font-semibold text-emerald-800">Real Data</span>
               </>
             ) : (
               <>
-                <AlertCircle className="h-3 w-3 text-red-500" />
-                <span className="text-xs font-semibold text-red-600">Degraded</span>
+                <AlertCircle className="h-3 w-3 text-amber-500" />
+                <span className="text-xs font-semibold text-amber-700">Degraded / Stale</span>
               </>
             )}
           </div>

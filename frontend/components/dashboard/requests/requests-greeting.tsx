@@ -1,17 +1,18 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect, ReactNode } from 'react';
 
 interface RequestsGreetingProps {
   pendingCount?: number;
   activeCount?: number;
   resolvedCount?: number;
+  children?: ReactNode;
 }
 
 export default function RequestsGreeting({ 
   pendingCount = 0, 
   activeCount = 0, 
-  resolvedCount = 0 
+  resolvedCount = 0,
+  children
 }: RequestsGreetingProps) {
   const [timeStr, setTimeStr] = useState('');
   const [isMounted, setIsMounted] = useState(false);
@@ -72,10 +73,8 @@ export default function RequestsGreeting({
             <span className="text-white text-2xl font-bold">{resolvedCount}</span>
           </div>
         </div>
-        
-        <Button onClick={() => window.location.reload()} className="mt-4 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30">
-          Sync Access Logs
-        </Button>
+
+        {children && <div className="mt-8">{children}</div>}
       </div>
     </div>
   );

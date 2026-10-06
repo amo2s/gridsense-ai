@@ -73,15 +73,22 @@ export default function Sidebar({ role }: SidebarProps) {
           {allowedRoutes.map((item) => {
             const isActive = pathname === item.path || pathname.startsWith(`${item.path}/`);
             return (
-              <Link key={item.path} href={item.path}>
+              <Link key={item.path} href={item.path} className="relative block">
+                {isActive && (
+                  <motion.div
+                    layoutId="sidebar-active-indicator"
+                    className="absolute inset-0 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  />
+                )}
                 <div
-                  className={`group flex items-center gap-4 rounded-xl px-3 py-3 transition-all duration-300 border ${
+                  className={`relative z-10 group flex items-center gap-4 rounded-xl px-3 py-3 transition-colors duration-300 border ${
                     isActive
-                      ? "text-emerald-600 bg-white/10 border-white/20 shadow-sm"
+                      ? "text-white border-transparent"
                       : "text-zinc-600 border-transparent hover:bg-white/10 hover:border-white/10 hover:text-emerald-600 hover:shadow-sm"
                   }`}
                 >
-                  <item.icon className="h-5 w-5 shrink-0 transition-all" />
+                  <item.icon className="h-5 w-5 shrink-0 transition-colors" />
                   <AnimatePresence initial={false}>
                     {!isCollapsed && (
                       <motion.span

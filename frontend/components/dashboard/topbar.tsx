@@ -20,7 +20,7 @@ import { useDashboardStore } from "@/store/dashboard-store";
 interface TopbarProps {
   email: string;
   role: string;
-  name?: string;
+  name: string;
 }
 
 export default function Topbar({ email, role, name }: TopbarProps) {
@@ -38,7 +38,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
   const [unreadAlertsCount, setUnreadAlertsCount] = useState(3);
 
   // Normalize role
-  const normalizedRole = role?.toUpperCase() || "STAFF";
+  const normalizedRole = role.toUpperCase();
   const displayEmail = email;
 
   // 1. Time-Aware Greeting Logic
@@ -222,7 +222,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
               className="flex items-center gap-2 p-1 pl-2 pr-3 rounded-full hover:bg-white/50 transition-colors border border-transparent hover:border-white/60"
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold border border-emerald-200">
-                {name ? name.charAt(0).toUpperCase() : (displayEmail ? displayEmail.charAt(0).toUpperCase() : "U")}
+                {name.charAt(0).toUpperCase()}
               </div>
             </button>
 
@@ -238,7 +238,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
                 >
                   <div className="p-4 border-b border-white/40 bg-white/30">
                     <p className="text-sm font-semibold text-emerald-900 truncate">
-                      {name || displayEmail || "Unknown User"}
+                      {name}
                     </p>
                     <p className="text-xs text-emerald-700 capitalize mt-0.5">
                       {normalizedRole.toLowerCase()}

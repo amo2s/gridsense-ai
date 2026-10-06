@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { graphQLClient } from "@/lib/graphql/client";
+import { graphqlClient } from "@/lib/graphql-client";
 import { TrendDataPoint } from "@/lib/graphql/generated";
 
 const RELIABILITY_TREND_QUERY = `
@@ -19,7 +19,7 @@ export function useReliabilityTrend(timeRange: string) {
   return useQuery({
     queryKey: ["reliability-trend", timeRange],
     queryFn: async () => {
-      const data = await graphQLClient.request<ReliabilityTrendResponse>(
+      const data = await graphqlClient.request<ReliabilityTrendResponse>(
         RELIABILITY_TREND_QUERY,
         { timeRange }
       );

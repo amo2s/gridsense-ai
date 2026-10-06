@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { graphQLClient } from "@/lib/graphql/client";
+import { graphqlClient } from "@/lib/graphql-client";
 import { DashboardSummary } from "@/lib/graphql/generated";
 
 const RELIABILITY_METRICS_QUERY = `
@@ -20,7 +20,7 @@ export function useReliabilityMetrics(timeRange: string) {
   return useQuery({
     queryKey: ["dashboard-metrics", timeRange],
     queryFn: async () => {
-      const data = await graphQLClient.request<DashboardSummaryResponse>(
+      const data = await graphqlClient.request<DashboardSummaryResponse>(
         RELIABILITY_METRICS_QUERY,
         { timeRange }
       );

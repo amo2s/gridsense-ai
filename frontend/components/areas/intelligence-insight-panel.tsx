@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { graphQLClient } from "@/lib/graphql/client";
+import { graphqlClient } from "@/lib/graphql-client";
 import { GET_INTELLIGENCE_INSIGHT } from "@/lib/graphql/queries";
 import { ACKNOWLEDGE_ALERT_MUTATION, LOG_INTERVENTION_MUTATION } from "@/lib/graphql/mutations";
 import { IntelligenceInsight, AcknowledgeAlertResult, LogInterventionResult } from "@/lib/graphql/generated";
@@ -23,14 +23,14 @@ export function IntelligenceInsightPanel({ anomalyId, feederId, initialData }: I
     queryKey: ["intelligenceInsight", anomalyId],
     queryFn: async () => {
       if (!anomalyId) return { intelligenceInsight: null as any };
-      return graphQLClient.request(GET_INTELLIGENCE_INSIGHT, { anomalyId });
+      return graphqlClient.request(GET_INTELLIGENCE_INSIGHT, { anomalyId });
     },
     initialData: initialData ? { intelligenceInsight: initialData } : undefined,
     enabled: !!anomalyId,
   });
 
   const acknowledgeMutation = useMutation<{ acknowledgeAlert: AcknowledgeAlertResult }, Error, void, { previousData: any }>({
-    mutationFn: () => graphQLClient.request(ACKNOWLEDGE_ALERT_MUTATION, { alertId: anomalyId, notes: operatorNotes }),
+    mutationFn: () => graphqlClient.request(ACKNOWLEDGE_ALERT_MUTATION, { alertId: anomalyId, notes: operatorNotes }),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["intelligenceInsight", anomalyId] });
       const previousData = queryClient.getQueryData(["intelligenceInsight", anomalyId]);
@@ -50,7 +50,7 @@ export function IntelligenceInsightPanel({ anomalyId, feederId, initialData }: I
   });
 
   const logInterventionMutation = useMutation<{ logIntervention: LogInterventionResult }, Error, void, { previousData: any }>({
-    mutationFn: () => graphQLClient.request(LOG_INTERVENTION_MUTATION, { alertId: anomalyId, feederId, actionTaken: selectedAction, notes: operatorNotes }),
+    mutationFn: () => graphqlClient.request(LOG_INTERVENTION_MUTATION, { alertId: anomalyId, feederId, actionTaken: selectedAction, notes: operatorNotes }),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["intelligenceInsight", anomalyId] });
       const previousData = queryClient.getQueryData(["intelligenceInsight", anomalyId]);

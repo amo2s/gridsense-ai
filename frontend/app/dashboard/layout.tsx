@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import Topbar from "@/components/dashboard/topbar";
 import Sidebar from "@/components/dashboard/sidebar"; // Adjust path if your components are in a different folder
-import GraphQLProvider from "@/components/providers/graphql-provider";
+import QueryProvider from "@/providers/query-provider";
 import { decodeJwt, JWTPayload } from "jose";
 
 interface OperatorClaims extends JWTPayload {
@@ -53,9 +53,9 @@ export default async function DashboardLayout({
         {/* Page Content Viewport */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-gradient-to-br from-white to-slate-50">
           <div className="mx-auto max-w-7xl">
-            <GraphQLProvider token={token || ""}>
+            <QueryProvider token={token || ""}>
               {children}
-            </GraphQLProvider>
+            </QueryProvider>
           </div>
         </main>
       </div>

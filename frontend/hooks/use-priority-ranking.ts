@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { graphQLClient } from "@/lib/graphql/client";
+import { graphqlClient } from "@/lib/graphql-client";
 import { PriorityArea } from "@/lib/graphql/generated";
 
 const PRIORITY_AREAS_QUERY = `
@@ -22,7 +22,7 @@ export function usePriorityRanking() {
   return useQuery({
     queryKey: ["priority-areas"],
     queryFn: async () => {
-      const data = await graphQLClient.request<PriorityAreasResponse>(
+      const data = await graphqlClient.request<PriorityAreasResponse>(
         PRIORITY_AREAS_QUERY
       );
       return data.priorityAreas;

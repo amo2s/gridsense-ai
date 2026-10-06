@@ -15,7 +15,7 @@ import {
   LogOut,
   UserCircle
 } from "lucide-react";
-import { useDashboardStore } from "@/store/dashboard-store";
+import { useUIStore } from "@/store/ui-store";
 
 interface TopbarProps {
   email: string;
@@ -31,7 +31,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
-  const wsStatus = useDashboardStore((state) => state.wsStatus);
+  const wsStatus = useUIStore((state) => state.wsStatus);
   const [isSynthetic, setIsSynthetic] = useState(false);
   
   // Real-time alerts counter state
@@ -153,7 +153,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
                 </span>
                 <span className="text-xs font-semibold text-cyan-800">Synthetic Data</span>
               </>
-            ) : wsStatus === "optimal" ? (
+            ) : wsStatus === "Connected" ? (
               <>
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>

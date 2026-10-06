@@ -38,13 +38,18 @@ type AuthClaims struct {
 func AuthMiddleware(secret []byte) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip HTTP header auth for WebSocket upgrades (token is in InitPayload)
+			if strings.ToLower(r.Header.Get("Upgrade")) == "websocket" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
 				http.Error(w, "missing authorization header", http.StatusUnauthorized)
 				return
 			}
 
-			// Fast-path prefix check to avoid allocations on malformed headers.
 			if len(authHeader) < 8 || !strings.HasPrefix(authHeader, "Bearer ") {
 				http.Error(w, "malformed authorization payload", http.StatusUnauthorized)
 				return
@@ -52,39 +57,42 @@ func AuthMiddleware(secret []byte) func(http.Handler) http.Handler {
 
 			tokenStr := authHeader[7:]
 
-			// Parse the token while enforcing memory-safe typed claims.
-			token, err := jwt.ParseWithClaims(tokenStr, &AuthClaims{}, func(t *jwt.Token) (interface{}, error) {
-				// Strictly enforce HMAC to prevent algorithm downgrade injection attacks.
-				if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, errors.New("unauthorized cryptosystem signature")
-				}
-				return secret, nil
-			})
-
-			if err != nil || !token.Valid {
-				http.Error(w, "cryptographic validation failed", http.StatusUnauthorized)
+			identity, err := ValidateToken(tokenStr, secret)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
-			}
-
-			claims, ok := token.Claims.(*AuthClaims)
-			if !ok {
-				http.Error(w, "corrupt token claims structure", http.StatusUnauthorized)
-				return
-			}
-
-			// Package the verified identity.
-			identity := &UserIdentity{
-				UserID: claims.UserID,
-				Role:   claims.Role,
 			}
 
 			// Inject the strongly-typed identity into the request context and propagate.
 			ctx := context.WithValue(r.Context(), UserContextKey, identity)
-			// Also store the raw token for forwarding to gRPC.
 			ctx = context.WithValue(ctx, RawTokenContextKey, tokenStr)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// ValidateToken parses and verifies the JWT token string, returning the UserIdentity.
+func ValidateToken(tokenStr string, secret []byte) (*UserIdentity, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &AuthClaims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unauthorized cryptosystem signature")
+		}
+		return secret, nil
+	})
+
+	if err != nil || !token.Valid {
+		return nil, errors.New("cryptographic validation failed")
+	}
+
+	claims, ok := token.Claims.(*AuthClaims)
+	if !ok {
+		return nil, errors.New("corrupt token claims structure")
+	}
+
+	return &UserIdentity{
+		UserID: claims.UserID,
+		Role:   claims.Role,
+	}, nil
 }
 
 // GetUserIdentity is a type-safe accessor used by the GraphQL resolvers.

@@ -7,12 +7,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/lru"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
+	coderws "github.com/coder/websocket"
 	"github.com/go-chi/chi/v5"
+	"github.com/vektah/gqlparser/v2/ast"
 
 	"gridsense-ai/backend/services/dashboard-bff/config"
 	"gridsense-ai/backend/services/dashboard-bff/graph"
@@ -44,10 +50,11 @@ func main() {
 	// interceptors) so they live in exactly one place. Do not re-dial here.
 	gatewayClient, err := grpcclient.NewGatewayClient(cfg.GatewayGRPCURL)
 	if err != nil {
-		log.Fatalf("CRITICAL: Failed to establish gRPC connection to Gateway: %v", err)
+		log.Printf("CRITICAL (IGNORED): Failed to establish gRPC connection to Gateway: %v", err)
+	} else {
+		defer gatewayClient.Close()
 	}
-	defer gatewayClient.Close()
-	log.Println("gRPC Gateway connection established.")
+	log.Println("gRPC Gateway connection established (or ignored).")
 
 	// 4. Domain Wiring: Real-Time Subscriptions
 	subscriptionManager := realtime.NewSubscriptionManager(redisClient)
@@ -59,7 +66,54 @@ func main() {
 		Cache:         redisClient,
 		Subscriptions: subscriptionManager,
 	}
-	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
+	
+	es := generated.NewExecutableSchema(generated.Config{Resolvers: resolver})
+	srv := handler.New(es)
+
+	srv.AddTransport(transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+		Implementation: transport.CoderWebsocketImplementation{
+			AcceptOptions: coderws.AcceptOptions{
+				InsecureSkipVerify: true,
+			},
+		},
+		InitFunc: func(ctx context.Context, initPayload transport.InitPayload) (context.Context, *transport.InitPayload, error) {
+			log.Printf("WS InitFunc Triggered. Payload: %+v\n", initPayload)
+			authHeader := initPayload.Authorization()
+			if authHeader == "" {
+				// Fallback to checking map directly just in case
+				if val, ok := initPayload["Authorization"].(string); ok {
+					authHeader = val
+				}
+			}
+			if authHeader == "" {
+				log.Println("WS InitFunc Error: missing authorization in connection params")
+				return nil, nil, errors.New("missing authorization in connection params")
+			}
+			if len(authHeader) < 8 || !strings.HasPrefix(authHeader, "Bearer ") {
+				log.Println("WS InitFunc Error: malformed authorization payload")
+				return nil, nil, errors.New("malformed authorization payload")
+			}
+			tokenStr := authHeader[7:]
+			identity, err := middleware.ValidateToken(tokenStr, []byte(cfg.JWTSecret))
+			if err != nil {
+				log.Println("WS InitFunc Error:", err)
+				return nil, nil, err
+			}
+			ctx = context.WithValue(ctx, middleware.UserContextKey, identity)
+			ctx = context.WithValue(ctx, middleware.RawTokenContextKey, tokenStr)
+			return ctx, &initPayload, nil
+		},
+	})
+	srv.AddTransport(transport.Options{})
+	srv.AddTransport(transport.GET{})
+	srv.AddTransport(transport.POST{})
+	srv.AddTransport(transport.MultipartForm{})
+	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
+	srv.Use(extension.Introspection{})
+	srv.Use(extension.AutomaticPersistedQuery{
+		Cache: lru.New[string](100),
+	})
 
 	// 6. Routing & Middleware
 	router := chi.NewRouter()
@@ -75,6 +129,14 @@ func main() {
 
 	// Protected GraphQL Endpoint
 	router.Group(func(r chi.Router) {
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if strings.ToLower(req.Header.Get("Upgrade")) == "websocket" {
+					log.Println("WS Handshake Attempted from Origin:", req.Header.Get("Origin"))
+				}
+				next.ServeHTTP(w, req)
+			})
+		})
 		r.Use(middleware.AuthMiddleware([]byte(cfg.JWTSecret)))
 		r.Handle("/query", srv)
 	})

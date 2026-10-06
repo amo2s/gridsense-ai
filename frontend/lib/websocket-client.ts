@@ -8,12 +8,25 @@ let wsClient: Client | null = null;
 export const initializeWebSocket = (token: string | undefined, queryClient: QueryClient) => {
   if (wsClient) return wsClient;
 
-  const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080/query";
+  const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8082/query";
   
+  console.log("Attempting WS connection to:", wsUrl);
+
   wsClient = createClient({
     url: wsUrl,
-    connectionParams: {
-      Authorization: token ? `Bearer ${token}` : "",
+    connectionParams: async () => {
+      let currentToken = token;
+      if (typeof window !== "undefined") {
+        const match1 = document.cookie.match(new RegExp('(^| )gridsense_session=([^;]+)'));
+        const match2 = document.cookie.match(new RegExp('(^| )auth_token=([^;]+)'));
+        const cookieToken = (match1 ? match1[2] : null) || (match2 ? match2[2] : null);
+        if (cookieToken) {
+          currentToken = cookieToken;
+        }
+      }
+      return {
+        Authorization: currentToken ? `Bearer ${currentToken}` : "",
+      };
     },
     on: {
       connected: () => {
@@ -25,7 +38,8 @@ export const initializeWebSocket = (token: string | undefined, queryClient: Quer
       closed: () => {
         useUIStore.getState().setWsStatus('Offline');
       },
-      error: () => {
+      error: (err) => {
+        console.error("WebSocket connection error on target:", wsUrl, err);
         useUIStore.getState().setWsStatus('Offline');
       },
     }

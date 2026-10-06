@@ -23,6 +23,7 @@ export default function AuthPortal() {
               width={36}
               height={36}
               className="object-contain"
+              style={{ width: "auto", height: "auto" }}
             />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-emerald-950">

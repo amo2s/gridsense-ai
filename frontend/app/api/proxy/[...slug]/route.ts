@@ -42,6 +42,11 @@ async function proxyHandler(
       }
     });
 
+    if (targetPath === "healthz") {
+      forwardHeaders.delete("cookie");
+      forwardHeaders.delete("authorization");
+    }
+
     // 2. Extract request body for mutation methods
     let requestBody: BodyInit | null = null;
     if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {

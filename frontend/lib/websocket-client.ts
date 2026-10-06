@@ -8,12 +8,7 @@ let wsClient: Client | null = null;
 export const initializeWebSocket = (token: string | undefined, queryClient: QueryClient) => {
   if (wsClient) return wsClient;
 
-  let wsUrl = "ws://127.0.0.1:7860/query";
-  if (typeof window !== "undefined") {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
-    wsUrl = `${protocol}//${host}/query`;
-  }
+  const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080/query";
   
   wsClient = createClient({
     url: wsUrl,

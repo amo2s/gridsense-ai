@@ -8,7 +8,19 @@ import { GET_AREA_DRILL_DOWN_METRICS } from "@/lib/graphql/queries";
 import { useUIStore } from "@/store/ui-store";
 import { usePriorityRanking } from "@/hooks/use-priority-ranking";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import dynamic from "next/dynamic";
+
+// Ensure chart is explicitly client-rendered to prevent Recharts SSR mismatch
+const PredictiveForecast = dynamic(
+  () => import("@/components/engine-a/predictive-forecast").then((mod) => mod.PredictiveForecast),
+  { ssr: false }
+);
+
+const AnomalyTimeline = dynamic(
+  () => import("@/components/engine-a/anomaly-timeline").then((mod) => mod.AnomalyTimeline),
+  { ssr: false }
+);
 
 interface FeederDetailProps {
   params: Promise<{ id: string }>;
@@ -33,23 +45,6 @@ export default function FeederDetailRoute({ params }: FeederDetailProps) {
   const { data: priorityAreas } = usePriorityRanking();
   const feederInfo = priorityAreas?.find((p) => p.id === id);
 
-  // Fetch granular metadata using TanStack Query
-  const { data: metadata, isLoading, isError } = useQuery({
-    queryKey: ["area-drill-down", id],
-    queryFn: async () => {
-      const res = await graphqlClient.request<any>(GET_AREA_DRILL_DOWN_METRICS, {
-        areaId: id,
-        timeRange: "24h",
-      });
-      return res;
-    },
-  });
-
-  // Handle null response gracefully
-  if (!isLoading && !isError && (!metadata || !metadata.anomalyTimeline)) {
-    notFound();
-  }
-
   // Derive colors based on status using exact Engine A mappings
   const status = feederInfo?.status || "Analyzing";
   let statusColorClass = "text-zinc-500 bg-zinc-100 border-zinc-200/40";
@@ -60,6 +55,10 @@ export default function FeederDetailRoute({ params }: FeederDetailProps) {
   } else if (status === "Critical") {
     statusColorClass = "text-red-600 bg-red-500/10 border-red-500/20";
   }
+
+  // Fallback if PriorityArea data finished loading and the ID wasn't found at all
+  // Note: For this drill-down, it's possible it's found in anomaly API even if not in priority API, 
+  // but we assume priority API contains all active feeders.
 
   return (
     <div className="p-6 min-h-screen bg-[#FAFAFA] flex flex-col gap-6">
@@ -92,36 +91,21 @@ export default function FeederDetailRoute({ params }: FeederDetailProps) {
         </div>
       </div>
 
-      {/* Grid skeleton designed for vertical timeline and wide predictive chart */}
+      {/* Grid for vertical timeline and wide predictive chart */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
-        {/* Vertical Timeline Wrapper */}
+        
+        {/* Step 4.2: Vertical Anomaly Timeline */}
         <div className="lg:col-span-4 liquid-panel backdrop-blur-md relative overflow-hidden p-6 bg-gradient-to-br from-white/80 to-white/30 border border-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),_0_8px_16px_-4px_rgba(0,0,0,0.1)] rounded-3xl min-h-[600px] flex flex-col">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
           <h2 className="text-lg font-semibold text-neutral-800 mb-6 relative z-10">Anomaly Timeline</h2>
-          <div className="flex-1 flex items-center justify-center relative z-10 border-2 border-dashed border-neutral-200/60 rounded-2xl bg-white/20">
-            {isLoading ? (
-              <Loader2 className="w-8 h-8 animate-spin text-[#10b981]" />
-            ) : (
-              <p className="text-sm text-neutral-500 font-medium text-center px-4">
-                Timeline visualization module<br/>(To be implemented)
-              </p>
-            )}
+          <div className="flex-1 relative z-10">
+            <AnomalyTimeline feederId={id} />
           </div>
         </div>
 
-        {/* Predictive Chart Wrapper */}
-        <div className="lg:col-span-8 liquid-panel backdrop-blur-md relative overflow-hidden p-6 bg-gradient-to-br from-white/80 to-white/30 border border-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),_0_8px_16px_-4px_rgba(0,0,0,0.1)] rounded-3xl min-h-[600px] flex flex-col">
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
-          <h2 className="text-lg font-semibold text-neutral-800 mb-6 relative z-10">Predictive Risk Forecast</h2>
-          <div className="flex-1 flex items-center justify-center relative z-10 border-2 border-dashed border-neutral-200/60 rounded-2xl bg-white/20">
-            {isLoading ? (
-              <Loader2 className="w-8 h-8 animate-spin text-[#10b981]" />
-            ) : (
-              <p className="text-sm text-neutral-500 font-medium text-center px-4">
-                Predictive chart visualization module<br/>(To be implemented)
-              </p>
-            )}
-          </div>
+        {/* Step 4.3: Predictive Risk Forecast Chart */}
+        <div className="lg:col-span-8">
+          <PredictiveForecast feederId={id} />
         </div>
       </div>
     </div>

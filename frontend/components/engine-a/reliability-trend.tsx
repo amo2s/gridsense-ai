@@ -33,6 +33,10 @@ export function ReliabilityTrend() {
           <div className="absolute inset-0 flex items-center justify-center text-red-500">
             Failed to load trend data
           </div>
+        ) : data.length === 0 ? (
+          <div className="absolute inset-0 flex items-center justify-center text-neutral-500 font-medium">
+            No data available
+          </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart

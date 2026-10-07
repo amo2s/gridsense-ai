@@ -44,10 +44,13 @@ export default function Topbar({ email, role, name }: TopbarProps) {
   // 1. Time-Aware Greeting Logic
   useEffect(() => {
     const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good morning");
-    else if (hour < 18) setGreeting("Good afternoon");
-    else setGreeting("Good evening");
-  }, []);
+    let timeGreeting = "Good Morning";
+    if (hour >= 12 && hour < 17) timeGreeting = "Good Afternoon";
+    else if (hour >= 17) timeGreeting = "Good Evening";
+    
+    const firstName = name ? name.split(" ")[0] : "Nwaka";
+    setGreeting(`${timeGreeting}, ${firstName}.`);
+  }, [name]);
 
   // 2. Global Command Search (Cmd+K / Ctrl+K)
   useEffect(() => {

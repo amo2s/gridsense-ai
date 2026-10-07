@@ -44,6 +44,12 @@ export function PriorityTable() {
                   Failed to load priority areas
                 </td>
               </tr>
+            ) : priorityAreas.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-neutral-500 font-medium">
+                  No data available
+                </td>
+              </tr>
             ) : priorityAreas.map((row) => (
               <tr
                 key={row.id}

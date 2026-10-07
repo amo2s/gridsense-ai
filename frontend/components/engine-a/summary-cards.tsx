@@ -1,3 +1,5 @@
+"use client";
+
 import { Activity, AlertTriangle, Loader2 } from "lucide-react";
 import { useReliabilityMetrics } from "@/hooks/use-reliability-metrics";
 

@@ -54,7 +54,7 @@ export default async function DashboardLayout({
         <Topbar email={email} role={role} name={name} />
 
         {/* Page Content Viewport */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-gradient-to-br from-white to-slate-50 relative z-10">
+        <main className="flex-1 overflow-y-auto pr-6 pl-0 md:pr-8 md:pl-2 py-6 bg-gradient-to-br from-white to-slate-50 relative z-10">
           <div className="mx-auto max-w-7xl h-full">
             <QueryProvider token={token || ""}>
               <PageTransition>

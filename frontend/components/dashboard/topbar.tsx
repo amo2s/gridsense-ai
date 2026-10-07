@@ -72,7 +72,15 @@ export default function Topbar({ email, role, name }: TopbarProps) {
     const paths = pathname.split("/").filter((p) => p !== "");
     return paths.map((path, index) => {
       const isLast = index === paths.length - 1;
-      const formattedPath = path.charAt(0).toUpperCase() + path.slice(1);
+      let formattedPath = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, " ");
+      
+      // Dynamic Nomenclature Dictionary
+      if (path === "engine-a") {
+        formattedPath = "Reliability Intelligence";
+      } else if (index > 0 && paths[index - 1] === "engine-a") {
+        // Handle dynamic [id] segments gracefully instead of rendering raw UUIDs
+        formattedPath = `Area Details: ${path.substring(0, 6).toUpperCase()}`;
+      }
       
       return (
         <div key={path} className="flex items-center">
@@ -91,7 +99,7 @@ export default function Topbar({ email, role, name }: TopbarProps) {
   };
 
   return (
-    <header className="sticky top-4 z-40 w-full px-4 pt-4 mb-4">
+    <header className="sticky top-4 z-40 w-full pr-4 pl-0 md:pr-6 md:pl-2 pt-4 mb-4">
       <div className="flex items-center justify-between px-6 py-3 liquid-panel">
         
         {/* Left side: Branding & Breadcrumbs */}

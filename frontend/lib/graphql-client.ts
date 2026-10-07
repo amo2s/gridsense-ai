@@ -11,10 +11,14 @@ export const graphqlClient = new GraphQLClient(GRAPHQL_ENDPOINT, {
     if (typeof window !== 'undefined') {
       const token = sessionStorage.getItem('access_token');
       if (token) {
-        request.headers = {
-          ...request.headers,
-          Authorization: `Bearer ${token}`,
-        };
+        if (request.headers instanceof Headers) {
+          request.headers.set('Authorization', `Bearer ${token}`);
+        } else {
+          request.headers = {
+            ...request.headers,
+            Authorization: `Bearer ${token}`,
+          };
+        }
       }
     }
     return request;

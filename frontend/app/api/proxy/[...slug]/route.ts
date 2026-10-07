@@ -47,6 +47,16 @@ async function proxyHandler(
       forwardHeaders.delete("authorization");
     }
 
+    // --- FIX 401: FALLBACK TO COOKIE ---
+    // If the client didn't supply an Authorization header (e.g., initial render where sessionStorage is empty),
+    // extract it from the HttpOnly auth_token cookie and attach it.
+    if (!forwardHeaders.has("authorization")) {
+      const token = req.cookies.get("auth_token")?.value;
+      if (token) {
+        forwardHeaders.set("authorization", `Bearer ${token}`);
+      }
+    }
+
     // 2. Extract request body for mutation methods
     let requestBody: BodyInit | null = null;
     if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
@@ -208,6 +218,13 @@ async function proxyHandler(
     });
 
     const responseBody = await backendResponse.arrayBuffer();
+
+    if (backendResponse.status === 400) {
+      const fs = require('fs');
+      try {
+        fs.appendFileSync('c:\\users\\hp\\Desktop\\gridsense-ai\\frontend\\proxy-error.txt', new TextDecoder().decode(responseBody) + '\\n');
+      } catch(e) {}
+    }
 
     return new NextResponse(responseBody, {
       status: backendResponse.status,

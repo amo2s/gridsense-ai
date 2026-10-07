@@ -22,6 +22,16 @@ const AnomalyTimeline = dynamic(
   { ssr: false }
 );
 
+const IntelligenceInsightPanel = dynamic(
+  () => import("@/components/engine-a/intelligence-insight-panel").then((mod) => mod.IntelligenceInsightPanel),
+  { ssr: false }
+);
+
+const InterventionControls = dynamic(
+  () => import("@/components/engine-a/intervention-controls").then((mod) => mod.InterventionControls),
+  { ssr: false }
+);
+
 interface FeederDetailProps {
   params: Promise<{ id: string }>;
 }
@@ -89,6 +99,11 @@ export default function FeederDetailRoute({ params }: FeederDetailProps) {
             </span>
           </div>
         </div>
+        
+        {/* Step 5.2: Operator Intervention Controls */}
+        <div className="relative z-10 w-full mt-2">
+          <InterventionControls feederId={id} />
+        </div>
       </div>
 
       {/* Grid for vertical timeline and wide predictive chart */}
@@ -103,9 +118,10 @@ export default function FeederDetailRoute({ params }: FeederDetailProps) {
           </div>
         </div>
 
-        {/* Step 4.3: Predictive Risk Forecast Chart */}
-        <div className="lg:col-span-8">
+        {/* Main Column: Predictive Forecast & Explainability */}
+        <div className="lg:col-span-8 flex flex-col gap-6">
           <PredictiveForecast feederId={id} />
+          <IntelligenceInsightPanel feederId={id} />
         </div>
       </div>
     </div>

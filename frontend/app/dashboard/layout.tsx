@@ -3,6 +3,8 @@ import Topbar from "@/components/dashboard/topbar";
 import Sidebar from "@/components/dashboard/sidebar"; // Adjust path if your components are in a different folder
 import QueryProvider from "@/providers/query-provider";
 import { decodeJwt, JWTPayload } from "jose";
+import { AmbientEdgeGlow } from "@/components/dashboard/ambient-edge-glow";
+import { PageTransition } from "@/components/dashboard/page-transition";
 
 interface OperatorClaims extends JWTPayload {
   email?: string;
@@ -41,7 +43,8 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50 text-slate-900 selection:bg-green-200">
+    <div className="flex h-screen w-full overflow-hidden bg-slate-50 text-slate-900 selection:bg-green-200 relative">
+      <AmbientEdgeGlow />
       {/* Dynamic Sidebar Injection */}
       <Sidebar email={email} role={role} />
 
@@ -51,10 +54,12 @@ export default async function DashboardLayout({
         <Topbar email={email} role={role} name={name} />
 
         {/* Page Content Viewport */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-gradient-to-br from-white to-slate-50">
-          <div className="mx-auto max-w-7xl">
+        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-gradient-to-br from-white to-slate-50 relative z-10">
+          <div className="mx-auto max-w-7xl h-full">
             <QueryProvider token={token || ""}>
-              {children}
+              <PageTransition>
+                {children}
+              </PageTransition>
             </QueryProvider>
           </div>
         </main>

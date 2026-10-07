@@ -9,9 +9,7 @@ const GRAPHQL_ENDPOINT = typeof window !== 'undefined'
 export const graphqlClient = new GraphQLClient(GRAPHQL_ENDPOINT, {
   requestMiddleware: (request) => {
     if (typeof window !== 'undefined') {
-      const match1 = document.cookie.match(new RegExp('(^| )gridsense_session=([^;]+)'));
-      const match2 = document.cookie.match(new RegExp('(^| )auth_token=([^;]+)'));
-      const token = (match1 ? match1[2] : null) || (match2 ? match2[2] : null);
+      const token = sessionStorage.getItem('access_token');
       if (token) {
         request.headers = {
           ...request.headers,

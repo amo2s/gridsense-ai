@@ -1,14 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-
-const mockData = [
-  { id: "FDR-001", status: "Stable", score: 95, load: "45%", lastAnomaly: "2023-10-01 10:00 AM" },
-  { id: "FDR-002", status: "Vulnerable", score: 65, load: "85%", lastAnomaly: "2023-10-05 14:30 PM" },
-  { id: "FDR-003", status: "Critical", score: 20, load: "98%", lastAnomaly: "2023-10-07 08:15 AM" },
-];
+import { usePriorityRanking } from "@/hooks/use-priority-ranking";
+import { Loader2 } from "lucide-react";
 
 export function PriorityTable() {
+  const { data: priorityAreas, isLoading, isError } = usePriorityRanking();
   const handleDrillDown = (id: string) => {
     console.log("Drill down triggered for Feeder ID: ", id);
   };
@@ -27,15 +24,27 @@ export function PriorityTable() {
           <thead>
             <tr className="border-b border-neutral-200/50">
               <th className="py-3 px-4 text-sm font-semibold text-neutral-600">Feeder ID</th>
+              <th className="py-3 px-4 text-sm font-semibold text-neutral-600">Name</th>
               <th className="py-3 px-4 text-sm font-semibold text-neutral-600">Status</th>
-              <th className="py-3 px-4 text-sm font-semibold text-neutral-600">Reliability Score</th>
-              <th className="py-3 px-4 text-sm font-semibold text-neutral-600">Peak Load Capacity</th>
-              <th className="py-3 px-4 text-sm font-semibold text-neutral-600">Last Anomaly</th>
+              <th className="py-3 px-4 text-sm font-semibold text-neutral-600">Risk Score</th>
+              <th className="py-3 px-4 text-sm font-semibold text-neutral-600">Urgency Rank</th>
               <th className="py-3 px-4 text-sm font-semibold text-neutral-600">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {mockData.map((row) => (
+            {isLoading ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#10b981]" />
+                </td>
+              </tr>
+            ) : isError || !priorityAreas ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-red-500 font-medium">
+                  Failed to load priority areas
+                </td>
+              </tr>
+            ) : priorityAreas.map((row) => (
               <tr
                 key={row.id}
                 onClick={() => handleDrillDown(row.id)}
@@ -47,10 +56,11 @@ export function PriorityTable() {
                 </td>
 
                 <td className="py-4 px-4 text-sm font-medium text-neutral-800 relative z-10">{row.id}</td>
+                <td className="py-4 px-4 text-sm font-medium text-neutral-600 relative z-10">{row.name}</td>
                 <td className="py-4 px-4 text-sm relative z-10">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
                     row.status === 'Stable' ? 'bg-[#10b981]/10 text-[#10b981]' :
-                    row.status === 'Vulnerable' ? 'bg-amber-500/10 text-amber-600' :
+                    row.status === 'Vulnerable' || row.status === 'Warning' ? 'bg-amber-500/10 text-amber-600' :
                     'bg-red-500/10 text-red-600'
                   }`}>
                     {row.status}
@@ -58,13 +68,12 @@ export function PriorityTable() {
                 </td>
                 <td className="py-4 px-4 text-sm font-medium relative z-10">
                   <span style={{ 
-                    color: row.score >= 80 ? '#10b981' : row.score >= 50 ? '#f59e0b' : '#ef4444' 
+                    color: row.riskScore >= 80 ? '#ef4444' : row.riskScore >= 50 ? '#f59e0b' : '#10b981' 
                   }}>
-                    {row.score}%
+                    {Math.round(row.riskScore)}
                   </span>
                 </td>
-                <td className="py-4 px-4 text-sm text-neutral-600 relative z-10">{row.load}</td>
-                <td className="py-4 px-4 text-sm text-neutral-500 relative z-10">{row.lastAnomaly}</td>
+                <td className="py-4 px-4 text-sm font-bold text-neutral-700 relative z-10">#{row.urgencyRank}</td>
                 <td className="py-4 px-4 relative z-10">
                   <Button
                     className="border-[#10b981] text-[#10b981] hover:bg-[#10b981] hover:text-white transition-colors bg-transparent border py-1.5 px-3 text-xs"

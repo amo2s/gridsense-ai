@@ -1,5 +1,6 @@
 import { SummaryCards } from "@/components/engine-a/summary-cards";
 import { PriorityTable } from "@/components/engine-a/priority-table";
+import { ReliabilityTrend } from "@/components/engine-a/reliability-trend";
 
 export const metadata = {
   title: "Engine A Telemetry & Intelligence",
@@ -17,6 +18,10 @@ export default function EngineAPage() {
         {/* CSS Grid / Flexbox layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <SummaryCards />
+        </div>
+
+        <div className="mt-8">
+          <ReliabilityTrend />
         </div>
 
         <div className="mt-8">

@@ -8,7 +8,8 @@ import {
   LayoutDashboard, 
   ClipboardList,
   ChevronLeft, 
-  ChevronRight
+  ChevronRight,
+  Cpu
 } from "lucide-react";
 
 interface SidebarProps {
@@ -20,6 +21,7 @@ interface SidebarProps {
 const MENU_ITEMS = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard", roles: ["ADMIN", "MANAGER", "STAFF"] },
   { name: "Requests", icon: ClipboardList, path: "/dashboard/requests", roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { name: "Engine A", icon: Cpu, path: "/dashboard/engine-a", roles: ["ADMIN", "MANAGER", "STAFF"] },
 ];
 
 export default function Sidebar({ role }: SidebarProps) {
@@ -77,18 +79,22 @@ export default function Sidebar({ role }: SidebarProps) {
                 {isActive && (
                   <motion.div
                     layoutId="sidebar-active-indicator"
-                    className="absolute inset-0 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
+                    className="absolute inset-0 rounded-xl bg-white/60 backdrop-blur-sm border border-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,1),_0_4px_6px_rgba(0,0,0,0.02)]"
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   />
                 )}
                 <div
                   className={`relative z-10 group flex items-center gap-4 rounded-xl px-3 py-3 transition-colors duration-300 border ${
                     isActive
-                      ? "text-white border-transparent"
+                      ? "text-neutral-900 border-transparent font-semibold"
                       : "text-zinc-600 border-transparent hover:bg-white/10 hover:border-white/10 hover:text-emerald-600 hover:shadow-sm"
                   }`}
                 >
-                  <item.icon className="h-5 w-5 shrink-0 transition-colors" />
+                  <item.icon className={`h-5 w-5 shrink-0 transition-all ${
+                    isActive 
+                      ? "text-[#10b981] drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]" 
+                      : ""
+                  }`} />
                   <AnimatePresence initial={false}>
                     {!isCollapsed && (
                       <motion.span

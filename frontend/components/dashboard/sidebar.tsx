@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, 
   ClipboardList,
-  Radar
+  Activity
 } from "lucide-react";
 
 interface SidebarProps {
@@ -19,7 +19,7 @@ interface SidebarProps {
 const MENU_ITEMS = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard", roles: ["ADMIN", "MANAGER", "STAFF"] },
   { name: "Requests", icon: ClipboardList, path: "/dashboard/requests", roles: ["ADMIN", "MANAGER", "STAFF"] },
-  { name: "Predictive Analytics", icon: Radar, path: "/dashboard/engine-a", roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { name: "Reliability Intelligence", icon: Activity, path: "/dashboard/engine-a", roles: ["ADMIN", "MANAGER", "STAFF"] },
 ];
 
 export default function Sidebar({ role }: SidebarProps) {

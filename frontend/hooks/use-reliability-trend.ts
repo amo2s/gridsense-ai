@@ -1,29 +1,33 @@
 import { useQuery } from "@tanstack/react-query";
-import { graphqlClient } from "@/lib/graphql-client";
-import { TrendDataPoint } from "@/lib/graphql/generated";
 
-const RELIABILITY_TREND_QUERY = `
-  query ReliabilityTrend($timeRange: String!) {
-    reliabilityTrend(timeRange: $timeRange) {
-      timestamp
-      value
-    }
-  }
-`;
-
-interface ReliabilityTrendResponse {
-  reliabilityTrend: TrendDataPoint[];
+interface TrendDataPoint {
+  timestamp: string;
+  value: number;
 }
 
 export function useReliabilityTrend(timeRange: string) {
   return useQuery({
     queryKey: ["reliability-trend", timeRange],
     queryFn: async () => {
-      const data = await graphqlClient.request<ReliabilityTrendResponse>(
-        RELIABILITY_TREND_QUERY,
-        { timeRange }
-      );
-      return data.reliabilityTrend;
+      const token = typeof window !== 'undefined' ? sessionStorage.getItem('access_token') : null;
+      if (!token) {
+        throw new Error("Authentication token missing");
+      }
+
+      const response = await fetch(`/api/proxy/v1/reliability/trend?timeRange=${timeRange}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.reliabilityTrend as TrendDataPoint[];
     },
   });
 }

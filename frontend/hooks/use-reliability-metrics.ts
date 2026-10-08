@@ -1,30 +1,34 @@
 import { useQuery } from "@tanstack/react-query";
-import { graphqlClient } from "@/lib/graphql-client";
-import { DashboardSummary } from "@/lib/graphql/generated";
 
-const RELIABILITY_METRICS_QUERY = `
-  query DashboardSummary($timeRange: String!) {
-    dashboardSummary(timeRange: $timeRange) {
-      overallReliabilityScore
-      activeHighRiskAreas
-      totalActiveAlerts
-    }
-  }
-`;
-
-interface DashboardSummaryResponse {
-  dashboardSummary: DashboardSummary;
+interface DashboardSummary {
+  overallReliabilityScore: number;
+  activeHighRiskAreas: number;
+  totalActiveAlerts: number;
 }
 
 export function useReliabilityMetrics(timeRange: string) {
   return useQuery({
     queryKey: ["dashboard-metrics", timeRange],
     queryFn: async () => {
-      const data = await graphqlClient.request<DashboardSummaryResponse>(
-        RELIABILITY_METRICS_QUERY,
-        { timeRange }
-      );
-      return data.dashboardSummary;
+      const token = typeof window !== 'undefined' ? sessionStorage.getItem('access_token') : null;
+      if (!token) {
+        throw new Error("Authentication token missing");
+      }
+
+      const response = await fetch(`/api/proxy/v1/reliability/summary?timeRange=${timeRange}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.dashboardSummary as DashboardSummary;
     },
   });
 }

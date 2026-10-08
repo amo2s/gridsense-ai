@@ -25,8 +25,15 @@ const ingestionSchema = z.object({
 
 type IngestionFormValues = z.infer<typeof ingestionSchema>;
 
+interface EgressPayload {
+  reliability_score: number;
+  risk_band: string;
+  trajectory: string;
+}
+
 export default function EngineAForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [results, setResults] = useState<EgressPayload | null>(null);
 
   const {
     register,
@@ -35,7 +42,7 @@ export default function EngineAForm() {
     formState: { errors },
     reset
   } = useForm<IngestionFormValues>({
-    resolver: zodResolver(ingestionSchema),
+    resolver: zodResolver(ingestionSchema) as any,
     defaultValues: {
       cycle_timestamp: new Date().toISOString().slice(0, 16),
       asset: {
@@ -54,10 +61,9 @@ export default function EngineAForm() {
 
   const onSubmit = async (data: IngestionFormValues) => {
     setIsSubmitting(true);
+    setResults(null);
     
     try {
-      // Transformation happens inherently via Zod's coerce and proper string types 
-      // strictly format them as valid ISO strings
       const formattedData = {
         ...data,
         cycle_timestamp: new Date(data.cycle_timestamp).toISOString(),
@@ -67,27 +73,49 @@ export default function EngineAForm() {
         }))
       };
 
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      console.log("Dispatching payload:", formattedData);
+      const token = typeof window !== 'undefined' ? sessionStorage.getItem('access_token') : null;
+      if (!token) {
+        toast.error("Authentication token missing. Please re-authenticate.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const response = await fetch('/api/proxy/v1/reliability/evaluate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formattedData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.message || `HTTP ${response.status}`);
+      }
+
+      const egressData: EgressPayload = await response.json();
+      setResults(egressData);
       
       toast.custom(() => (
         <div className="flex items-center gap-3 bg-white/80 backdrop-blur-md border border-white/60 shadow-lg shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] px-4 py-3 rounded-xl">
           <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-          <p className="text-sm font-medium text-slate-800">Telemetry Payload Dispatched</p>
+          <p className="text-sm font-medium text-slate-800">
+            Telemetry ingested successfully. Reliability Index: {egressData.reliability_score}
+          </p>
         </div>
       ));
       
       reset();
-    } catch (error) {
-      toast.error("Failed to dispatch payload");
+    } catch (error: any) {
+      toast.error(`Failed to dispatch payload: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+    <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-8">
       {/* Root Details */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
@@ -251,6 +279,35 @@ export default function EngineAForm() {
           <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
         </button>
       </div>
+
+      <AnimatePresence>
+        {results && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mt-6 p-6 rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm shadow-sm flex items-center justify-between"
+          >
+            <div>
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Results Summary</h4>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-light text-slate-900">{results.reliability_score}</span>
+                <span className="text-sm text-slate-500 font-medium">/ 100</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider
+                ${results.risk_band === 'STABLE' ? 'bg-emerald-100 text-emerald-800' :
+                  results.risk_band === 'VULNERABLE' ? 'bg-amber-100 text-amber-800' :
+                  'bg-red-100 text-red-800'}`}
+              >
+                {results.risk_band}
+              </span>
+              <p className="text-xs text-slate-500 mt-2 font-medium">Trajectory: {results.trajectory}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </form>
   );
 }

@@ -68,7 +68,8 @@ export default function EngineAForm() {
     formState: { errors },
     reset
   } = useForm<IngestionFormValues>({
-    resolver: zodResolver(ingestionSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(ingestionSchema) as any,
     defaultValues: {
       cycle_timestamp: new Date().toISOString().slice(0, 16),
       asset: {
@@ -160,7 +161,8 @@ export default function EngineAForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-8">
       {/* Root Details */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">

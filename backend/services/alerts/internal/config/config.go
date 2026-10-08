@@ -11,7 +11,7 @@ type Config struct {
 	Environment          string `env:"APP_ENV" envDefault:"development"`
 	Port                 string `env:"PORT" envDefault:"8006"`
 	DatabaseURL          string `env:"DATABASE_URL,required"`
-	InternalServiceKey   string `env:"INTERNAL_SERVICE_KEY,required"`
+	InternalServiceKey   string `env:"ALERT_INTERNAL_KEY,required"`
 	RedisURL             string `env:"UPSTASH_REDIS_URL,required"`
 	AlertStreamName      string `env:"ALERT_STREAM_NAME" envDefault:"gridsense:alerts:stream"`
 	AuthStreamName       string `env:"AUTH_STREAM_NAME" envDefault:"admin.auth.events"`

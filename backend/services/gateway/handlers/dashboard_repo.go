@@ -80,6 +80,7 @@ type DashboardRepository interface {
 	GetAreaDetail(ctx context.Context, areaID string) (AreaDetail, error)
 	GetRiskForecast(ctx context.Context, areaID string) ([]RiskForecastPoint, error)
 	GetIntelligenceInsight(ctx context.Context, anomalyID string) (IntelligenceInsight, error)
+	GetReliabilityTrend(ctx context.Context, timeRange string) ([]TrendDataPoint, error)
 }
 
 // ============================================================================
@@ -167,6 +168,47 @@ func (r *SQLDashboardRepo) GetReliabilityMetrics(ctx context.Context, areaID str
 	}
 
 	return metrics, rows.Err()
+}
+
+// GetReliabilityTrend fetches the system-wide aggregated historical risk trend.
+func (r *SQLDashboardRepo) GetReliabilityTrend(ctx context.Context, timeRange string) ([]TrendDataPoint, error) {
+	var trend []TrendDataPoint
+
+	// Assume overall system risk is averaged across all areas over time
+	trendQuery := `
+		SELECT recorded_at, COALESCE(AVG(risk_value), 100.0)
+		FROM risk_history 
+		GROUP BY recorded_at
+		ORDER BY recorded_at DESC 
+		LIMIT 24;
+	`
+	rows, err := r.db.Pool.Query(ctx, trendQuery)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+			// If table doesn't exist, return empty
+			return []TrendDataPoint{}, nil
+		}
+		return nil, fmt.Errorf("failed to query overall risk trend: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var pt TrendDataPoint
+		if err := rows.Scan(&pt.Timestamp, &pt.Value); err != nil {
+			return nil, fmt.Errorf("trend row scan failed: %w", err)
+		}
+		// prepend or append? It's ORDER BY DESC, but usually graphs expect ASC.
+		// To match what might have been used, we just append and rely on UI to sort.
+		trend = append(trend, pt)
+	}
+
+	// Reverse to ASC for the chart if needed, or let frontend handle. The query is DESC to get the latest 24, so we reverse it here.
+	for i, j := 0, len(trend)-1; i < j; i, j = i+1, j-1 {
+		trend[i], trend[j] = trend[j], trend[i]
+	}
+
+	return trend, rows.Err()
 }
 
 // GetPriorityAreas fetches areas ranked by engine D's prioritization pipeline.

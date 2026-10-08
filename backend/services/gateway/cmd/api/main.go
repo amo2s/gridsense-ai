@@ -112,8 +112,9 @@ func main() {
 	outcomesRepo := interventionoutcomes.NewSQLRepository(db)
 	prioritizationHandler := handlers.NewPrioritizationHandler(prioritizationRepo, engineDClient, outcomesRepo)
 
-	// Initialize Dashboard repository for BFF aggregate queries
+	// Initialize Dashboard repository and handler for BFF aggregate queries
 	dashboardRepo := handlers.NewSQLDashboardRepo(db)
+	dashboardHandler := handlers.NewDashboardHandler(dashboardRepo, alertClient)
 
 	// Initialize AI Assistant specific repositories and handler
 	assistantAuditRepo := handlers.NewSQLAssistantAuditRepo(db)
@@ -142,6 +143,16 @@ func main() {
 	// Wrap the endpoint with the JWT Authentication Middleware
 	authProtectedReliability := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(reliabilityHandler.Evaluate))
 	mux.Handle("/api/v1/reliability/evaluate", enableCORS(authProtectedReliability))
+
+	// Register Dashboard READ endpoints (Phase 3: Route Mounting)
+	authProtectedSummary := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(dashboardHandler.HandleGetReliabilitySummary))
+	mux.Handle("/api/v1/reliability/summary", enableCORS(authProtectedSummary))
+
+	authProtectedTrend := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(dashboardHandler.HandleGetReliabilityTrend))
+	mux.Handle("/api/v1/reliability/trend", enableCORS(authProtectedTrend))
+
+	authProtectedPriorities := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(dashboardHandler.HandleGetPriorityAreas))
+	mux.Handle("/api/v1/priorities", enableCORS(authProtectedPriorities))
 
 	// Engine B outage-risk prediction, same auth pattern as reliability.
 	authProtectedPrediction := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(predictionHandler.ExecuteInference))

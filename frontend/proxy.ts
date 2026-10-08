@@ -67,35 +67,23 @@ export async function proxy(request: NextRequest) {
   const isProtectedRoute = path.startsWith('/dashboard') || isAdminRoute;
 
   const session = await getSession(request);
-  const hasSession = session !== null;
+  const hasAuthToken = session !== null;
+  const hasRefreshToken = request.cookies.has('refresh_token');
+  const hasSession = hasAuthToken || hasRefreshToken;
 
   if (isProtectedRoute && !hasSession) {
     const loginUrl = new URL('/portal', request.url);
     loginUrl.searchParams.set('callbackUrl', path);
     const response = NextResponse.redirect(loginUrl);
-    // Clear any invalid/forged/expired cookie so it doesn't keep failing verification on every request.
     response.cookies.delete('auth_token');
+    response.cookies.delete('refresh_token');
     return response;
   }
 
-  // Role gate: being authenticated is not the same as being authorized for /admin.
-  // NOTE: this checks the role claim in the token. It does not replace backend
-  // authorization checks — your Go services must independently verify role on every
-  // admin request too, since this middleware can't protect direct API calls.
-  if (isAdminRoute && hasSession && session?.role !== 'Admin') {
+  if (isAdminRoute && hasAuthToken && session?.role !== 'Admin') {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  if (isAuthPath && hasSession) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  // Inject confirmed JWT claims as downstream request headers so Server Components
-  // and Layouts can read them via headers() from next/headers without re-decoding the JWT.
-  // Claim mapping confirmed from login/service.go L134-140 (GenerateTokenPair args):
-  //   sub   → user UUID (u.ID)
-  //   email → u.Email
-  //   role  → u.Role  ("Admin" | "Manager" | "Staff")
   const requestHeaders = new Headers(request.headers);
   if (session) {
     if (session.sub)   requestHeaders.set('x-user-id',    session.sub);
@@ -110,8 +98,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/admin/:path*',
-    '/portal',
+    '/((?!api/proxy/auth/login|_next/static|_next/image|favicon.ico|portal).*)',
   ],
 };

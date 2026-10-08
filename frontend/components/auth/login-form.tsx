@@ -37,32 +37,21 @@ export default function LoginForm() {
     setError("");
 
     try {
-      const res = await api.post<AuthResponse>("/auth/login", { email, password });
-
-      // Matches the real envelope: { status, data: { access_token, user } }
-      const accessToken = res.data.data?.access_token;
-      const user = res.data.data?.user;
-
-      // Defensive check: don't proceed if the backend didn't actually return a token
-      if (!accessToken) {
-        setError("Login succeeded but no session token was returned. Please try again.");
-        setIsLoading(false);
-        return;
+      await api.post<AuthResponse>("/auth/login", { email, password });
+      
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 10000);
+        await api.get("/auth/me", { signal: controller.signal });
+        clearTimeout(id);
+      } catch (meErr) {
+        console.warn("Failed to fetch /auth/me, proceeding anyway:", meErr);
       }
-
-      // sessionStorage instead of localStorage: the token is cleared automatically
-      // when the tab/window closes, rather than persisting indefinitely on the device.
-      // Note: this is still JS-readable (XSS can still steal it) — the real session
-      // boundary for protected routes is the HttpOnly `auth_token` cookie the backend
-      // sets, which middleware verifies server-side. This copy is only for attaching
-      // Authorization headers on direct client-side API calls.
-      sessionStorage.setItem("access_token", accessToken);
-      sessionStorage.setItem("user_role", user?.role || "Staff");
 
       setRedirecting(true);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.error || "Invalid credentials. Please try again.");
+      setError(err.response?.data?.message || err.response?.data?.error || "Invalid credentials. Please try again.");
       setIsLoading(false);
     }
   };

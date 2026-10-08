@@ -1,22 +1,121 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
-// --- Single upstream target ---
-// All traffic (auth, admin, and data routes) goes through the Go API Gateway,
-// which internally proxies to the Auth Microservice for /api/auth/* and /api/admin/*.
-// Source: gateway/cmd/api/main.go L139-140:
-//   mux.Handle("/api/auth/", ... authHandler.ProxyRequest)
-//   mux.Handle("/api/admin/", ... authHandler.ProxyRequest)
-//
-// In production this points at the Hugging Face Space deployment.
-// In local development it points at the local Gateway process.
-const GATEWAY_URL =
-  process.env.BACKEND_API_URL || "https://sliverboy-heal-her-backend.hf.space";
-
-// --- Request size limit ---
+const GATEWAY_URL = process.env.BACKEND_API_URL || "https://sliverboy-heal-her-backend.hf.space";
 const MAX_REQUEST_BYTES = 10 * 1024 * 1024; // 10MB
+const BACKEND_TIMEOUT_MS = 10_000; // 10s
+const isProd = process.env.NODE_ENV === "production";
 
-// --- Backend fetch timeout ---
-const BACKEND_TIMEOUT_MS = 15_000; // 15s
+// Single-flight refresh map
+const pendingRefreshes = new Map<string, Promise<{ accessToken: string; refreshToken: string } | null>>();
+
+function decodeExp(token: string): number | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf8"));
+    return payload.exp || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function decodePayload(token: string): any {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    return JSON.parse(Buffer.from(parts[1], "base64").toString("utf8"));
+  } catch (e) {
+    return null;
+  }
+}
+
+function setCookiesOnResponse(response: NextResponse, req: NextRequest, accessToken: string, refreshToken: string) {
+  const isHttps = req.headers.get("x-forwarded-proto") === "https" || req.nextUrl.protocol === "https:";
+  const secure = isProd && isHttps;
+  const maxAge = 7 * 24 * 60 * 60; // 7 days
+
+  response.cookies.set({
+    name: "auth_token",
+    value: accessToken,
+    path: "/",
+    httpOnly: true,
+    secure,
+    sameSite: "lax",
+    maxAge,
+  });
+
+  response.cookies.set({
+    name: "refresh_token",
+    value: refreshToken,
+    path: "/api/proxy",
+    httpOnly: true,
+    secure,
+    sameSite: "lax",
+    maxAge,
+  });
+}
+
+function clearCookiesOnResponse(response: NextResponse, req: NextRequest) {
+  const isHttps = req.headers.get("x-forwarded-proto") === "https" || req.nextUrl.protocol === "https:";
+  const secure = isProd && isHttps;
+  
+  response.cookies.set({
+    name: "auth_token",
+    value: "",
+    path: "/",
+    httpOnly: true,
+    secure,
+    sameSite: "lax",
+    maxAge: 0,
+  });
+
+  response.cookies.set({
+    name: "refresh_token",
+    value: "",
+    path: "/api/proxy",
+    httpOnly: true,
+    secure,
+    sameSite: "lax",
+    maxAge: 0,
+  });
+}
+
+async function performRefresh(refreshToken: string): Promise<{ accessToken: string; refreshToken: string } | null> {
+  if (pendingRefreshes.has(refreshToken)) {
+    return pendingRefreshes.get(refreshToken)!;
+  }
+
+  const refreshPromise = (async () => {
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), BACKEND_TIMEOUT_MS);
+      const res = await fetch(`${GATEWAY_URL}/api/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      clearTimeout(id);
+
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.data && data.data.access_token && data.data.refresh_token) {
+          return { accessToken: data.data.access_token, refreshToken: data.data.refresh_token };
+        }
+      }
+      return null;
+    } catch (err) {
+      return null;
+    } finally {
+      pendingRefreshes.delete(refreshToken);
+    }
+  })();
+
+  pendingRefreshes.set(refreshToken, refreshPromise);
+  return refreshPromise;
+}
 
 async function proxyHandler(
   req: NextRequest,
@@ -27,190 +126,176 @@ async function proxyHandler(
     const targetPath = slug.join("/");
     const searchParams = req.nextUrl.search;
 
+    const cookieStore = await cookies();
+    let authToken = cookieStore.get("auth_token")?.value;
+    let refreshToken = cookieStore.get("refresh_token")?.value;
+
+    // A. Add GET /api/proxy/auth/me
+    if (req.method === "GET" && targetPath === "auth/me") {
+      if (!authToken) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      const payload = decodePayload(authToken);
+      if (!payload) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      return NextResponse.json({
+        name: payload.name,
+        role: payload.role,
+        status: payload.status,
+      });
+    }
+
+    // A. Intercept /api/proxy/auth/logout
+    if (req.method === "POST" && targetPath === "auth/logout") {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), BACKEND_TIMEOUT_MS);
+      try {
+        await fetch(`${GATEWAY_URL}/api/auth/logout`, {
+          method: "POST",
+          headers: authToken ? { "Authorization": `Bearer ${authToken}` } : {},
+          signal: controller.signal,
+        });
+      } catch (e) {
+        console.error("Failed to notify backend of logout", e);
+      } finally {
+        clearTimeout(id);
+      }
+      const response = NextResponse.json({ message: "Logged out" }, { status: 200 });
+      clearCookiesOnResponse(response, req);
+      return response;
+    }
+
+    let refreshPerformed = false;
+    let refreshFailed = false;
+    let newTokens: { accessToken: string; refreshToken: string } | null = null;
+
+    // B. Pre-flight refresh
+    const isLogin = req.method === "POST" && targetPath === "auth/login";
+    if (refreshToken && !isLogin) {
+      let needsRefresh = false;
+      if (!authToken) {
+        needsRefresh = true;
+      } else {
+        const exp = decodeExp(authToken);
+        if (exp && exp - (Date.now() / 1000) < 60) {
+          needsRefresh = true;
+        }
+      }
+
+      if (needsRefresh) {
+        newTokens = await performRefresh(refreshToken);
+        if (newTokens) {
+          authToken = newTokens.accessToken;
+          refreshToken = newTokens.refreshToken;
+          refreshPerformed = true;
+        } else {
+          refreshFailed = true;
+        }
+      }
+    }
+
+    if (refreshFailed && !isLogin) {
+      const response = NextResponse.json({ error: "Session expired" }, { status: 401, headers: { "X-Session-Expired": "1" } });
+      clearCookiesOnResponse(response, req);
+      return response;
+    }
+
     const targetUrl = targetPath === "healthz" || targetPath === "query"
       ? `${GATEWAY_URL}/${targetPath}${searchParams}`
       : `${GATEWAY_URL}/api/${targetPath}${searchParams}`;
 
-    // 1. Forward incoming headers, strip hop-by-hop metadata
     const forwardHeaders = new Headers();
     req.headers.forEach((value, key) => {
       const lowerKey = key.toLowerCase();
-      // Always forward Cookie — the Gateway relies on auth_token + refresh_token.
-      // Strip only transport-layer headers that must not be forwarded.
-      if (!["host", "connection", "content-length"].includes(lowerKey)) {
+      if (!["host", "connection", "content-length", "authorization", "cookie"].includes(lowerKey)) {
         forwardHeaders.set(key, value);
       }
     });
 
-    if (targetPath === "healthz") {
-      forwardHeaders.delete("cookie");
-      forwardHeaders.delete("authorization");
+    if (authToken && targetPath !== "healthz" && !isLogin) {
+      forwardHeaders.set("Authorization", `Bearer ${authToken}`);
     }
 
-    // --- FIX 401: FALLBACK TO COOKIE ---
-    // If the client didn't supply an Authorization header (e.g., initial render where sessionStorage is empty),
-    // extract it from the HttpOnly auth_token cookie and attach it.
-    if (!forwardHeaders.has("authorization")) {
-      const token = req.cookies.get("auth_token")?.value;
-      if (token) {
-        forwardHeaders.set("authorization", `Bearer ${token}`);
-      }
-    }
-
-    // 2. Extract request body for mutation methods
     let requestBody: BodyInit | null = null;
     if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
       const declaredLength = req.headers.get("content-length");
       if (declaredLength && Number(declaredLength) > MAX_REQUEST_BYTES) {
-        return NextResponse.json(
-          {
-            error: "Payload Too Large",
-            message: `Request body exceeds the ${MAX_REQUEST_BYTES / (1024 * 1024)}MB limit.`,
-          },
-          { status: 413 }
-        );
+        return NextResponse.json({ error: "Payload Too Large" }, { status: 413 });
       }
+      
+      const buffer = await req.arrayBuffer();
+      if (buffer.byteLength > MAX_REQUEST_BYTES) {
+        return NextResponse.json({ error: "Payload Too Large" }, { status: 413 });
+      }
+      if (buffer.byteLength > 0) {
+        requestBody = buffer;
+      }
+    }
 
-      const contentType = req.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        const json = await req.json().catch(() => null);
-        if (json) {
-          const serialized = JSON.stringify(json);
-          if (Buffer.byteLength(serialized, "utf8") > MAX_REQUEST_BYTES) {
-            return NextResponse.json(
-              {
-                error: "Payload Too Large",
-                message: `Request body exceeds the ${MAX_REQUEST_BYTES / (1024 * 1024)}MB limit.`,
-              },
-              { status: 413 }
-            );
-          }
-          requestBody = serialized;
-        }
+    const doRequest = async (authValue: string | undefined) => {
+      const h = new Headers(forwardHeaders);
+      if (authValue) h.set("Authorization", `Bearer ${authValue}`);
+      
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), BACKEND_TIMEOUT_MS);
+      try {
+        const res = await fetch(targetUrl, {
+          method: req.method,
+          headers: h,
+          body: requestBody,
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        clearTimeout(id);
+        return res;
+      } catch (e) {
+        clearTimeout(id);
+        throw e;
+      }
+    };
+
+    let backendResponse = await doRequest(authToken);
+
+    // B. Replay logic on 401 if we haven't refreshed yet
+    if (backendResponse.status === 401 && !refreshPerformed && refreshToken && !isLogin) {
+      newTokens = await performRefresh(refreshToken);
+      if (newTokens) {
+        authToken = newTokens.accessToken;
+        refreshToken = newTokens.refreshToken;
+        refreshPerformed = true;
+        backendResponse = await doRequest(authToken);
       } else {
-        const blob = await req.blob().catch(() => null);
-        if (blob && blob.size > 0) {
-          if (blob.size > MAX_REQUEST_BYTES) {
-            return NextResponse.json(
-              {
-                error: "Payload Too Large",
-                message: `Request body exceeds the ${MAX_REQUEST_BYTES / (1024 * 1024)}MB limit.`,
-              },
-              { status: 413 }
-            );
-          }
-          requestBody = blob;
-        }
+        // Refresh failed during replay
+        const response = NextResponse.json({ error: "Session expired" }, { status: 401, headers: { "X-Session-Expired": "1" } });
+        clearCookiesOnResponse(response, req);
+        return response;
       }
     }
 
-    // 3. Dispatch forward request to the Gateway
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), BACKEND_TIMEOUT_MS);
-
-    let backendResponse: Response;
-    try {
-      backendResponse = await fetch(targetUrl, {
-        method: req.method,
-        headers: forwardHeaders,
-        body: requestBody,
-        cache: "no-store",
-        signal: controller.signal,
-      });
-
-      // Token Rotation Logic
-      if (backendResponse.status === 401) {
-        const refreshToken = req.cookies.get("refresh_token")?.value;
-        if (refreshToken) {
-          // Attempt refresh
-          const refreshHeaders = new Headers();
-          refreshHeaders.set("Cookie", `refresh_token=${refreshToken}`);
-          
-          const refreshRes = await fetch(`${GATEWAY_URL}/api/auth/refresh`, {
-            method: "POST",
-            headers: refreshHeaders,
-            cache: "no-store",
-          });
-
-          if (refreshRes.ok) {
-            const refreshData = await refreshRes.json().catch(() => ({}));
-            const newAccessToken = refreshData.access_token || refreshData.accessToken;
-            
-            // Re-build forward headers with new auth
-            const retryHeaders = new Headers(forwardHeaders);
-            if (newAccessToken) {
-              retryHeaders.set("Authorization", `Bearer ${newAccessToken}`);
-            }
-            
-            // Extract the new cookies to append to the final response
-            const refreshCookies = refreshRes.headers.getSetCookie ? refreshRes.headers.getSetCookie() : [];
-            if (refreshCookies.length > 0) {
-              // Update the Cookie header for the retry request to include the new auth_token
-              const newAuthTokenCookie = refreshCookies.find(c => c.startsWith("auth_token="));
-              if (newAuthTokenCookie) {
-                const newAuthToken = newAuthTokenCookie.split(';')[0].split('=')[1];
-                let currentCookieStr = retryHeaders.get("Cookie") || "";
-                currentCookieStr = currentCookieStr.replace(/auth_token=[^;]+/, `auth_token=${newAuthToken}`);
-                if (!currentCookieStr.includes("auth_token=")) {
-                  currentCookieStr += (currentCookieStr ? "; " : "") + `auth_token=${newAuthToken}`;
-                }
-                retryHeaders.set("Cookie", currentCookieStr);
-              }
-            }
-
-            // Replay original request
-            backendResponse = await fetch(targetUrl, {
-              method: req.method,
-              headers: retryHeaders,
-              body: requestBody, // Body is safe to replay as it's a string/blob
-              cache: "no-store",
-            });
-
-            // We must append the new Set-Cookie headers from the refresh response
-            // so they make it to the browser.
-            const finalResponseHeaders = new Headers();
-            if (typeof backendResponse.headers.getSetCookie === "function") {
-              backendResponse.headers.getSetCookie().forEach(c => finalResponseHeaders.append("set-cookie", c));
-            }
-            refreshCookies.forEach(c => {
-              // Avoid duplicating cookies if the backend retry also sets them
-              if (!finalResponseHeaders.get("set-cookie")?.includes(c)) {
-                finalResponseHeaders.append("set-cookie", c);
-              }
-            });
-            backendResponse.headers.forEach((value, key) => {
-              if (key.toLowerCase() !== "set-cookie") finalResponseHeaders.set(key, value);
-            });
-
-            const responseBody = await backendResponse.arrayBuffer();
-            return new NextResponse(responseBody, {
-              status: backendResponse.status,
-              statusText: backendResponse.statusText,
-              headers: finalResponseHeaders,
-            });
-          }
+    // A. Intercept /api/proxy/auth/login response to extract tokens
+    if (isLogin) {
+      if (backendResponse.ok) {
+        const data = await backendResponse.json();
+        if (data.data && data.data.access_token && data.data.refresh_token) {
+          const userPayload = data.data.user || {};
+          const safeData = { status: "success", data: { user: userPayload } };
+          const response = NextResponse.json(safeData, { status: backendResponse.status });
+          setCookiesOnResponse(response, req, data.data.access_token, data.data.refresh_token);
+          return response;
         }
+        return NextResponse.json(data, { status: backendResponse.status });
+      } else {
+        const responseBody = await backendResponse.arrayBuffer();
+        return new NextResponse(responseBody, {
+          status: backendResponse.status,
+          statusText: backendResponse.statusText,
+          headers: backendResponse.headers,
+        });
       }
-
-    } finally {
-      clearTimeout(timeoutId);
     }
 
-    // 4. Build response headers with correct Set-Cookie handling.
-    // The Go login handler sets TWO cookies (login/handler.go L72-98):
-    //   - "auth_token"    (Path="/",               SameSite=Lax,    15 min)
-    //   - "refresh_token" (Path="/api/auth/refresh", SameSite=Strict, 7 days)
-    // getSetCookie() is required (not headers.get('set-cookie')) to preserve
-    // multiple Set-Cookie entries which would otherwise be collapsed into one.
     const responseHeaders = new Headers();
-
-    if (typeof backendResponse.headers.getSetCookie === "function") {
-      const cookies = backendResponse.headers.getSetCookie();
-      cookies.forEach((cookie) => {
-        responseHeaders.append("set-cookie", cookie);
-      });
-    }
-
     backendResponse.headers.forEach((value, key) => {
       if (key.toLowerCase() !== "set-cookie") {
         responseHeaders.set(key, value);
@@ -218,43 +303,26 @@ async function proxyHandler(
     });
 
     const responseBody = await backendResponse.arrayBuffer();
-
-    if (backendResponse.status === 400) {
-      const fs = require('fs');
-      try {
-        fs.appendFileSync('c:\\users\\hp\\Desktop\\gridsense-ai\\frontend\\proxy-error.txt', new TextDecoder().decode(responseBody) + '\\n');
-      } catch(e) {}
-    }
-
-    return new NextResponse(responseBody, {
+    const finalResponse = new NextResponse(responseBody, {
       status: backendResponse.status,
       statusText: backendResponse.statusText,
       headers: responseHeaders,
     });
-  } catch (err: any) {
-    if (err?.name === "AbortError") {
-      console.error("Gateway proxy error: backend timed out");
-      return NextResponse.json(
-        {
-          error: "Gateway Timeout",
-          message: "The backend microservice took too long to respond.",
-        },
-        { status: 504 }
-      );
+
+    if (refreshPerformed && newTokens) {
+      setCookiesOnResponse(finalResponse, req, newTokens.accessToken, newTokens.refreshToken);
     }
 
-    console.error("Gateway proxy error:", err);
-    return NextResponse.json(
-      {
-        error: "Bad Gateway",
-        message: "Unable to establish connection to the backend microservice.",
-      },
-      { status: 502 }
-    );
+    return finalResponse;
+
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      return NextResponse.json({ error: "Gateway Timeout" }, { status: 504 });
+    }
+    return NextResponse.json({ error: "Bad Gateway" }, { status: 502 });
   }
 }
 
-// Export supported HTTP methods
 export const GET = proxyHandler;
 export const POST = proxyHandler;
 export const PUT = proxyHandler;

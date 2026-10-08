@@ -123,3 +123,113 @@ func (db *PostgresDB) FetchOperationalPayload(ctx context.Context, feederID stri
 
 	return payload, nil
 }
+
+// IngestOperationalPayload persists the ingested payload, Engine A results, and updates the priority ranking in a single transaction.
+func (db *PostgresDB) IngestOperationalPayload(
+	ctx context.Context, 
+	payload *models.OperationalPayload, 
+	reliabilityScore float64, 
+	mappedStatus string,
+) error {
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 1. Advisory Lock (using a deterministic hash of a string, or just a static lock for the whole table)
+	// We'll use a static lock ID for grid_assets ranking recomputation to serialize these inserts.
+	const rankingLockID = 1337
+	_, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", rankingLockID)
+	if err != nil {
+		return fmt.Errorf("failed to acquire advisory lock: %w", err)
+	}
+
+	// 2. Upsert assets
+	_, err = tx.Exec(ctx, `
+		INSERT INTO assets (feeder_id, voltage_class, capacity_mw) 
+		VALUES ($1, $2, $3)
+		ON CONFLICT (feeder_id) DO UPDATE SET 
+			voltage_class = EXCLUDED.voltage_class,
+			capacity_mw = EXCLUDED.capacity_mw
+	`, payload.Asset.FeederID, payload.Asset.VoltageClass, payload.Asset.CapacityMW)
+	if err != nil {
+		return fmt.Errorf("failed to upsert asset: %w", err)
+	}
+
+	// 3. Delete interruptions within the 24h window
+	cycleStart := payload.CycleTimestamp.Add(-24 * time.Hour)
+	_, err = tx.Exec(ctx, `
+		DELETE FROM interruptions 
+		WHERE feeder_id = $1 AND start_time >= $2 AND start_time <= $3
+	`, payload.Asset.FeederID, cycleStart, payload.CycleTimestamp)
+	if err != nil {
+		return fmt.Errorf("failed to delete existing interruptions: %w", err)
+	}
+
+	// Insert new interruptions
+	if len(payload.Interruptions) > 0 {
+		batch := &pgx.Batch{}
+		for _, record := range payload.Interruptions {
+			batch.Queue(`
+				INSERT INTO interruptions (feeder_id, start_time, duration_minutes) 
+				VALUES ($1, $2, $3)
+			`, payload.Asset.FeederID, record.StartTime, record.DurationMinutes)
+		}
+		br := tx.SendBatch(ctx, batch)
+		err = br.Close()
+		if err != nil {
+			return fmt.Errorf("failed to insert interruptions: %w", err)
+		}
+	}
+
+	// 4. Upsert grid_assets
+	// urgency_rank is provisionally set to 2147483647
+	_, err = tx.Exec(ctx, `
+		INSERT INTO grid_assets (id, name, urgency_rank, risk_score, status, active)
+		VALUES ($1, $2, 2147483647, $3, $4, true)
+		ON CONFLICT (id) DO UPDATE SET
+			name = EXCLUDED.name,
+			risk_score = EXCLUDED.risk_score,
+			status = EXCLUDED.status,
+			active = true
+	`, payload.Asset.FeederID, payload.Asset.FeederID, reliabilityScore, mappedStatus)
+	if err != nil {
+		return fmt.Errorf("failed to upsert grid_assets: %w", err)
+	}
+
+	// 5. Upsert risk_history
+	_, err = tx.Exec(ctx, `
+		INSERT INTO risk_history (area_id, risk_value, recorded_at)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (area_id, recorded_at) DO UPDATE SET
+			risk_value = EXCLUDED.risk_value
+	`, payload.Asset.FeederID, reliabilityScore, payload.CycleTimestamp)
+	if err != nil {
+		return fmt.Errorf("failed to upsert risk_history: %w", err)
+	}
+
+	// 6. Recompute urgency_rank for ALL active grid_assets
+	// active IS NULL is treated as inactive because we use WHERE active = true
+	_, err = tx.Exec(ctx, `
+		WITH RankedAssets AS (
+			SELECT id, ROW_NUMBER() OVER (ORDER BY risk_score ASC, id ASC) as new_rank
+			FROM grid_assets
+			WHERE active = true
+		)
+		UPDATE grid_assets
+		SET urgency_rank = RankedAssets.new_rank
+		FROM RankedAssets
+		WHERE grid_assets.id = RankedAssets.id
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to recompute urgency_rank: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+

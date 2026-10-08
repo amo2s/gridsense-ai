@@ -7,20 +7,45 @@ import * as z from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, Plus, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 const ingestionSchema = z.object({
   cycle_timestamp: z.string().min(1, "Timestamp is required"),
   asset: z.object({
-    feeder_id: z.string().min(1, "Feeder ID is required"),
-    voltage_class: z.string().min(1, "Voltage class is required"),
-    capacity_mw: z.coerce.number().min(0, "Capacity must be positive"),
+    feeder_id: z.string().trim().min(1, "Feeder ID is required").max(50, "Feeder ID max length is 50"),
+    voltage_class: z.string().trim().min(1, "Voltage class is required").max(20, "Voltage class max length is 20"),
+    capacity_mw: z.coerce.number().positive("Capacity must be positive").max(99999999.99, "Capacity is too large"),
   }),
   interruptions: z.array(
     z.object({
       start_time: z.string().min(1, "Start time is required"),
-      duration_minutes: z.coerce.number().min(0, "Duration must be positive"),
+      duration_minutes: z.coerce.number().min(0, "Duration must be at least 0").max(720, "Duration cannot exceed 720 minutes"),
     })
-  ).default([]),
+  ).max(6, "Cannot exceed 6 interruption records").default([]),
+}).superRefine((data, ctx) => {
+  const cycleTime = new Date(data.cycle_timestamp).getTime();
+  const minTime = cycleTime - 24 * 60 * 60 * 1000;
+  let totalDuration = 0;
+
+  data.interruptions.forEach((intr, index) => {
+    totalDuration += intr.duration_minutes;
+    const startTime = new Date(intr.start_time).getTime();
+    if (startTime < minTime || startTime > cycleTime) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Start time must be within 24h before cycle timestamp",
+        path: ["interruptions", index, "start_time"],
+      });
+    }
+  });
+
+  if (totalDuration > 1440) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Total interruption duration cannot exceed 1440 minutes",
+      path: ["interruptions"],
+    });
+  }
 });
 
 type IngestionFormValues = z.infer<typeof ingestionSchema>;
@@ -34,6 +59,7 @@ interface EgressPayload {
 export default function EngineAForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [results, setResults] = useState<EgressPayload | null>(null);
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -42,13 +68,13 @@ export default function EngineAForm() {
     formState: { errors },
     reset
   } = useForm<IngestionFormValues>({
-    resolver: zodResolver(ingestionSchema) as any,
+    resolver: zodResolver(ingestionSchema),
     defaultValues: {
       cycle_timestamp: new Date().toISOString().slice(0, 16),
       asset: {
         feeder_id: "",
         voltage_class: "",
-        capacity_mw: undefined, // let user type
+        capacity_mw: undefined,
       },
       interruptions: [],
     },
@@ -64,6 +90,8 @@ export default function EngineAForm() {
     setResults(null);
     
     try {
+      // NOTE ON TIMEZONE: The datetime-local input naturally captures local time.
+      // Calling new Date(str).toISOString() converts it accurately to UTC.
       const formattedData = {
         ...data,
         cycle_timestamp: new Date(data.cycle_timestamp).toISOString(),
@@ -80,7 +108,7 @@ export default function EngineAForm() {
         return;
       }
 
-      const response = await fetch('/api/proxy/v1/reliability/evaluate', {
+      const response = await fetch('/api/proxy/v1/reliability/ingest', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -90,12 +118,29 @@ export default function EngineAForm() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.message || `HTTP ${response.status}`);
+        let errMsg = `HTTP ${response.status}`;
+        const errorData = await response.json().catch(() => null);
+        if (errorData) {
+          errMsg = errorData.error || errorData.detail || errorData.message || errMsg;
+        }
+
+        if (response.status === 401) {
+          toast.error("Session expired. Please log in again.");
+        } else if (response.status === 403) {
+          toast.error("Forbidden. You need Admin privileges to ingest telemetry.");
+        } else {
+          toast.error(`Ingestion failed: ${errMsg}`);
+        }
+        throw new Error(errMsg);
       }
 
       const egressData: EgressPayload = await response.json();
       setResults(egressData);
+      
+      // Invalidate queries so the dashboard refreshes automatically
+      queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["priority-areas"] });
+      queryClient.invalidateQueries({ queryKey: ["reliability-trend"] });
       
       toast.custom(() => (
         <div className="flex items-center gap-3 bg-white/80 backdrop-blur-md border border-white/60 shadow-lg shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] px-4 py-3 rounded-xl">
@@ -107,15 +152,15 @@ export default function EngineAForm() {
       ));
       
       reset();
-    } catch (error: any) {
-      toast.error(`Failed to dispatch payload: ${error.message}`);
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-8">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
       {/* Root Details */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
@@ -193,6 +238,10 @@ export default function EngineAForm() {
           <h3 className="text-sm font-semibold text-slate-800 tracking-wide">INTERRUPTION RECORDS</h3>
         </div>
         
+        {errors.interruptions?.root && (
+          <p className="text-red-500 text-sm mb-4 bg-red-50 p-3 rounded-lg">{errors.interruptions.root.message}</p>
+        )}
+
         <div className="space-y-3 mb-4">
           <AnimatePresence initial={false}>
             {fields.map((field, index) => (
@@ -250,12 +299,17 @@ export default function EngineAForm() {
 
         <motion.button
           type="button"
-          whileTap={{ scale: 0.98 }}
+          whileTap={fields.length >= 6 ? {} : { scale: 0.98 }}
           onClick={() => append({ start_time: new Date().toISOString().slice(0, 16), duration_minutes: 0 })}
-          className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-medium hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/50 transition-all duration-300"
+          disabled={fields.length >= 6}
+          className={`w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed rounded-xl font-medium transition-all duration-300 ${
+            fields.length >= 6 
+              ? "border-slate-200 text-slate-400 cursor-not-allowed bg-slate-50/50" 
+              : "border-slate-300 text-slate-500 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/50"
+          }`}
         >
           <Plus className="h-5 w-5" />
-          Add Interruption Record
+          {fields.length >= 6 ? "Maximum Limit Reached (6)" : "Add Interruption Record"}
         </motion.button>
       </div>
 
@@ -275,7 +329,6 @@ export default function EngineAForm() {
               Dispatch Payload
             </span>
           )}
-          {/* Gloss overlay */}
           <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
         </button>
       </div>

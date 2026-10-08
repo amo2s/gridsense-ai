@@ -145,6 +145,8 @@ type fakeDashboardRepo struct {
 	forecastErr error
 	insightRes  handlers.IntelligenceInsight
 	insightErr  error
+	trendRes    []handlers.TrendDataPoint
+	trendErr    error
 }
 
 func (f *fakeDashboardRepo) GetDashboardSummary(ctx context.Context, timeRange string) (handlers.DashboardSummary, error) {
@@ -164,6 +166,9 @@ func (f *fakeDashboardRepo) GetRiskForecast(ctx context.Context, areaID string) 
 }
 func (f *fakeDashboardRepo) GetIntelligenceInsight(ctx context.Context, anomalyID string) (handlers.IntelligenceInsight, error) {
 	return f.insightRes, f.insightErr
+}
+func (f *fakeDashboardRepo) GetReliabilityTrend(ctx context.Context, timeRange string) ([]handlers.TrendDataPoint, error) {
+	return f.trendRes, f.trendErr
 }
 
 type fakeEngineDClient struct {

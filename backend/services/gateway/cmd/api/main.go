@@ -144,6 +144,10 @@ func main() {
 	authProtectedReliability := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(reliabilityHandler.Evaluate))
 	mux.Handle("/api/v1/reliability/evaluate", enableCORS(authProtectedReliability))
 
+	// Ingestion endpoint, tightly protected for Admin only
+	authProtectedIngest := middleware.RequireRole(cfg.JWTSecret, "Admin", "Approved")(http.HandlerFunc(reliabilityHandler.Ingest))
+	mux.Handle("/api/v1/reliability/ingest", enableCORS(authProtectedIngest))
+
 	// Register Dashboard READ endpoints (Phase 3: Route Mounting)
 	authProtectedSummary := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(dashboardHandler.HandleGetReliabilitySummary))
 	mux.Handle("/api/v1/reliability/summary", enableCORS(authProtectedSummary))

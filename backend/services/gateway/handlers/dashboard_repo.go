@@ -175,14 +175,22 @@ func (r *SQLDashboardRepo) GetReliabilityTrend(ctx context.Context, timeRange st
 	var trend []TrendDataPoint
 
 	// Assume overall system risk is averaged across all areas over time
+	cutoff := time.Now().Add(-24 * time.Hour)
+	if timeRange == "7d" {
+		cutoff = time.Now().Add(-7 * 24 * time.Hour)
+	} else if timeRange == "30d" {
+		cutoff = time.Now().Add(-30 * 24 * time.Hour)
+	}
+
 	trendQuery := `
 		SELECT recorded_at, COALESCE(AVG(risk_value), 100.0)
 		FROM risk_history 
+		WHERE recorded_at >= $1
 		GROUP BY recorded_at
 		ORDER BY recorded_at DESC 
-		LIMIT 24;
+		LIMIT 100;
 	`
-	rows, err := r.db.Pool.Query(ctx, trendQuery)
+	rows, err := r.db.Pool.Query(ctx, trendQuery, cutoff)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {

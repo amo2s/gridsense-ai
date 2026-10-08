@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async rewrites() {
+    return [
+      {
+        source: '/api/ws-proxy',
+        destination: `${(process.env.BACKEND_API_URL || '').replace(/\/$/, '')}/query`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

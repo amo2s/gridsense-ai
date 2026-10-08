@@ -5,10 +5,18 @@ import { AnomalyEvent } from '@/lib/graphql/generated';
 
 let wsClient: Client | null = null;
 
+const getWebSocketUrl = (): string => {
+  if (typeof window === 'undefined') {
+    return ''; // SSR safety
+  }
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${wsProtocol}//${window.location.host}/api/ws-proxy`;
+};
+
 export const initializeWebSocket = (token: string | undefined, queryClient: QueryClient) => {
   if (wsClient) return wsClient;
 
-  const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8082/query";
+  const wsUrl = getWebSocketUrl();
   
   console.log("Attempting WS connection to:", wsUrl);
 

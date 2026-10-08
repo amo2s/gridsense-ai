@@ -1,0 +1,8 @@
+go 1.26.0
+
+use (
+	./backend/services/alerts
+	./backend/services/auth
+	./backend/services/dashboard-bff
+	./backend/services/gateway
+)

@@ -93,8 +93,12 @@ export default function Topbar({ email, role, name }: TopbarProps) {
     });
   };
 
-  const handleLogout = () => {
-    // Basic sign out for now
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/proxy/auth/logout", { method: "POST" });
+    } catch (e) {
+      console.error(e);
+    }
     window.location.href = "/portal";
   };
 

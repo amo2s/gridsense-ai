@@ -18,7 +18,7 @@ export function useReliabilityTrend(timeRange: string) {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+
         }
       });
 
@@ -31,3 +31,4 @@ export function useReliabilityTrend(timeRange: string) {
     },
   });
 }
+

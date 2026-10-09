@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"time"
 
 	// Update this import path to match your module name in go.mod
 	"gridsense/auth/internal/shared"
@@ -53,20 +52,7 @@ func (h *Handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 3. Destroy the Client-Side Session (Blueprint Requirement)
-	// We overwrite the existing cookie with empty values and force it to expire immediately.
-	cookie := &http.Cookie{
-		Name:     "refresh_token",
-		Value:    "",
-		Path:     "/api/auth/refresh",
-		Expires:  time.Unix(0, 0), // January 1, 1970
-		MaxAge:   -1,              // Tells the browser to delete the cookie immediately
-		HttpOnly: true,
-		Secure:   h.secure,
-		SameSite: http.SameSiteStrictMode,
-	}
-	http.SetCookie(w, cookie)
-
+	// 3. Next.js Proxy will handle clearing the cookies on its end.
 	// 4. Return Success Response
 	payload := map[string]string{
 		"message": "Successfully logged out",

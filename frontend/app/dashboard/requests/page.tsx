@@ -42,12 +42,7 @@ export default function RequestsPage() {
     setError("");
 
     try {
-      const token = sessionStorage.getItem("access_token");
-      const response = await fetch("/api/proxy/admin/users/pending", {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
+      const response = await fetch("/api/proxy/admin/users/pending");
       const body: ApiResponse = await response.json();
 
       if (!response.ok || body.status !== "success") {
@@ -71,12 +66,8 @@ export default function RequestsPage() {
     setError("");
 
     try {
-      const token = sessionStorage.getItem("access_token");
       const response = await fetch(`/api/proxy/admin/users/${userId}/approve`, {
-        method: "PATCH",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+        method: "PATCH"
       });
 
       const body: ApiResponse = await response.json();
@@ -104,12 +95,8 @@ export default function RequestsPage() {
     setError("");
 
     try {
-      const token = sessionStorage.getItem("access_token");
       const response = await fetch(`/api/proxy/admin/users/${userId}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+        method: "DELETE"
       });
 
       const body: ApiResponse = await response.json();
@@ -360,3 +347,4 @@ export default function RequestsPage() {
     </main>
   );
 }
+

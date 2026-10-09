@@ -44,7 +44,7 @@ type User struct {
 // LoginResult packages the newly minted session tokens alongside the sanitized user record.
 type LoginResult struct {
 	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"-"` // Prevents the refresh token from being exposed in JSON bodies
+	RefreshToken string `json:"refresh_token"` // Expose to Next.js proxy so it can set cookies
 	User         *User  `json:"user"`
 }
 

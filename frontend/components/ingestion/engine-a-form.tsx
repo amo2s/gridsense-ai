@@ -102,18 +102,10 @@ export default function EngineAForm() {
         }))
       };
 
-      const token = typeof window !== 'undefined' ? sessionStorage.getItem('access_token') : null;
-      if (!token) {
-        toast.error("Authentication token missing. Please re-authenticate.");
-        setIsSubmitting(false);
-        return;
-      }
-
       const response = await fetch('/api/proxy/v1/reliability/ingest', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(formattedData)
       });

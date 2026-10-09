@@ -23,6 +23,7 @@ import (
 	"gridsense/auth/internal/auth/admin"
 	"gridsense/auth/internal/auth/login"
 	"gridsense/auth/internal/auth/logout"
+	"gridsense/auth/internal/auth/refresh"
 	"gridsense/auth/internal/auth/register"
 
 	// Alias our custom middleware to prevent conflicts with chi's middleware
@@ -85,6 +86,10 @@ func main() {
 	logoutSvc := logout.NewService(redisClient, jwtSecretBytes)
 	logoutHandler := logout.NewHandler(logoutSvc, cfg.CookieSecure)
 
+	// F. Refresh Domain
+	refreshSvc := refresh.NewService(dbPool, redisClient, jwtSecretBytes)
+	refreshHandler := refresh.NewHandler(refreshSvc)
+
 	// E. Admin Management Domain
 	adminRepo := admin.NewRepository(dbPool)
 	adminSvc := admin.NewService(adminRepo)
@@ -119,6 +124,7 @@ func main() {
 			// Public Endpoints
 			r.Post("/register", regHandler.HandleRegister)
 			r.Post("/login", loginHandler.HandleLogin)
+			r.Post("/refresh", refreshHandler.HandleRefresh) // NEW REFRESH ENDPOINT
 
 			// Protected Endpoints (Require Valid Token)
 			r.Group(func(r chi.Router) {

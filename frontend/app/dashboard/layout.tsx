@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import Topbar from "@/components/dashboard/topbar";
 import Sidebar from "@/components/dashboard/sidebar"; // Adjust path if your components are in a different folder
-import QueryProvider from "@/providers/query-provider";
 import { decodeJwt, JWTPayload } from "jose";
 import { AmbientEdgeGlow } from "@/components/dashboard/ambient-edge-glow";
 import { PageTransition } from "@/components/dashboard/page-transition";
@@ -56,11 +55,9 @@ export default async function DashboardLayout({
         {/* Page Content Viewport */}
         <main className="flex-1 overflow-y-auto pr-6 pl-0 md:pr-8 md:pl-2 py-6 bg-gradient-to-br from-white to-slate-50 relative z-10">
           <div className="mx-auto max-w-7xl h-full">
-            <QueryProvider token={token || ""}>
-              <PageTransition>
-                {children}
-              </PageTransition>
-            </QueryProvider>
+            <PageTransition>
+              {children}
+            </PageTransition>
           </div>
         </main>
       </div>

@@ -18,9 +18,9 @@ def align_telemetry(payload: OperationalPayload) -> pd.DataFrame:
         pd.DataFrame: A memory-efficient DataFrame indexed by minute, ready for vectorized math.
     """
     # 1. Establish the temporal boundaries of the 24-hour cycle
-    cycle_start = payload.cycle_timestamp
-    # Subtracting 1 minute to ensure exactly 1440 rows in the index
-    cycle_end = cycle_start + timedelta(minutes=1439)
+    cycle_end = payload.cycle_timestamp
+    # Subtracting 1439 minutes to ensure exactly 1440 rows ending at cycle_end
+    cycle_start = cycle_end - timedelta(minutes=1439)
 
     # 2. Generate a continuous minute-by-minute temporal index
     timeline = pd.date_range(start=cycle_start, end=cycle_end, freq='min')
@@ -34,6 +34,8 @@ def align_telemetry(payload: OperationalPayload) -> pd.DataFrame:
         outage_start = record.start_time
         # Determine when the outage resolved based on the duration
         outage_end = outage_start + timedelta(minutes=record.duration_minutes)
+        if outage_end > cycle_end:
+            outage_end = cycle_end
         
         # Vectorized assignment: Flag the specific vulnerability window as '1' (Offline)
         # Pandas handles the temporal alignment automatically via .loc slicing

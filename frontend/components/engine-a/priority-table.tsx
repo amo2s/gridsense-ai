@@ -65,16 +65,26 @@ export function PriorityTable() {
                 <td className="py-4 px-4 text-sm font-medium text-neutral-600 relative z-10">{row.name}</td>
                 <td className="py-4 px-4 text-sm relative z-10">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                    row.status === 'Stable' ? 'bg-[#10b981]/10 text-[#10b981]' :
-                    row.status === 'Vulnerable' || row.status === 'Warning' ? 'bg-amber-500/10 text-amber-600' :
-                    'bg-red-500/10 text-red-600'
+                    (() => {
+                      const s = row.status?.trim().toUpperCase();
+                      if (s === 'STABLE') return 'bg-[#10b981]/10 text-[#10b981]';
+                      if (s === 'VULNERABLE') return 'bg-amber-500/10 text-amber-600';
+                      if (s === 'HIGH_RISK') return 'bg-red-500/10 text-red-600';
+                      return 'bg-neutral-500/10 text-neutral-600';
+                    })()
                   }`}>
                     {row.status}
                   </span>
                 </td>
                 <td className="py-4 px-4 text-sm font-medium relative z-10">
                   <span style={{ 
-                    color: row.riskScore >= 80 ? '#ef4444' : row.riskScore >= 50 ? '#f59e0b' : '#10b981' 
+                    color: (() => {
+                      const s = row.status?.trim().toUpperCase();
+                      if (s === 'STABLE') return '#10b981';
+                      if (s === 'VULNERABLE') return '#f59e0b';
+                      if (s === 'HIGH_RISK') return '#ef4444';
+                      return '#737373';
+                    })()
                   }}>
                     {Math.round(row.riskScore)}
                   </span>

@@ -32,7 +32,7 @@ function decodePayload(token: string): any {
 
 function setCookiesOnResponse(response: NextResponse, req: NextRequest, accessToken: string, refreshToken: string) {
   const isHttps = req.headers.get("x-forwarded-proto") === "https" || req.nextUrl.protocol === "https:";
-  const secure = isProd && isHttps;
+  const secure = isHttps;
   const maxAge = 7 * 24 * 60 * 60; // 7 days
 
   response.cookies.set({
@@ -58,7 +58,7 @@ function setCookiesOnResponse(response: NextResponse, req: NextRequest, accessTo
 
 function clearCookiesOnResponse(response: NextResponse, req: NextRequest) {
   const isHttps = req.headers.get("x-forwarded-proto") === "https" || req.nextUrl.protocol === "https:";
-  const secure = isProd && isHttps;
+  const secure = isHttps;
   
   response.cookies.set({
     name: "auth_token",
@@ -277,14 +277,19 @@ async function proxyHandler(
     if (isLogin) {
       if (backendResponse.ok) {
         const data = await backendResponse.json();
-        if (data.data && data.data.access_token && data.data.refresh_token) {
-          const userPayload = data.data.user || {};
+        const accessToken = data.data?.access_token || data.access_token;
+        const refreshToken = data.data?.refresh_token || data.refresh_token;
+        const userPayload = data.data?.user || data.user || {};
+        
+        if (accessToken && refreshToken) {
           const safeData = { status: "success", data: { user: userPayload } };
           const response = NextResponse.json(safeData, { status: backendResponse.status });
-          setCookiesOnResponse(response, req, data.data.access_token, data.data.refresh_token);
+          
+          setCookiesOnResponse(response, req, accessToken, refreshToken);
           return response;
         }
-        return NextResponse.json(data, { status: backendResponse.status });
+        
+        return NextResponse.json({ error: "Bad Gateway", message: "Upstream response is missing token fields" }, { status: 502 });
       } else {
         const responseBody = await backendResponse.arrayBuffer();
         return new NextResponse(responseBody, {

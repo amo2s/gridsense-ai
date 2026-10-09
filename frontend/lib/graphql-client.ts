@@ -6,4 +6,6 @@ const GRAPHQL_ENDPOINT = typeof window !== 'undefined'
       ? `${process.env.NEXT_PUBLIC_BASE_URL}/api/proxy/query`
       : 'http://127.0.0.1:3000/api/proxy/query';
 
-export const graphqlClient = new GraphQLClient(GRAPHQL_ENDPOINT);
+export const graphqlClient = new GraphQLClient(GRAPHQL_ENDPOINT, {
+  credentials: 'same-origin',
+});

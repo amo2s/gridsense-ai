@@ -3,12 +3,7 @@ import { cookies } from "next/headers";
 
 import OperatorGreeting from "@/components/dashboard/operator-greeting";
 import OperatorGreetingSkeleton from "@/components/dashboard/skeletons/operator-greeting-skeleton";
-import { SummaryMetrics } from "@/components/dashboard/summary-metrics";
-import { ReliabilityTrendChart } from "@/components/dashboard/reliability-trend-chart";
-import { PriorityDecisionTable } from "@/components/dashboard/priority-decision-table";
-
-import { getGraphQLClient } from "@/lib/graphql/server-client";
-import { GET_DASHBOARD_METRICS } from "@/lib/graphql/queries";
+import { DashboardContent } from "./dashboard-content";
 
 async function getUserRole() {
   try {
@@ -36,17 +31,7 @@ export default async function DashboardPage() {
   const { role, email, name } = await getUserRole();
   const username = name || (email ? email.split("@")[0] : "Operator");
 
-  // Fetch Live Data
-  const client = await getGraphQLClient();
-  let data: any = null;
-  try {
-    data = await client.request(GET_DASHBOARD_METRICS, {
-      timeRange: "24h",
-      areaId: "global"
-    });
-  } catch (error) {
-    console.error("GraphQL Fetch Error:", error);
-  }
+
 
   return (
     <main className="min-h-screen bg-[#fafafa] p-6 lg:p-8">
@@ -57,25 +42,8 @@ export default async function DashboardPage() {
           <OperatorGreeting name={username} role={role} />
         </Suspense>
 
-        {/* Phase 3 CSS Grid Architecture */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Top Section: Summary Metrics */}
-          <div className="col-span-full lg:col-span-12">
-            <SummaryMetrics summaryData={data?.dashboardSummary} />
-          </div>
-
-          {/* Middle Section: Trend Chart */}
-          <div className="col-span-full lg:col-span-12 min-h-[400px]">
-            <ReliabilityTrendChart trendData={data?.reliabilityTrend} />
-          </div>
-
-          {/* Bottom Section: Priority Table */}
-          <div className="col-span-full lg:col-span-12 overflow-hidden rounded-3xl">
-            <PriorityDecisionTable priorityData={data?.priorityAreas} />
-          </div>
-
-        </div>
+        {/* Phase 3 CSS Grid Architecture via Client Component */}
+        <DashboardContent />
       </div>
     </main>
   );

@@ -45,13 +45,15 @@ export default function LoginForm() {
         await api.get("/auth/me", { signal: controller.signal });
         clearTimeout(id);
       } catch (meErr) {
-        console.warn("Failed to fetch /auth/me, proceeding anyway:", meErr);
+        console.warn("Failed to fetch /auth/me:", meErr);
+        throw new Error("Failed to verify session after login. Please try again.");
       }
 
       setRedirecting(true);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.message || err.response?.data?.error || "Invalid credentials. Please try again.");
+      setError(err.response?.data?.message || err.response?.data?.error || err.message || "Invalid credentials. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   };

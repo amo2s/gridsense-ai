@@ -1,0 +1,211 @@
+# GridSense AI: Engine B Complete Architectural Summary & Engineering Retrospective
+
+**Intelligence Engine B: Predictive Outage-Risk Assessment & Boundary Enforcement Architecture**  
+**Lead Systems Architecture & API Integration Group**  
+**Document Classification:** Definitive Engineering Standard  
+**Revision:** 2.0.0  
+
+---
+
+## 1. Executive Overview & System Mandate
+
+**Intelligence Engine B** is the outage-risk predictive core of the GridSense AI platform. Tasked with evaluating 24-hour sequential operational telemetry, Engine B executes an ONNX-runtime machine learning model to compute forward-looking outage probabilities ($0.0 - 100.0$), categorizes asset vulnerability into discrete tiers (**LOW / STABLE**, **MEDIUM / VULNERABLE**, **HIGH / HIGH_RISK**), and decomposes risk into explainable feature attributions (TreeSHAP factors).
+
+In accordance with platform design standards, Engine B enforces a strict **Command Query Responsibility Segregation (CQRS)** architecture. Ingestion operations (Command Pathway) and analytical consumption (Query Pathway) are physically and logically decoupled across dedicated endpoints, state mechanisms, and user interfaces.
+
+```
++---------------------------------------------------------------------------------------------------+
+|                                  ENGINE B CQRS SYSTEM TOPOLOGY                                    |
+|                                                                                                   |
+|  COMMAND PATHWAY (Telemetry Ingestion & Inference Ingress)                                        |
+|  Next.js Interface: `/dashboard/ingestion/engine-b`                                                |
+|       │                                                                                           |
+|       ▼ Dynamic Feeder Store (`useFeederStore.activeFeederId`)                                    |
+|  React Hook Form Component: `components/ingestion/engine-b-form.tsx`                              |
+|       ├──► Zod Schema Boundary Mirror: `types/engine-b-ingestion.ts`                              |
+|       │    (Length >= 24, Chronologically Ascending, Zero Future Leakage)                         |
+|       └──► 24h Diurnal Sine-Wave Baseline Generator                                               |
+|       │                                                                                           |
+|       ▼ HTTP POST                                                                                 |
+|  Next.js Edge Proxy: `/api/proxy/v1/prediction/ingest`                                            |
+|       │                                                                                           |
+|       ▼ Authorization: Bearer <auth_token> + AbortController (15s timeout)                        |
+|  Go API Gateway: `POST /api/v1/prediction/ingest` (Protected by RequireRole Admin)               |
+|       ├──► Dispatches to Python Engine B Microservice (FastAPI + ONNX v2)                         |
+|       └──► Asynchronously Persists Egress to PostgreSQL `risk_predictions` table                  |
+|                                                                                                   |
+|  QUERY PATHWAY (Live Materialized Visualization Dashboard)                                        |
+|  Next.js Interface: `/dashboard/engine-b`                                                          |
+|       │                                                                                           |
+|       ▼ TanStack Query Hook: `hooks/use-engine-b-summary.ts`                                      |
+|            Key: `["engine-b-summary", activeFeederId]` (Auto-Invalidates on asset switch)         |
+|            Polling: `refetchInterval: 30_000`, `staleTime: 15_000`, `retry: 1`                    |
+|       │                                                                                           |
+|       ▼ HTTP GET                                                                                  |
+|  Next.js Edge Proxy: `/api/proxy/v1/prediction/summary?feeder_id=${id}`                           |
+|       │                                                                                           |
+|       ▼ Forward httpOnly Session Credentials                                                      |
+|  Go API Gateway: `handlers/summary_handler.go` (`GET /api/v1/prediction/summary`)                |
+|       └──► Queries PostgreSQL `risk_predictions` directly:                                        |
+|            `SELECT ... FROM risk_predictions WHERE feeder_id = $1 ORDER BY generated_at DESC ...` |
+|            (100% Live Materialized Data - Zero Python Execution During Read Cycles)              |
++---------------------------------------------------------------------------------------------------+
+```
+
+---
+
+## 2. Phase 1: Ingestion Pipeline & Boundary Enforcement (Command Pathway)
+
+### 2.1. Zod Boundary Validation Mirroring Pydantic v2
+**Source File:** [`frontend/types/engine-b-ingestion.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/types/engine-b-ingestion.ts)
+
+To eliminate client-server contract mismatches and prevent upstream HTTP 400/422 validation rejections, the TypeScript boundary mirrors the Python Pydantic v2 model (`backend/ai-services/engine_b/schemas/inference_contracts.py`):
+
+1. **`TelemetryReadingSchema`:**
+   - `timestamp`: Validated ISO-8601 UTC string (`parseISO` and `isValid` from `date-fns`).
+   - `voltage`: Strictly between $0.0$ and $500.0$ kV/V inclusive.
+   - `load`: Strictly between $0.0$ and $1000.0$ kW/MW inclusive.
+   - `fault_count_recent`: Integer $\ge 0$.
+2. **`EngineBIngestRequestSchema` with `.superRefine`:**
+   - **Length Requirement:** Array must contain $\ge 24$ hourly readings.
+   - **Temporal Integrity (Ascending):** Rejects non-chronological order ($t_i \le t_{i-1}$) with the exact issue: `"Telemetry readings must be in strictly ascending chronological order."`.
+   - **Zero Temporal Leakage:** Rejects any timestamp in the future ($t > \text{now}$) with: `"Telemetry reading cannot exist in the future relative to current time. Temporal leakage detected."`.
+
+### 2.2. Next.js Ingestion Proxy Route
+**Source File:** [`frontend/app/api/proxy/v1/prediction/ingest/route.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/api/proxy/v1/prediction/ingest/route.ts)
+
+- Handles incoming POST requests securely.
+- Injects `Authorization: Bearer <token>` extracted from secure `httpOnly` cookies (`auth_token`).
+- Implements a 15-second `AbortController` timeout for Go Gateway communication.
+- Forwards exact upstream HTTP status codes and response bodies without swallowing errors.
+
+### 2.3. React Hook Form Telemetry Assembly Component
+**Source File:** [`frontend/components/ingestion/engine-b-form.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/engine-b-form.tsx)
+
+- **Zero-Re-Render Asset Synchronization:** Eliminates manual feeder input. Automatically reads `activeFeederId` from the global `useFeederStore` initialized in Phase 0. If unassigned, renders a glass boundary warning panel requesting asset selection from the navigation sidebar.
+- **Mock 24h Baseline Generator:** Provides an operator tool calculating diurnal sine-wave curves:
+  - Voltage: $V(t) = 230 + 12 \sin\left(\frac{t-4}{24} \cdot 2\pi\right) \pm \epsilon$
+  - Load: $L(t) = 500 + 175 \sin\left(\frac{t-10}{24} \cdot 2\pi\right) \pm \epsilon$
+  - Sequential timestamps anchored to the top of the current UTC hour.
+- **Finite State Machine (FSM):**
+  - `IDLE`: Standard Liquid Glass inputs with interactive row removal and addition.
+  - `SUBMITTING`: Inputs locked, submit button replaced with spinning `<Loader2 className="animate-spin" />` and `"Transmitting Payload..."`.
+  - `ERROR`: Maps upstream Pydantic v2 `detail` array (`loc`, `msg`) to specific form rows via `setError` and displays a crimson Liquid Glass alert banner.
+  - `SUCCESS`: Form reset, pulsing emerald checkmark, and Sonner toast.
+
+### 2.4. Ingestion Page & Network Resilience Monitor
+**Source Files:**
+- [`frontend/app/dashboard/ingestion/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/ingestion/engine-b/page.tsx)
+- [`frontend/components/ingestion/network-resilience-monitor.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/network-resilience-monitor.tsx)
+
+- 12-column responsive grid layout (`lg:col-span-8` for the form, `lg:col-span-4` for the resilience monitor).
+- Features an amber `"COMMAND PATHWAY"` badge in the header.
+- Visually displays gateway health states: `"Circuit Breaker: CLOSED (Normal)"` with a pulsing emerald status beacon, `"Gateway Latency: 12ms"`, and pathway decoupling telemetry.
+
+---
+
+## 3. Phase 2: Query Pathway & Materialized View (Visualization)
+
+### 3.1. Golang API Gateway Live PostgreSQL Fetch
+**Source Files:**
+- [`backend/services/gateway/handlers/summary_handler.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/handlers/summary_handler.go)
+- [`backend/services/gateway/cmd/api/main.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/cmd/api/main.go#L135-L174)
+
+1. **Explicit DTO Mapping:**
+   ```go
+   type PredictionSummaryDTO struct {
+       FeederID            string          `json:"feeder_id"`
+       GeneratedAt         time.Time       `json:"generated_at"`
+       Horizon             int             `json:"horizon_hours"`
+       RiskScore           float64         `json:"risk_score"`
+       RiskLevel           string          `json:"risk_level"`
+       ModelVersion        string          `json:"model_version"`
+       ContributingFactors json.RawMessage `json:"contributing_factors"`
+   }
+   ```
+2. **Read-Only Handler (`GetEngineBSummary`):**
+   - Extracts and trims `feeder_id` from URL query parameter; returns HTTP 400 Bad Request if missing.
+   - Wraps database query in a 5-second context timeout (`context.WithTimeout(r.Context(), 5*time.Second)`).
+   - Executes targeted query on the pgxpool:
+     ```sql
+     SELECT 
+         feeder_id, generated_at, horizon, score, level, model_version, contributing_factors 
+     FROM risk_predictions 
+     WHERE feeder_id = $1 
+     ORDER BY generated_at DESC 
+     LIMIT 1;
+     ```
+   - Maps `pgx.ErrNoRows` / `sql.ErrNoRows` to HTTP 404 Not Found with JSON payload.
+   - Mounted in `main.go` under protected route `GET /api/v1/prediction/summary` behind `middleware.RequireAuth(cfg.JWTSecret)`.
+
+### 3.2. Next.js Summary Proxy Route
+**Source File:** [`frontend/app/api/proxy/v1/prediction/summary/route.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/api/proxy/v1/prediction/summary/route.ts)
+
+- Decoupled read-only proxy route forwarding requests to `${GATEWAY_URL}/api/v1/prediction/summary?feeder_id=${feederId}`.
+- Injects JWT authorization header from `httpOnly` cookies.
+- Preserves upstream status codes and JSON responses, ensuring 404s trigger client-side empty states.
+
+### 3.3. TanStack Query Cache Polling Hook
+**Source File:** [`frontend/hooks/use-engine-b-summary.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/hooks/use-engine-b-summary.ts)
+
+- Subscribes to `activeFeederId` via `useFeederStore`.
+- Strict query key: `["engine-b-summary", activeFeederId]`.
+- Background polling: `refetchInterval: 30_000` (polls PostgreSQL every 30 seconds).
+- Freshness threshold: `staleTime: 15_000` (15 seconds).
+- `retry: 1` to fail fast on actual 404s.
+
+### 3.4. Liquid Glass Summary Dashboard & Metric Cards
+**Source File:** [`frontend/app/dashboard/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-b/page.tsx)
+
+- **Finite State Visual Feedback:**
+  - `INITIAL LOADING`: Skeleton cards with `bg-white/40 backdrop-blur-md animate-pulse` preventing layout shift.
+  - `404 NO DATA`: Frosted glass empty state stating: *"No Outage-Risk Intelligence materialized for [activeFeederId]. Navigate to the Command Pathway to ingest historical telemetry."* with a direct CTA button linking to `/dashboard/ingestion/engine-b`.
+  - `SUCCESS`: Renders live materialized metrics in three top-level Liquid Glass cards.
+- **Metric Card 1 (Risk Score):** Displays `risk_score` formatted to 1 decimal place with a dynamic status bar.
+- **Metric Card 2 (Risk Tier with Polarity Styling):**
+  - `"HIGH"` / `"HIGH_RISK"`: Crimson text (`text-red-500`), alarm background (`bg-red-500/10`), red strobe drop-shadow (`shadow-[0_0_25px_rgba(239,68,68,0.35)] animate-pulse`).
+  - `"MEDIUM"` / `"VULNERABLE"`: Amber text (`text-amber-500`), warning background (`bg-amber-500/10`).
+  - `"LOW"` / `"STABLE"`: Emerald text (`text-[#10b981]`), safe background (`bg-[#10b981]/10`).
+- **Metric Card 3 (Evaluation Horizon):** Displays `${data.horizon_hours}-Hour Predictive Horizon`, formatted timestamp, and model version.
+- **Explainability Containers (SHAP & Temporal Horizon):** Responsive two-column grid (`grid-cols-1 lg:grid-cols-2`) with structural containers (`h-96 rounded-3xl border border-white/60 shadow-sm bg-white/40`) for Phase 3 visual graphs.
+
+---
+
+## 4. System Resilience: Development Server Node/pnpm Junction Resolution
+
+During package dependency additions (`date-fns`), `pnpm` restructured packages in the `.pnpm` virtual store and recomputed package hashes (`next@16.3.2_..._34347...` to `next@16.3.2_..._bdc05...`). The long-running development server retained memory references to the pre-install directory, resulting in worker exceptions (`jest-worker/processChild.js MODULE_NOT_FOUND`).
+
+**Resolution Applied:**
+Created an immediate NTFS directory junction mapping the stale virtual store path directly to the newly linked package path:
+```powershell
+cmd /c mklink /J "frontend\node_modules\.pnpm\next@..._34347..." "frontend\node_modules\.pnpm\next@..._bdc05..."
+```
+Worker threads immediately resolved internal assets without crashing the running development server or interrupting operator sessions.
+
+---
+
+## 5. Verification Matrix
+
+| Target Layer | Component / File | Verification Method | Result |
+| :--- | :--- | :--- | :--- |
+| **Zod Schema** | `types/engine-b-ingestion.ts` | Synthetic Boundary Assertions | 100% Passed (4/4 tests: valid, length, ordering, future leakage) |
+| **Go Gateway** | `handlers/summary_handler.go` | `go vet ./cmd/api ./handlers` | 0 errors |
+| **Go Gateway** | `cmd/api/main.go` | `go build ./cmd/api` | Compiled successfully |
+| **Frontend Types** | Full Next.js Frontend | `pnpm tsc --noEmit` | 0 errors |
+| **Proxy Route** | `api/proxy/v1/prediction/summary` | Route handler verification | Preserves 400, 404, 500 status codes |
+| **Polling Hook** | `hooks/use-engine-b-summary.ts` | Cache invalidation contract | Verified with `activeFeederId` binding |
+
+---
+
+## 6. Directory of Key Files
+
+- [`frontend/types/engine-b-ingestion.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/types/engine-b-ingestion.ts) — Zod runtime validation & TypeScript types
+- [`frontend/app/api/proxy/v1/prediction/ingest/route.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/api/proxy/v1/prediction/ingest/route.ts) — Ingestion proxy route (Command Pathway)
+- [`frontend/components/ingestion/engine-b-form.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/engine-b-form.tsx) — Telemetry assembly form & baseline generator
+- [`frontend/components/ingestion/network-resilience-monitor.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/network-resilience-monitor.tsx) — Gateway link telemetry panel
+- [`frontend/app/dashboard/ingestion/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/ingestion/engine-b/page.tsx) — Two-column ingestion page
+- [`backend/services/gateway/handlers/summary_handler.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/handlers/summary_handler.go) — Golang materialized prediction summary handler
+- [`backend/services/gateway/cmd/api/main.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/cmd/api/main.go) — Gateway route mounting for `/api/v1/prediction/summary`
+- [`frontend/app/api/proxy/v1/prediction/summary/route.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/api/proxy/v1/prediction/summary/route.ts) — Summary proxy route (Query Pathway)
+- [`frontend/hooks/use-engine-b-summary.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/hooks/use-engine-b-summary.ts) — TanStack Query 30s polling hook
+- [`frontend/app/dashboard/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-b/page.tsx) — Summary dashboard page with Liquid Glass metric cards

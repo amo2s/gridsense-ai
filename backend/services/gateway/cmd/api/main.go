@@ -132,6 +132,9 @@ func main() {
 	// Initialize Grid Asset handler
 	assetHandler := handlers.NewAssetHandler(db)
 
+	// Initialize Engine B summary handler (Phase 2: Query Pathway)
+	summaryHandler := handlers.NewSummaryHandler(db)
+
 	// 6. Setup Router (ServeMux) and apply Middleware
 	mux := http.NewServeMux()
 
@@ -155,6 +158,7 @@ func main() {
 	authProtectedSummary := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(dashboardHandler.HandleGetReliabilitySummary))
 	mux.Handle("/api/v1/reliability/summary", enableCORS(authProtectedSummary))
 
+	// Register Dashboard READ endpoints (Phase 3: Route Mounting)
 	authProtectedTrend := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(dashboardHandler.HandleGetReliabilityTrend))
 	mux.Handle("/api/v1/reliability/trend", enableCORS(authProtectedTrend))
 
@@ -169,6 +173,10 @@ func main() {
 	// Engine B outage-risk prediction, same auth pattern as reliability.
 	authProtectedPrediction := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(predictionHandler.ExecuteInference))
 	mux.Handle("/api/v1/prediction/evaluate", enableCORS(authProtectedPrediction))
+
+	// Engine B outage-risk materialized summary (Phase 2: Query Pathway)
+	authProtectedPredictionSummary := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(summaryHandler.GetEngineBSummary))
+	mux.Handle("/api/v1/prediction/summary", enableCORS(authProtectedPredictionSummary))
 
 	// Engine C anomaly detection, mounted with JWT auth and CORS
 	authProtectedAnomaly := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(anomalyHandler.DetectAnomaly))

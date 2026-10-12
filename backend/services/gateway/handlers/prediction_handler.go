@@ -361,7 +361,7 @@ func (r *pgxTelemetryRepo) PersistPrediction(ctx context.Context, p PredictionRe
 
 	_, err = r.db.Pool.Exec(ctx, query,
 		p.FeederID, p.GeneratedAt, p.HorizonHours,
-		p.RiskScore, p.RiskLevel, p.ModelVersion, factorsJSON,
+		p.RiskScore, p.RiskLevel, p.ModelVersion, string(factorsJSON),
 	)
 	if err != nil {
 		return fmt.Errorf("insert into risk_predictions failed: %w", err)

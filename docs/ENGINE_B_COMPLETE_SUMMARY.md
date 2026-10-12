@@ -3,7 +3,7 @@
 **Intelligence Engine B: Predictive Outage-Risk Assessment & Boundary Enforcement Architecture**  
 **Lead Systems Architecture & API Integration Group**  
 **Document Classification:** Definitive Engineering Standard  
-**Revision:** 2.2.0  
+**Revision:** 2.2.1  
 
 ---
 
@@ -263,19 +263,28 @@ insert into risk_predictions failed: ERROR: invalid input syntax for type json (
 ```
 
 **Root Causes Diagnosed:**
-1. **Implicit `bytea` Parameter Binding:** In `pgxTelemetryRepo.PersistPrediction`, `factorsJSON` was serialized as Go `[]byte` via `json.Marshal(p.ContributingFactors)`. Without an explicit parameter typecast in the SQL query (`VALUES (..., $7)`), the `pgx` driver binds Go `[]byte` as binary data (`bytea`, OID 17).
+1. **Driver Wire Representation (`bytea` vs `text`):** In `pgxTelemetryRepo.PersistPrediction`, `factorsJSON` was serialized as Go `[]byte` via `json.Marshal(p.ContributingFactors)`. Even with an explicit SQL cast (`$7::jsonb`), the `pgx` driver defaults to transmitting Go `[]byte` slices as binary hexadecimal (`bytea`) over the wire. PostgreSQL receives `\x5b...` instead of `[...]` and rejects it with `SQLSTATE 22P02` before the cast can be evaluated.
 2. **PostgreSQL JSON Parser Failure:** PostgreSQL attempts to interpret `bytea` hexadecimal representation (`\x5b...`) as a raw JSON string, failing immediately on the escape token `\` with `SQLSTATE 22P02`.
 3. **Nil Slice Serialization:** If `p.ContributingFactors` is nil or unpopulated, standard Go `json.Marshal(nil)` produces `[]byte("null")` rather than an empty JSON array `[]byte("[]")`.
 
 **Resolutions Implemented (`backend/services/gateway/handlers/prediction_handler.go`):**
-1. **Explicit SQL JSONB Cast (`$7::jsonb`):**
-   Updated the INSERT statement to explicitly cast the 7th parameter:
+1. **Explicit String Conversion in Execution Arguments:**
+   Cast the `[]byte` slice to a standard Go string explicitly in the query argument list (`string(factorsJSON)`):
+   ```go
+   _, err = r.db.Pool.Exec(ctx, query,
+       p.FeederID, p.GeneratedAt, p.HorizonHours,
+       p.RiskScore, p.RiskLevel, p.ModelVersion, string(factorsJSON),
+   )
+   ```
+   This guarantees the parameter is transmitted as PostgreSQL `text` (OID 25), enabling PostgreSQL's text-to-json parser to safely ingest the JSON payload.
+2. **Explicit SQL JSONB Cast (`$7::jsonb`):**
+   Retained explicit `$7::jsonb` casting in the INSERT statement:
    ```sql
    INSERT INTO risk_predictions
    (feeder_id, generated_at, horizon, score, level, model_version, contributing_factors)
    VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
    ```
-2. **Safe JSON Serialization with Nil/Empty Fallback:**
+3. **Safe JSON Serialization with Nil/Empty Fallback:**
    Guaranteed non-null, valid JSON array serialization:
    ```go
    factors := p.ContributingFactors
@@ -288,7 +297,7 @@ insert into risk_predictions failed: ERROR: invalid input syntax for type json (
        factorsJSON = []byte("[]")
    }
    ```
-3. **Compilation Verification:**
+4. **Compilation Verification:**
    Executed `go vet ./...` and `go build ./...` across the gateway service with 0 compilation errors.
 
 ---
@@ -302,6 +311,7 @@ insert into risk_predictions failed: ERROR: invalid input syntax for type json (
 | **Asset Context** | `store/feeder-store.ts` | Seeded UUID default synchronization | `"f47ac10b-58cc-4372-a567-0e02b2c3d479"` |
 | **Asset Fallback** | `components/dashboard/feeder-selector.tsx` | Seeded metadata fallback alignment | Verified (0 legacy `"FDR-001"` instances) |
 | **JSON Serialization**| `handlers/prediction_handler.go` | `PersistPrediction` fallback `[]byte("[]")` | Verified (No nil/"null" leakage) |
+| **Driver Wire Format** | `handlers/prediction_handler.go` | Explicit `string(factorsJSON)` argument | Verified (Transmits text OID 25, not bytea) |
 | **SQL Query Cast** | `handlers/prediction_handler.go` | Explicit `$7::jsonb` insert parameter cast | Verified (Eliminates `bytea` coercion error) |
 | **Go Gateway** | `handlers/summary_handler.go` | `go vet ./cmd/api ./handlers` | 0 errors |
 | **Go Gateway** | `handlers/prediction_handler.go` | `IngestTelemetry` compilation | 0 errors |

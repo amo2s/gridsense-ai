@@ -195,6 +195,42 @@ Worker threads immediately resolved internal assets without crashing the running
 | **Proxy Route** | `api/proxy/v1/prediction/summary` | Route handler verification | Preserves 400, 404, 500 status codes |
 | **Polling Hook** | `hooks/use-engine-b-summary.ts` | Cache invalidation contract | Verified with `activeFeederId` binding |
 
+### 4.2. Command Pathway Backend Ingestion Resolution & Routing Audit
+
+During end-to-end integration of the manual telemetry submission pipeline, the frontend proxy dispatched requests to `POST /api/proxy/v1/prediction/ingest`, but upstream returned HTTP 404 Not Found.
+
+**Root Causes Diagnosed:**
+1. **Unmounted Gateway Ingestion Route:** The Go API Gateway had not registered `POST /api/v1/prediction/ingest` in `cmd/api/main.go`.
+2. **Missing IngestTelemetry Handler:** `handlers/prediction_handler.go` lacked an ingestion handler to accept manual 24h payloads, orchestrate Python inference, and write through to PostgreSQL.
+3. **Upstream URL Suffix Mismatch:** In `.env`, `ENGINE_B_URL` was configured as `http://127.0.0.1:8002` (root), whereas FastAPI listens on `/internal/v1/predict`.
+
+**Resolutions Implemented:**
+1. Mounted `POST /api/v1/prediction/ingest` in `cmd/api/main.go` protected by `middleware.RequireAuth(cfg.JWTSecret)`.
+2. Implemented `IngestTelemetry(w, r)` in `handlers/prediction_handler.go`:
+   - Validates JSON payload and guarantees `feeder_id` presence and $\ge 24$ readings.
+   - Enforces an 8-second context timeout on internal communication with Engine B.
+   - Executes live inference through `AIClient.Predict(ctx, payloadBytes)`.
+   - Immediately commits the egress record to the `risk_predictions` PostgreSQL table (`feeder_id`, `generated_at`, `horizon`, `score`, `level`, `model_version`, `contributing_factors`).
+   - Returns the standardized prediction contract to the client.
+3. Enhanced `LoadConfig()` in `handlers/prediction_handler.go` with automatic URL normalization, ensuring paths without `/internal/v1/predict` are cleanly resolved.
+4. Added multi-path ingress aliases in Python Engine B (`/predict` and `/api/v1/predict`) alongside `/internal/v1/predict`.
+
+---
+
+## 5. Verification Matrix
+
+| Target Layer | Component / File | Verification Method | Result |
+| :--- | :--- | :--- | :--- |
+| **Zod Schema** | `types/engine-b-ingestion.ts` | Synthetic Boundary Assertions | 100% Passed (4/4 tests: valid, length, ordering, future leakage) |
+| **Go Gateway** | `handlers/summary_handler.go` | `go vet ./cmd/api ./handlers` | 0 errors |
+| **Go Gateway** | `handlers/prediction_handler.go` | `IngestTelemetry` compilation | 0 errors |
+| **Go Gateway** | `cmd/api/main.go` | `go build ./cmd/api` | Compiled successfully |
+| **Python Core** | `main.py` & `prediction_routes.py` | `py_compile` syntax verification | 0 errors |
+| **Frontend Types** | Full Next.js Frontend | `pnpm tsc --noEmit` | 0 errors |
+| **Proxy Route** | `api/proxy/v1/prediction/summary` | Route handler verification | Preserves 400, 404, 500 status codes |
+| **Proxy Route** | `api/proxy/v1/prediction/ingest` | Route handler verification | Forwards POST to Go Gateway |
+| **Polling Hook** | `hooks/use-engine-b-summary.ts` | Cache invalidation contract | Verified with `activeFeederId` binding |
+
 ---
 
 ## 6. Directory of Key Files
@@ -204,8 +240,10 @@ Worker threads immediately resolved internal assets without crashing the running
 - [`frontend/components/ingestion/engine-b-form.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/engine-b-form.tsx) — Telemetry assembly form & baseline generator
 - [`frontend/components/ingestion/network-resilience-monitor.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/network-resilience-monitor.tsx) — Gateway link telemetry panel
 - [`frontend/app/dashboard/ingestion/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/ingestion/engine-b/page.tsx) — Two-column ingestion page
+- [`backend/services/gateway/handlers/prediction_handler.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/handlers/prediction_handler.go) — `IngestTelemetry` & `PersistPrediction` closing loop
 - [`backend/services/gateway/handlers/summary_handler.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/handlers/summary_handler.go) — Golang materialized prediction summary handler
-- [`backend/services/gateway/cmd/api/main.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/cmd/api/main.go) — Gateway route mounting for `/api/v1/prediction/summary`
+- [`backend/services/gateway/cmd/api/main.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/cmd/api/main.go) — Gateway route mounting for `/api/v1/prediction/ingest` and `/api/v1/prediction/summary`
+- [`backend/ai-services/engine_b/api/prediction_routes.py`](file:///c:/users/hp/Desktop/gridsense-ai/backend/ai-services/engine_b/api/prediction_routes.py) — FastAPI inference route with key verification
 - [`frontend/app/api/proxy/v1/prediction/summary/route.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/api/proxy/v1/prediction/summary/route.ts) — Summary proxy route (Query Pathway)
 - [`frontend/hooks/use-engine-b-summary.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/hooks/use-engine-b-summary.ts) — TanStack Query 30s polling hook
 - [`frontend/app/dashboard/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-b/page.tsx) — Summary dashboard page with Liquid Glass metric cards

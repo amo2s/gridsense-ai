@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"gateway/database"
@@ -80,6 +81,15 @@ func LoadConfig() Config {
 	url := os.Getenv("ENGINE_B_URL")
 	if url == "" {
 		url = "http://localhost:8002/internal/v1/predict"
+	} else {
+		url = strings.TrimRight(url, "/")
+		if !strings.HasSuffix(url, "/internal/v1/predict") {
+			if strings.HasSuffix(url, "/predict") {
+				url = strings.TrimSuffix(url, "/predict") + "/internal/v1/predict"
+			} else {
+				url = url + "/internal/v1/predict"
+			}
+		}
 	}
 	key := mustGetEnv("INTERNAL_SERVICE_KEY")
 	return Config{
@@ -468,3 +478,86 @@ func (h *PredictionHandler) handleError(w http.ResponseWriter, err error) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
+
+// IngestTelemetry handles manual operational telemetry ingestion payloads (Command Pathway).
+// Validates 24-hour sequential metrics, orchestrates inference with Engine B,
+// immediately persists the output into the PostgreSQL risk_predictions table,
+// and returns the evaluated prediction contract.
+func (h *PredictionHandler) IngestTelemetry(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	defer cancel()
+
+	ctx, span := tracer.Start(ctx, "HTTP.IngestTelemetry")
+	defer span.End()
+
+	// 1. Decode incoming JSON payload matching PredictionRequest
+	var req PredictionRequest
+	r.Body = http.MaxBytesReader(w, r.Body, 5*1024*1024)
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&req); err != nil {
+		span.RecordError(err)
+		http.Error(w, "Malformed JSON or invalid payload: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 2. Validate feeder_id and rolling window telemetry size
+	req.FeederID = strings.TrimSpace(req.FeederID)
+	if req.FeederID == "" {
+		span.RecordError(errors.New("missing feeder_id"))
+		http.Error(w, "feeder_id is required", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.Readings) < 24 {
+		span.RecordError(ErrInsufficientData)
+		http.Error(w, "insufficient telemetry history: readings must contain at least 24 items", http.StatusUnprocessableEntity)
+		return
+	}
+
+	// 3. Serialize payload and forward to Python Engine B
+	payloadBytes, err := json.Marshal(req)
+	if err != nil {
+		span.RecordError(err)
+		slog.Error("payload encode failed", "feeder_id", req.FeederID, "error", err)
+		http.Error(w, "internal serialization error", http.StatusInternalServerError)
+		return
+	}
+
+	// 4. Execute prediction inference via AIClient (with Circuit Breaker & Retries)
+	prediction, err := h.aiClient.Predict(ctx, payloadBytes)
+	if err != nil {
+		span.RecordError(err)
+		slog.Error("ai prediction failed during ingestion", "feeder_id", req.FeederID, "error", err)
+		h.handleError(w, err)
+		return
+	}
+
+	// Ensure feeder_id and generated_at are populated
+	if prediction.FeederID == "" {
+		prediction.FeederID = req.FeederID
+	}
+	if prediction.GeneratedAt.IsZero() {
+		prediction.GeneratedAt = time.Now().UTC()
+	}
+
+	// 5. Persist to PostgreSQL risk_predictions table immediately (Critical Closing Loop)
+	if err := h.repo.PersistPrediction(ctx, *prediction); err != nil {
+		span.RecordError(err)
+		slog.Error("database persistence failed for risk prediction", "feeder_id", req.FeederID, "error", err)
+		http.Error(w, "failed to persist prediction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 6. Return standardized success response to Next.js frontend proxy
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(prediction); err != nil {
+		slog.Error("failed to write ingestion response", "feeder_id", req.FeederID, "error", err)
+	}
+}
+

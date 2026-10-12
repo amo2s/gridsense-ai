@@ -174,6 +174,10 @@ func main() {
 	authProtectedPrediction := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(predictionHandler.ExecuteInference))
 	mux.Handle("/api/v1/prediction/evaluate", enableCORS(authProtectedPrediction))
 
+	// Engine B outage-risk prediction manual ingestion (Command Pathway)
+	authProtectedPredictionIngest := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(predictionHandler.IngestTelemetry))
+	mux.Handle("/api/v1/prediction/ingest", enableCORS(authProtectedPredictionIngest))
+
 	// Engine B outage-risk materialized summary (Phase 2: Query Pathway)
 	authProtectedPredictionSummary := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(summaryHandler.GetEngineBSummary))
 	mux.Handle("/api/v1/prediction/summary", enableCORS(authProtectedPredictionSummary))

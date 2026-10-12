@@ -14,7 +14,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
-from api.prediction_routes import router as prediction_router
+from api.prediction_routes import router as prediction_router, root_router as prediction_alias_router
 from models.risk_classifier import RiskClassifier
 from core.events import initialize_redis_pool, close_redis_pool  # Added for stream integration
 
@@ -69,6 +69,7 @@ app = FastAPI(
 
 # Register the internal API routes
 app.include_router(prediction_router)
+app.include_router(prediction_alias_router)
 
 @app.get("/api/v1/health")
 async def health_check():

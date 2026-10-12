@@ -53,3 +53,12 @@ async def predict_outage_risk(payload: PredictionRequest, request: Request, back
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal inference engine failure.")
+
+
+# Additional router to support alternative upstream path aliases (/predict and /api/v1/predict)
+root_router = APIRouter(tags=["Inference"], dependencies=[Depends(verify_internal_key)])
+
+@root_router.post("/predict", response_model=PredictionResponse)
+@root_router.post("/api/v1/predict", response_model=PredictionResponse)
+async def predict_outage_risk_alias(payload: PredictionRequest, request: Request, background_tasks: BackgroundTasks):
+    return await predict_outage_risk(payload, request, background_tasks)

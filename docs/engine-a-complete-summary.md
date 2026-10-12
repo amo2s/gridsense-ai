@@ -7,8 +7,8 @@ This master document details the complete end-to-end frontend architecture of th
 - **"Liquid Glass" Design System**: The application strictly avoids dark mode and adheres to a high-end "Liquid Glass" aesthetic. The palette focuses on an Off-White canvas accented by `#10b981` (Emerald Green) for stable indicators, utilizing `backdrop-blur-md`, subtle specular edge highlights (inner border rendering), and deep drop shadows to mimic glass and liquid properties.
 
 ## Transport & Security Resolutions
-- **400 Bad Request Resolution**: Mitigated transport serialization errors by correctly passing the `Content-Type: application/json` header through the `graphql-request` interceptor middleware by interacting with the `Headers` instance directly via `.set()`, satisfying the Go BFF's strict GraphQL parsing requirements.
-- **401 Unauthorized Resolution**: Implemented a dual-layered client token injection strategy. Client-side mutations utilize `sessionStorage` token injection, while the Next.js API proxy (`/api/proxy`) operates as a fallback, gracefully forwarding the secure HttpOnly cookie `auth_token` upstream for initial mounts and SSR hydration safety.
+- **400 Bad Request Resolution (GraphQL)**: Mitigated transport serialization errors on GraphQL routes by correctly passing the `Content-Type: application/json` header through the `graphql-request` interceptor middleware using `.set()`, satisfying the Go BFF's parsing requirements. *(Note: Standalone Engine A pages fetch via REST CQRS endpoints `/api/proxy/v1/...` per ADR `CQRS_Engine_Integration_Standard.md`)*.
+- **401 Unauthorized Resolution**: Implemented cookie-based authentication forwarding through the Next.js API proxy (`/api/proxy`), forwarding the secure HttpOnly `auth_token` cookie upstream to ensure authenticated delivery across both REST and GraphQL endpoints.
 
 ## Core Dashboard (Phase 3)
 - **KPI Summary Cards**: Real-time aggregation of reliability metrics and high-risk area counts.

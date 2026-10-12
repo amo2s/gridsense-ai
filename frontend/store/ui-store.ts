@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useFeederStore } from './feeder-store';
 
 export type TimeRange = '24h' | '7d' | '30d';
 export type WsStatus = 'Connected' | 'Reconnecting' | 'Offline';
@@ -20,8 +21,15 @@ export const useUIStore = create<UIState>((set) => ({
   timeRange: '24h',
   wsStatus: 'Offline',
   dataStreamStatus: 'REAL',
-  setActiveFeederContext: (feeder) => set({ activeFeederContext: feeder }),
+  setActiveFeederContext: (feeder) => {
+    set({ activeFeederContext: feeder });
+    if (feeder) {
+      useFeederStore.getState().setActiveFeeder(feeder);
+    }
+  },
   setTimeRange: (range) => set({ timeRange: range }),
   setWsStatus: (status) => set({ wsStatus: status }),
   setDataStreamStatus: (status) => set({ dataStreamStatus: status }),
 }));
+
+export { useFeederStore };

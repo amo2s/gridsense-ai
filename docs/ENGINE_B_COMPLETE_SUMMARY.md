@@ -3,7 +3,7 @@
 **Intelligence Engine B: Predictive Outage-Risk Assessment & Boundary Enforcement Architecture**  
 **Lead Systems Architecture & API Integration Group**  
 **Document Classification:** Definitive Engineering Standard  
-**Revision:** 2.0.0  
+**Revision:** 2.1.0  
 
 ---
 
@@ -215,6 +215,46 @@ During end-to-end integration of the manual telemetry submission pipeline, the f
 3. Enhanced `LoadConfig()` in `handlers/prediction_handler.go` with automatic URL normalization, ensuring paths without `/internal/v1/predict` are cleanly resolved.
 4. Added multi-path ingress aliases in Python Engine B (`/predict` and `/api/v1/predict`) alongside `/internal/v1/predict`.
 
+### 4.3. PostgreSQL UUID Type Mismatch Resolution (SQLSTATE 22P02) & Feeder State Synchronization
+
+During live runtime operations, every query (`GET /api/v1/prediction/summary`) and mutation (`POST /api/v1/prediction/ingest`) failed with database error:
+```text
+pq: invalid input syntax for type uuid: "FDR-001" (SQLSTATE 22P02)
+```
+
+**Root Causes Diagnosed:**
+1. **Strict PostgreSQL Type Constraint:** The PostgreSQL schema strictly defines `feeder_id` as `UUID` across both the physical `feeders` table and the analytical `risk_predictions` table.
+2. **Legacy Synthetic Mock Defaults:** The Next.js frontend retained hardcoded legacy mock identifiers (`"FDR-001"`) in:
+   - Global Zustand store initial state (`useFeederStore`, `DEFAULT_FEEDER_ID = "FDR-001"`).
+   - Dynamic asset switcher fallback table (`FALLBACK_FEEDERS[0]`).
+   - Component fallback resolver (`activeFeederId || "FDR-001"`).
+3. **Zod Boundary Looseness:** `EngineBIngestRequestSchema` in `types/engine-b-ingestion.ts` validated `feeder_id` as an arbitrary non-empty string (`z.string().min(1)`), allowing non-UUID values to leak into the network layer.
+
+**Resolutions Implemented:**
+1. **Integration of Seeded Asset Identity:**
+   - Feeder UUID: `"f47ac10b-58cc-4372-a567-0e02b2c3d479"`
+   - Feeder Name: `"North Corridor Feeder"`
+   - Substation: `"Central District"`
+   - Voltage Class: `"33kV"`
+   - Status: `"STABLE"`
+2. **Store Default Migration (`frontend/store/feeder-store.ts`):**
+   - Updated `DEFAULT_FEEDER_ID` to `"f47ac10b-58cc-4372-a567-0e02b2c3d479"`.
+   - Seeded initial `activeFeederId` and `selectedFeeders` to this UUID.
+   - Standardized casing normalization across `setActiveFeeder`, `setSelectedFeeders`, and `toggleSelectedFeeder` to `.trim().toLowerCase()` to prevent UUID case mismatch issues against PostgreSQL canonical output.
+3. **Asset Selector Fallback Migration (`frontend/components/dashboard/feeder-selector.tsx`):**
+   - Replaced `"FDR-001"` in `FALLBACK_FEEDERS` with the seeded grid asset metadata.
+   - Updated `activeFeeder` resolution to fallback to `activeFeederId || DEFAULT_FEEDER_ID` with case-insensitive matching.
+4. **Boundary Schema UUID Enforcement (`frontend/types/engine-b-ingestion.ts`):**
+   - Upgraded `feeder_id` validation to:
+     ```typescript
+     feeder_id: z
+       .string()
+       .trim()
+       .uuid("Invalid Feeder UUID")
+       .min(1)
+     ```
+   - Pre-emptively rejects non-UUID strings on the client before dispatching HTTP payloads.
+
 ---
 
 ## 5. Verification Matrix
@@ -222,6 +262,9 @@ During end-to-end integration of the manual telemetry submission pipeline, the f
 | Target Layer | Component / File | Verification Method | Result |
 | :--- | :--- | :--- | :--- |
 | **Zod Schema** | `types/engine-b-ingestion.ts` | Synthetic Boundary Assertions | 100% Passed (4/4 tests: valid, length, ordering, future leakage) |
+| **UUID Validation** | `types/engine-b-ingestion.ts` | Zod `.uuid()` boundary enforcement | 100% Enforced (Rejects non-UUID formats) |
+| **Asset Context** | `store/feeder-store.ts` | Seeded UUID default synchronization | `"f47ac10b-58cc-4372-a567-0e02b2c3d479"` |
+| **Asset Fallback** | `components/dashboard/feeder-selector.tsx` | Seeded metadata fallback alignment | Verified (0 legacy `"FDR-001"` instances) |
 | **Go Gateway** | `handlers/summary_handler.go` | `go vet ./cmd/api ./handlers` | 0 errors |
 | **Go Gateway** | `handlers/prediction_handler.go` | `IngestTelemetry` compilation | 0 errors |
 | **Go Gateway** | `cmd/api/main.go` | `go build ./cmd/api` | Compiled successfully |
@@ -235,7 +278,9 @@ During end-to-end integration of the manual telemetry submission pipeline, the f
 
 ## 6. Directory of Key Files
 
-- [`frontend/types/engine-b-ingestion.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/types/engine-b-ingestion.ts) — Zod runtime validation & TypeScript types
+- [`frontend/store/feeder-store.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/store/feeder-store.ts) — Global Zustand feeder context store with canonical UUID defaults
+- [`frontend/components/dashboard/feeder-selector.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/feeder-selector.tsx) — Dynamic grid asset selector & fallback metadata
+- [`frontend/types/engine-b-ingestion.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/types/engine-b-ingestion.ts) — Zod runtime validation with strict UUID enforcement
 - [`frontend/app/api/proxy/v1/prediction/ingest/route.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/api/proxy/v1/prediction/ingest/route.ts) — Ingestion proxy route (Command Pathway)
 - [`frontend/components/ingestion/engine-b-form.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/engine-b-form.tsx) — Telemetry assembly form & baseline generator
 - [`frontend/components/ingestion/network-resilience-monitor.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/network-resilience-monitor.tsx) — Gateway link telemetry panel

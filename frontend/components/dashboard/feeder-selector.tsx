@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Zap, ChevronDown, Check, Activity, Search, Loader2, Database } from "lucide-react";
-import { useFeederStore } from "@/store/feeder-store";
+import { useFeederStore, DEFAULT_FEEDER_ID } from "@/store/feeder-store";
 import { useFeeders } from "@/hooks/use-feeders";
 
 export interface FeederOption {
@@ -20,9 +20,9 @@ export interface FeederOption {
  */
 export const FALLBACK_FEEDERS: FeederOption[] = [
   {
-    id: "FDR-001",
+    id: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
     name: "North Corridor Feeder",
-    substation: "Substation Alpha",
+    substation: "Central District",
     voltageClass: "33kV",
     status: "STABLE",
   },
@@ -113,10 +113,10 @@ export default function FeederSelector({ isExpanded, className = "" }: FeederSel
   }, [isExpanded]);
 
   const activeFeeder =
-    availableFeeders.find((f) => f.id === activeFeederId) || {
-      id: activeFeederId || "FDR-001",
-      name: "Grid Telemetry Feeder",
-      substation: "Primary Substation",
+    availableFeeders.find((f) => f.id.toLowerCase() === activeFeederId.toLowerCase()) || {
+      id: activeFeederId || DEFAULT_FEEDER_ID,
+      name: "North Corridor Feeder",
+      substation: "Central District",
       voltageClass: "33kV",
       status: "STABLE" as const,
     };

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
 export interface FeederState {
-  /** Currently active single feeder context across all engines (e.g., 'FDR-001') */
+  /** Currently active single feeder context across all engines (e.g., 'f47ac10b-58cc-4372-a567-0e02b2c3d479') */
   activeFeederId: string;
   /** Array of selected feeders for multi-asset comparison views */
   selectedFeeders: string[];
@@ -16,7 +16,7 @@ export interface FeederState {
   toggleSelectedFeeder: (id: string) => void;
 }
 
-export const DEFAULT_FEEDER_ID = "FDR-001";
+export const DEFAULT_FEEDER_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
 
 /**
  * Global Feeder Store (Phase 0: Global State Synchronization)
@@ -35,7 +35,7 @@ export const useFeederStore = create<FeederState>()(
       selectedFeeders: [DEFAULT_FEEDER_ID],
 
       setActiveFeeder: (id: string) => {
-        const normalizedId = id.trim().toUpperCase();
+        const normalizedId = id.trim().toLowerCase();
         set((state) => ({
           activeFeederId: normalizedId,
           selectedFeeders: state.selectedFeeders.includes(normalizedId)
@@ -52,11 +52,11 @@ export const useFeederStore = create<FeederState>()(
 
       setSelectedFeeders: (feeders: string[]) =>
         set({
-          selectedFeeders: feeders.map((f) => f.trim().toUpperCase()),
+          selectedFeeders: feeders.map((f) => f.trim().toLowerCase()),
         }),
 
       toggleSelectedFeeder: (id: string) => {
-        const normalizedId = id.trim().toUpperCase();
+        const normalizedId = id.trim().toLowerCase();
         set((state) => {
           const exists = state.selectedFeeders.includes(normalizedId);
           const next = exists

@@ -57,7 +57,8 @@ export const EngineBIngestRequestSchema = z
     feeder_id: z
       .string()
       .trim()
-      .min(1, "Feeder ID cannot be empty"),
+      .uuid("Invalid Feeder UUID")
+      .min(1),
     readings: z.array(TelemetryReadingSchema),
   })
   .superRefine((data, ctx) => {

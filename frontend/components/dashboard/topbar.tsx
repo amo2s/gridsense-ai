@@ -16,26 +16,36 @@ import {
   UserCircle
 } from "lucide-react";
 import { useUIStore } from "@/store/ui-store";
+import { useFeederStore } from "@/store/feeder-store";
 
 interface TopbarProps {
   email: string;
   role: string;
   name: string;
+  pageTitle?: string;
 }
 
-export default function Topbar({ email, role, name }: TopbarProps) {
+export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   const pathname = usePathname();
   const searchInputRef = useRef<HTMLInputElement>(null);
   
   const [greeting, setGreeting] = useState("");
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   
   const wsStatus = useUIStore((state) => state.wsStatus);
   const [isSynthetic, setIsSynthetic] = useState(false);
   
   // Real-time alerts counter state
   const [unreadAlertsCount, setUnreadAlertsCount] = useState(3);
+
+  // Active grid asset from Zustand global store
+  const activeFeeder = useFeederStore((state) => state.activeFeeder);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   // Normalize role
   const normalizedRole = role.toUpperCase();
@@ -77,6 +87,8 @@ export default function Topbar({ email, role, name }: TopbarProps) {
       // Dynamic Nomenclature Dictionary
       if (path === "engine-a") {
         formattedPath = "Reliability Intelligence";
+      } else if (path === "engine-b") {
+        formattedPath = "Engine B: Outage-Risk Intelligence";
       } else if (index > 0 && paths[index - 1] === "engine-a") {
         // Handle dynamic [id] segments gracefully instead of rendering raw UUIDs
         formattedPath = `Area Details: ${path.substring(0, 6).toUpperCase()}`;
@@ -91,6 +103,21 @@ export default function Topbar({ email, role, name }: TopbarProps) {
         </div>
       );
     });
+  };
+
+  // Dynamic Layout Page Title Resolution
+  const getDynamicPageTitle = () => {
+    if (pageTitle) return pageTitle;
+    if (pathname === "/dashboard/engine-b" || pathname.startsWith("/dashboard/engine-b")) {
+      return "Engine B: Outage-Risk Intelligence";
+    }
+    if (pathname.includes("/dashboard/ingestion/engine-b")) {
+      return "Engine B: Telemetry Ingestion";
+    }
+    if (pathname.includes("/dashboard/engine-a")) {
+      return "Engine A: Reliability Intelligence";
+    }
+    return "Grid Operations Console";
   };
 
   const handleLogout = async () => {
@@ -116,16 +143,28 @@ export default function Topbar({ email, role, name }: TopbarProps) {
             <span className="whitespace-nowrap text-xl font-bold text-emerald-900 tracking-tight">
               GridSense AI
             </span>
-            <div className="ml-2 px-3 py-1 text-sm bg-gray-100 rounded-full border border-gray-200 text-emerald-800 font-medium">
-              Global View
-            </div>
+            {/* Dynamic Grid Asset Status Badge from Zustand Store */}
+            {!isHydrated || !activeFeeder ? (
+              <div className="ml-2 h-7 w-40 animate-pulse bg-white/10 rounded border border-white/10" />
+            ) : (
+              <div className="ml-2 px-3 py-1 text-xs bg-white/60 backdrop-blur-md rounded-full border border-white/80 text-emerald-900 font-medium flex items-center gap-1.5 shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="font-semibold">{activeFeeder.name}</span>
+                <span className="text-emerald-700/70 font-normal text-[11px]">({activeFeeder.substation})</span>
+              </div>
+            )}
           </div>
 
           <div className="hidden lg:flex flex-col border-l border-emerald-100 pl-8">
-            <h2 className="text-sm font-medium text-emerald-900/60">
-              {greeting}
-            </h2>
-            <div className="flex items-center text-sm mt-0.5">
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-bold text-emerald-950 tracking-tight">
+                {getDynamicPageTitle()}
+              </h1>
+              <span className="text-xs text-emerald-900/50">
+                • {greeting}
+              </span>
+            </div>
+            <div className="flex items-center text-xs mt-0.5">
               {generateBreadcrumbs()}
             </div>
           </div>

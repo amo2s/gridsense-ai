@@ -1,13 +1,23 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
+export interface ActiveFeederInfo {
+  id: string;
+  name: string;
+  substation: string;
+  voltageClass?: string;
+  status?: string;
+}
+
 export interface FeederState {
   /** Currently active single feeder context across all engines (e.g., 'f47ac10b-58cc-4372-a567-0e02b2c3d479') */
   activeFeederId: string;
+  /** Active feeder rich metadata object (name, substation, voltageClass, status) */
+  activeFeeder: ActiveFeederInfo | null;
   /** Array of selected feeders for multi-asset comparison views */
   selectedFeeders: string[];
   /** Sets the primary active feeder and guarantees it exists in selectedFeeders */
-  setActiveFeeder: (id: string) => void;
+  setActiveFeeder: (id: string, metadata?: Partial<ActiveFeederInfo>) => void;
   /** Clears active feeder context */
   clearActiveFeeder: () => void;
   /** Bulk set selected feeders array */
@@ -17,6 +27,14 @@ export interface FeederState {
 }
 
 export const DEFAULT_FEEDER_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
+
+export const DEFAULT_FEEDER_INFO: ActiveFeederInfo = {
+  id: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  name: "North Corridor Feeder",
+  substation: "Central District",
+  voltageClass: "33kV",
+  status: "STABLE",
+};
 
 /**
  * Global Feeder Store (Phase 0: Global State Synchronization)
@@ -32,21 +50,47 @@ export const useFeederStore = create<FeederState>()(
   persist(
     (set) => ({
       activeFeederId: DEFAULT_FEEDER_ID,
+      activeFeeder: DEFAULT_FEEDER_INFO,
       selectedFeeders: [DEFAULT_FEEDER_ID],
 
-      setActiveFeeder: (id: string) => {
+      setActiveFeeder: (id: string, metadata?: Partial<ActiveFeederInfo>) => {
         const normalizedId = id.trim().toLowerCase();
-        set((state) => ({
-          activeFeederId: normalizedId,
-          selectedFeeders: state.selectedFeeders.includes(normalizedId)
-            ? state.selectedFeeders
-            : [...state.selectedFeeders, normalizedId],
-        }));
+        set((state) => {
+          let nextFeeder: ActiveFeederInfo;
+          if (metadata && metadata.name && metadata.substation) {
+            nextFeeder = {
+              id: normalizedId,
+              name: metadata.name,
+              substation: metadata.substation,
+              voltageClass: metadata.voltageClass || "33kV",
+              status: metadata.status || "STABLE",
+            };
+          } else if (normalizedId === DEFAULT_FEEDER_ID.toLowerCase()) {
+            nextFeeder = DEFAULT_FEEDER_INFO;
+          } else {
+            nextFeeder = {
+              id: normalizedId,
+              name: metadata?.name || `Feeder ${normalizedId.substring(0, 8)}`,
+              substation: metadata?.substation || "Grid Operations",
+              voltageClass: metadata?.voltageClass || "33kV",
+              status: metadata?.status || "STABLE",
+            };
+          }
+
+          return {
+            activeFeederId: normalizedId,
+            activeFeeder: nextFeeder,
+            selectedFeeders: state.selectedFeeders.includes(normalizedId)
+              ? state.selectedFeeders
+              : [...state.selectedFeeders, normalizedId],
+          };
+        });
       },
 
       clearActiveFeeder: () =>
         set({
           activeFeederId: "",
+          activeFeeder: null,
           selectedFeeders: [],
         }),
 

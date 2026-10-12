@@ -14,9 +14,36 @@ import {
   TrendingDown,
   Layers
 } from "lucide-react";
+import { motion, Variants } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import { useFeederStore } from "@/store/feeder-store";
 import { useEngineBSummary } from "@/hooks/use-engine-b-summary";
 import { ShapWaterfallChart } from "@/components/engine-b/shap-waterfall-chart";
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.04,
+    },
+  },
+};
+
+const cardItemVariants: Variants = {
+  hidden: { opacity: 0, y: 15 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: "spring",
+      stiffness: 250,
+      damping: 25,
+      mass: 0.5,
+    },
+  },
+};
 
 /**
  * ============================================================================
@@ -105,14 +132,16 @@ export default function EngineBDashboardPage() {
               </span>
               Live DB Polling: 30s
             </span>
-            <button
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => refetch()}
               disabled={isFetching || !activeFeederId}
-              className="p-2 rounded-xl bg-white/60 hover:bg-white/80 border border-white/80 text-slate-600 transition-colors shadow-xs disabled:opacity-40 cursor-pointer"
               title="Refresh materialized view"
+              className="p-2 h-8 w-8 rounded-xl bg-white/60 hover:bg-white/80 border border-white/80 text-slate-600 shadow-xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin text-emerald-600" : ""}`} />
-            </button>
+            </Button>
           </div>
         </header>
 
@@ -186,22 +215,32 @@ export default function EngineBDashboardPage() {
             <p className="text-xs text-red-700 max-w-md mb-4">
               {error?.message || "Failed to retrieve materialized prediction from Go API Gateway."}
             </p>
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => refetch()}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-800 bg-white/80 hover:bg-white border border-white shadow-xs cursor-pointer"
+              className="rounded-xl font-semibold text-slate-800 bg-white/80 hover:bg-white border-white shadow-xs"
             >
               Retry Database Query
-            </button>
+            </Button>
           </div>
         )}
 
         {/* STATE 4: SUCCESS - LIVE MATERIALIZED DATA */}
         {activeFeederId && !isLoading && data && (
-          <div className="space-y-6">
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="space-y-6"
+          >
             {/* Top-Level Liquid Glass Metric Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Metric Card 1: Risk Score (0-100) */}
-              <div className="liquid-panel bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] rounded-2xl p-6 flex flex-col justify-between">
+              <motion.div
+                variants={cardItemVariants}
+                className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-2xl p-6 flex flex-col justify-between"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                     Predictive Risk Score
@@ -235,14 +274,15 @@ export default function EngineBDashboardPage() {
                 <p className="text-[11px] text-slate-400">
                   Calculated from 24h rolling temporal window
                 </p>
-              </div>
+              </motion.div>
 
               {/* Metric Card 2: Risk Tier (risk_level with strict polarity) */}
               {(() => {
                 const styling = getRiskTierStyling(data.risk_level);
                 return (
-                  <div
-                    className={`liquid-panel ${styling.bg} backdrop-blur-xl border ${styling.border} ${styling.shadow} rounded-2xl p-6 flex flex-col justify-between transition-all duration-300`}
+                  <motion.div
+                    variants={cardItemVariants}
+                    className={`bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-2xl p-6 flex flex-col justify-between transition-all duration-300`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -270,12 +310,15 @@ export default function EngineBDashboardPage() {
                     <p className="text-[11px] text-slate-500">
                       Dispatched to Grid Automation Priority Queue
                     </p>
-                  </div>
+                  </motion.div>
                 );
               })()}
 
               {/* Metric Card 3: Evaluation Horizon */}
-              <div className="liquid-panel bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] rounded-2xl p-6 flex flex-col justify-between">
+              <motion.div
+                variants={cardItemVariants}
+                className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-2xl p-6 flex flex-col justify-between"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                     Evaluation Horizon
@@ -303,13 +346,16 @@ export default function EngineBDashboardPage() {
                     {data.model_version}
                   </span>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
             {/* STEP 5: SHAP EXPLAINABILITY & HORIZON PLACEHOLDERS */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <motion.div variants={containerVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Panel 1: Temporal Horizon Forecast */}
-              <div className="h-96 rounded-3xl border border-white/60 shadow-sm bg-white/40 backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] p-6 flex flex-col justify-between">
+              <motion.div
+                variants={cardItemVariants}
+                className="h-96 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-6 flex flex-col justify-between"
+              >
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200/50">
                   <div className="flex items-center gap-2.5">
                     <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600">
@@ -339,10 +385,13 @@ export default function EngineBDashboardPage() {
                   <span>Horizon Depth: {data.horizon_hours}h</span>
                   <span className="font-mono">ONNX Inference Stream</span>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Panel 2: Feature Attribution (SHAP) */}
-              <div className="h-96 rounded-3xl border border-white/60 shadow-sm bg-white/40 backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] p-6 flex flex-col justify-between">
+              <motion.div
+                variants={cardItemVariants}
+                className="h-96 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-6 flex flex-col justify-between"
+              >
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200/50">
                   <div className="flex items-center gap-2.5">
                     <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600">
@@ -366,9 +415,9 @@ export default function EngineBDashboardPage() {
                   <span>Factor Count: {data.contributing_factors?.length || 0}</span>
                   <span className="font-mono">KernelExplainer / ONNX</span>
                 </div>
-              </div>
-            </div>
-          </div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
         )}
       </div>
     </main>

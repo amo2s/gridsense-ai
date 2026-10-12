@@ -256,7 +256,12 @@ export default function FeederSelector({ isExpanded, className = "" }: FeederSel
                       key={feeder.id}
                       type="button"
                       onClick={() => {
-                        setActiveFeeder(feeder.id);
+                        setActiveFeeder(feeder.id, {
+                          name: feeder.name,
+                          substation: feeder.substation,
+                          voltageClass: feeder.voltageClass,
+                          status: feeder.status,
+                        });
                         setIsOpen(false);
                       }}
                       className={`w-full text-left p-2 rounded-xl transition-all duration-200 flex items-center justify-between border ${

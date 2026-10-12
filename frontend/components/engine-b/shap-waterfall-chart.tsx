@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useMemo } from "react";
+import React, { memo, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ResponsiveContainer,
@@ -28,8 +28,8 @@ interface ChartFactorItem {
 }
 
 /**
- * Custom Liquid Glass Tooltip Component (Step 5)
- * Matches the platform's specular glass aesthetic with high-contrast text and polarity cues.
+ * Custom Liquid Glass Tooltip Component (Step 2 & Step 5)
+ * Standardized with: bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]
  */
 interface TooltipPayloadItem {
   payload: ChartFactorItem;
@@ -52,7 +52,7 @@ function CustomShapTooltip({ active, payload }: CustomTooltipProps) {
   const formattedValue = (isPositive ? "+" : "") + value.toFixed(4);
 
   return (
-    <div className="bg-black/60 backdrop-blur-xl border border-white/10 shadow-2xl rounded-xl p-3 text-white min-w-52 select-none pointer-events-none">
+    <div className="bg-slate-950/80 bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-xl p-3 text-white min-w-56 select-none pointer-events-none">
       <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10">
         <span className="text-[10px] uppercase font-bold tracking-wider text-slate-300 font-mono">
           SHAP ATTRIBUTION
@@ -85,7 +85,7 @@ function CustomShapTooltip({ active, payload }: CustomTooltipProps) {
         {data.rawName}
       </p>
 
-      <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-white/5">
+      <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-white/10">
         <span className="text-[11px] text-slate-300">Feature Impact:</span>
         <span
           className={`font-mono text-sm font-bold tracking-tight ${
@@ -128,22 +128,26 @@ export function areShapPropsEqual(
   return true;
 }
 
+/**
+ * Custom Y-Axis Label Renderer (Step 1)
+ * Typography: text-xs font-medium text-slate-300 with calculated dy offset
+ * to center the SVG text node vertically against each horizontal bar.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function renderYAxisTick(props: any) {
   const { x = 0, y = 0, payload } = props;
   const text = String(payload?.value || "");
-  const truncated = text.length > 22 ? `${text.slice(0, 20)}…` : text;
+  const truncated = text.length > 20 ? `${text.slice(0, 18)}…` : text;
 
   return (
     <g transform={`translate(${x},${y})`}>
       <text
-        x={-8}
-        y={4}
+        x={-10}
+        y={0}
+        dy="0.35em"
         textAnchor="end"
-        fill="#64748b"
-        fontSize={11}
-        fontWeight={500}
-        className="font-sans select-none"
+        fill="#cbd5e1"
+        className="text-xs font-medium text-slate-300 select-none font-sans"
       >
         <title>{text}</title>
         {truncated}
@@ -153,12 +157,14 @@ function renderYAxisTick(props: any) {
 }
 
 /**
- * Phase 3: Explainable AI (XAI) Mathematical Waterfall Chart
+ * Phase 3 & 4: Explainable AI (XAI) Mathematical Waterfall Chart
  */
 const ShapWaterfallChartBase: React.FC<ShapWaterfallChartProps> = ({
   contributing_factors,
   className = "",
 }) => {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
   const chartData = useMemo<ChartFactorItem[]>(() => {
     if (!contributing_factors || contributing_factors.length === 0) {
       return [];
@@ -175,7 +181,7 @@ const ShapWaterfallChartBase: React.FC<ShapWaterfallChartProps> = ({
       <div
         className={`w-full h-full flex flex-col items-center justify-center p-6 text-center ${className}`}
       >
-        <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
+        <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 mb-2">
           <Activity className="w-5 h-5" />
         </div>
         <p className="text-xs font-semibold text-slate-700">
@@ -190,13 +196,13 @@ const ShapWaterfallChartBase: React.FC<ShapWaterfallChartProps> = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.97, filter: "blur(4px)" }}
+      initial={{ opacity: 0, scale: 0.98, filter: "blur(4px)" }}
       animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
       transition={{
         type: "spring",
-        stiffness: 300,
-        damping: 24,
-        mass: 0.8,
+        stiffness: 250,
+        damping: 25,
+        mass: 0.5,
       }}
       className={`w-full h-full relative ${className}`}
     >
@@ -204,7 +210,8 @@ const ShapWaterfallChartBase: React.FC<ShapWaterfallChartProps> = ({
         <BarChart
           layout="vertical"
           data={chartData}
-          margin={{ top: 10, right: 24, left: 10, bottom: 10 }}
+          margin={{ top: 20, right: 30, left: 120, bottom: 20 }}
+          onMouseLeave={() => setHoveredIndex(null)}
         >
           {/* Noisy grid lines completely stripped */}
           <CartesianGrid vertical={false} horizontal={false} />
@@ -212,23 +219,23 @@ const ShapWaterfallChartBase: React.FC<ShapWaterfallChartProps> = ({
           {/* Minimalist X-Axis hidden */}
           <XAxis type="number" hide domain={["auto", "auto"]} />
 
-          {/* Humanized & Truncated Y-Axis */}
+          {/* Humanized & Truncated Y-Axis with width >= 110 */}
           <YAxis
             dataKey="formattedName"
             type="category"
             tickLine={false}
             axisLine={false}
             tick={renderYAxisTick}
-            width={150}
+            width={120}
           />
 
           {/* Liquid Glass Tooltip */}
           <Tooltip
             content={<CustomShapTooltip />}
-            cursor={{ fill: "rgba(15, 23, 42, 0.04)" }}
+            cursor={{ fill: "rgba(255, 255, 255, 0.04)" }}
           />
 
-          {/* Divergence Bar with Dynamic Polarity Cell Fills */}
+          {/* Divergence Bar with Dynamic Polarity & Hover Dimming */}
           <Bar
             dataKey="value"
             radius={[4, 4, 4, 4]}
@@ -238,10 +245,15 @@ const ShapWaterfallChartBase: React.FC<ShapWaterfallChartProps> = ({
           >
             {chartData.map((entry, index) => {
               const isPositive = entry.value > 0;
+              const isDimmed = hoveredIndex !== null && hoveredIndex !== index;
               return (
                 <Cell
                   key={`cell-${entry.rawName}-${index}`}
                   fill={isPositive ? "#f43f5e" : "#34d399"}
+                  fillOpacity={isDimmed ? 0.4 : 1}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                  className="transition-opacity duration-200 cursor-pointer"
                 />
               );
             })}

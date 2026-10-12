@@ -350,6 +350,42 @@ Phase 3 implements the visual mathematical explainability layer for Engine B, tr
 **Source File:** [`frontend/app/dashboard/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-b/page.tsx)
 - Mounted directly into Panel 2, connected to 100% live PostgreSQL materialized data via `useEngineBSummary()`.
 
+### 5.7. Frontend Presentation Layer Polish
+
+To eliminate visual defects, text clipping constraints, disparate button components, and static layout labels, the Engine B presentation tier underwent comprehensive UI/UX architecture optimization:
+
+#### 1. Recharts SVG Bounding Box and Layout Rectification
+- **Source File:** [`frontend/components/engine-b/shap-waterfall-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/engine-b/shap-waterfall-chart.tsx)
+- **Bounding Box Metrics:** Overrode default `<BarChart>` wrapper margins to `{ top: 20, right: 30, left: 120, bottom: 20 }`. The 120px left margin guarantees that extended humanized feature names (e.g., *"24h Transient Fault Frequency"*, *"Load Volatility Index"*) are never clipped by the SVG `viewBox`.
+- **Y-Axis Width & Offsets:** Configured `<YAxis width={120} />` and implemented a custom tick renderer (`renderYAxisTick`). Applied typography classes `text-xs font-medium text-slate-300 select-none font-sans` with fill `#cbd5e1` and calculated vertical centering offset `dy="0.35em"` to perfectly align SVG text nodes against each horizontal bar.
+
+#### 2. Premium Motion Physics and Liquid Glass Aesthetics
+- **Enterprise Spring Configuration:** Standardized component lifecycles on a non-oscillating, high-snappiness physics model tuned specifically for high-reliability enterprise dashboards:
+  ```typescript
+  transition: {
+    type: "spring",
+    stiffness: 250,
+    damping: 25,
+    mass: 0.5,
+  }
+  ```
+- **Layout Orchestration:** Wrapped dashboard metric containers and chart panels in Framer Motion `<motion.div>` elements utilizing `staggerChildren: 0.08` and `delayChildren: 0.04` for sequential fluid entrances.
+- **Liquid Glass Utility Composition:** Standardized all card containers and custom Recharts tooltips with the strict design system token:
+  ```css
+  bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]
+  ```
+- **Tensor Focus Hover Dimming:** Tracking active hover indexes transitions non-hovered `<Cell>` elements smoothly to `fillOpacity={0.4}`, highlighting the focal feature without inducing reflow or layout shifts.
+
+#### 3. Strict Atomic Component Enforcement
+- **Component Standard:** Enforced complete deprecation of native `<button>` elements in `/dashboard/engine-b` and child components in favor of `@/components/ui/button`.
+- **Atomic Variants:** Deployed `variant="outline"` with `size="icon"` for the live view polling trigger and `size="sm"` for the database retry trigger, standardizing typography, specular shimmer animations, and accessible focus rings (`focus:ring-2 focus:ring-offset-2`).
+
+#### 4. Dynamic Global State Injection
+- **Source Files:** [`frontend/components/dashboard/topbar.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/topbar.tsx), [`frontend/store/feeder-store.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/store/feeder-store.ts), [`frontend/components/dashboard/page-transition.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/page-transition.tsx)
+- **Feeder Asset Context:** Replaced hardcoded `"Global View"` with dynamic properties `activeFeeder.name` and `activeFeeder.substation` subscribed from the global Zustand store (`useFeederStore`).
+- **Initialization Skeleton:** Renders a sleek pulse skeleton (`animate-pulse bg-white/10 rounded`) during store hydration, preventing flash-of-empty-content.
+- **Dynamic Route Page Titles:** Wired `usePathname()` and `pageTitle` prop resolution across the navigation bar and layout wrapper, rendering `"Engine B: Outage-Risk Intelligence"` dynamically on the Engine B route.
+
 ---
 
 ## 6. Verification Matrix
@@ -365,6 +401,12 @@ Phase 3 implements the visual mathematical explainability layer for Engine B, tr
 | **SQL Query Cast** | `handlers/prediction_handler.go` | Explicit `$7::jsonb` insert parameter cast | Verified (Eliminates `bytea` coercion error) |
 | **XAI Dictionary** | `lib/formatters/shap-dictionary.ts` | Domain nomenclature mapping & fallback | 100% Covered |
 | **XAI Chart** | `components/engine-b/shap-waterfall-chart.tsx` | Memoized Recharts SVG with dynamic polarity | Verified |
+| **SVG Margin Bounds** | `components/engine-b/shap-waterfall-chart.tsx` | `{ top: 20, right: 30, left: 120, bottom: 20 }` & `<YAxis width={120}>` | 100% Verified (Zero text clipping) |
+| **Spring Physics** | `shap-waterfall-chart.tsx` & `engine-b/page.tsx` | `stiffness: 250, damping: 25, mass: 0.5` | Verified (Snappy enterprise curves) |
+| **Atomic Buttons** | `/dashboard/engine-b` & child components | Complete replacement with `@/components/ui/button` | 0 native `<button>` tags remaining |
+| **Liquid Glass Styling**| `engine-b/page.tsx` & tooltip | `bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]` | Standardized across all containers |
+| **Dynamic Topbar Asset**| `components/dashboard/topbar.tsx` | Subscribes to `activeFeeder.name` & `activeFeeder.substation` | Verified with skeleton fallback |
+| **Dynamic Route Title** | `topbar.tsx` & `page-transition.tsx` | Next.js `usePathname` / `pageTitle` routing | Renders `"Engine B: Outage-Risk Intelligence"` |
 | **Go Gateway** | `handlers/summary_handler.go` | `go vet ./cmd/api ./handlers` | 0 errors |
 | **Go Gateway** | `handlers/prediction_handler.go` | `IngestTelemetry` compilation | 0 errors |
 | **Go Gateway** | Full Gateway Codebase | `go vet ./...` & `go build ./...` | 0 errors |

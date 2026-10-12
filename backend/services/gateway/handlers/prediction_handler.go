@@ -346,12 +346,17 @@ func (r *pgxTelemetryRepo) PersistPrediction(ctx context.Context, p PredictionRe
 	const query = `
 		INSERT INTO risk_predictions
 		(feeder_id, generated_at, horizon, score, level, model_version, contributing_factors)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
 	`
 
-	factorsJSON, err := json.Marshal(p.ContributingFactors)
-	if err != nil {
-		return fmt.Errorf("failed to encode factors: %w", err)
+	factors := p.ContributingFactors
+	if factors == nil {
+		factors = []ShapFactor{}
+	}
+
+	factorsJSON, err := json.Marshal(factors)
+	if err != nil || len(factorsJSON) == 0 || string(factorsJSON) == "null" {
+		factorsJSON = []byte("[]")
 	}
 
 	_, err = r.db.Pool.Exec(ctx, query,

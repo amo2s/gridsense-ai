@@ -3,7 +3,7 @@
 **Intelligence Engine B: Predictive Outage-Risk Assessment & Boundary Enforcement Architecture**  
 **Lead Systems Architecture & API Integration Group**  
 **Document Classification:** Definitive Engineering Standard  
-**Revision:** 2.1.0  
+**Revision:** 2.2.0  
 
 ---
 
@@ -255,6 +255,42 @@ pq: invalid input syntax for type uuid: "FDR-001" (SQLSTATE 22P02)
      ```
    - Pre-emptively rejects non-UUID strings on the client before dispatching HTTP payloads.
 
+### 4.4. PostgreSQL JSON/JSONB Persistence Resolution (SQLSTATE 22P02) in Gateway Repo
+
+Following the resolution of the feeder UUID syntax issue, runtime ingestion persistence to the `risk_predictions` table encountered an invalid JSON syntax database rejection:
+```text
+insert into risk_predictions failed: ERROR: invalid input syntax for type json (SQLSTATE 22P02)
+```
+
+**Root Causes Diagnosed:**
+1. **Implicit `bytea` Parameter Binding:** In `pgxTelemetryRepo.PersistPrediction`, `factorsJSON` was serialized as Go `[]byte` via `json.Marshal(p.ContributingFactors)`. Without an explicit parameter typecast in the SQL query (`VALUES (..., $7)`), the `pgx` driver binds Go `[]byte` as binary data (`bytea`, OID 17).
+2. **PostgreSQL JSON Parser Failure:** PostgreSQL attempts to interpret `bytea` hexadecimal representation (`\x5b...`) as a raw JSON string, failing immediately on the escape token `\` with `SQLSTATE 22P02`.
+3. **Nil Slice Serialization:** If `p.ContributingFactors` is nil or unpopulated, standard Go `json.Marshal(nil)` produces `[]byte("null")` rather than an empty JSON array `[]byte("[]")`.
+
+**Resolutions Implemented (`backend/services/gateway/handlers/prediction_handler.go`):**
+1. **Explicit SQL JSONB Cast (`$7::jsonb`):**
+   Updated the INSERT statement to explicitly cast the 7th parameter:
+   ```sql
+   INSERT INTO risk_predictions
+   (feeder_id, generated_at, horizon, score, level, model_version, contributing_factors)
+   VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+   ```
+2. **Safe JSON Serialization with Nil/Empty Fallback:**
+   Guaranteed non-null, valid JSON array serialization:
+   ```go
+   factors := p.ContributingFactors
+   if factors == nil {
+       factors = []ShapFactor{}
+   }
+
+   factorsJSON, err := json.Marshal(factors)
+   if err != nil || len(factorsJSON) == 0 || string(factorsJSON) == "null" {
+       factorsJSON = []byte("[]")
+   }
+   ```
+3. **Compilation Verification:**
+   Executed `go vet ./...` and `go build ./...` across the gateway service with 0 compilation errors.
+
 ---
 
 ## 5. Verification Matrix
@@ -265,9 +301,11 @@ pq: invalid input syntax for type uuid: "FDR-001" (SQLSTATE 22P02)
 | **UUID Validation** | `types/engine-b-ingestion.ts` | Zod `.uuid()` boundary enforcement | 100% Enforced (Rejects non-UUID formats) |
 | **Asset Context** | `store/feeder-store.ts` | Seeded UUID default synchronization | `"f47ac10b-58cc-4372-a567-0e02b2c3d479"` |
 | **Asset Fallback** | `components/dashboard/feeder-selector.tsx` | Seeded metadata fallback alignment | Verified (0 legacy `"FDR-001"` instances) |
+| **JSON Serialization**| `handlers/prediction_handler.go` | `PersistPrediction` fallback `[]byte("[]")` | Verified (No nil/"null" leakage) |
+| **SQL Query Cast** | `handlers/prediction_handler.go` | Explicit `$7::jsonb` insert parameter cast | Verified (Eliminates `bytea` coercion error) |
 | **Go Gateway** | `handlers/summary_handler.go` | `go vet ./cmd/api ./handlers` | 0 errors |
 | **Go Gateway** | `handlers/prediction_handler.go` | `IngestTelemetry` compilation | 0 errors |
-| **Go Gateway** | `cmd/api/main.go` | `go build ./cmd/api` | Compiled successfully |
+| **Go Gateway** | Full Gateway Codebase | `go vet ./...` & `go build ./...` | 0 errors |
 | **Python Core** | `main.py` & `prediction_routes.py` | `py_compile` syntax verification | 0 errors |
 | **Frontend Types** | Full Next.js Frontend | `pnpm tsc --noEmit` | 0 errors |
 | **Proxy Route** | `api/proxy/v1/prediction/summary` | Route handler verification | Preserves 400, 404, 500 status codes |

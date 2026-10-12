@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useFeederStore } from "@/store/feeder-store";
 import { useEngineBSummary } from "@/hooks/use-engine-b-summary";
+import { ShapWaterfallChart } from "@/components/engine-b/shap-waterfall-chart";
 
 /**
  * ============================================================================
@@ -348,28 +349,22 @@ export default function EngineBDashboardPage() {
                       <Layers className="w-4 h-4" />
                     </div>
                     <h2 className="text-sm font-semibold text-slate-800">
-                      Feature Attribution (SHAP)
+                      Feature Attribution (TreeSHAP)
                     </h2>
                   </div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-white/60 text-slate-500 border border-white">
-                    Phase 3 Pipeline
+                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 border border-emerald-500/30">
+                    Live XAI Matrix
                   </span>
                 </div>
 
-                {/* Structural Graphic Placeholder */}
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 my-2 rounded-2xl bg-white/20 border border-dashed border-slate-300/60">
-                  <Activity className="w-10 h-10 text-slate-400 mb-2 opacity-60" />
-                  <p className="text-xs font-semibold text-slate-700">
-                    XAI Feature Importance Ranking
-                  </p>
-                  <p className="text-[11px] text-slate-500 max-w-xs mt-1">
-                    TreeSHAP waterfall decomposition explaining load spikes, voltage dips, and fault rate contributions.
-                  </p>
+                {/* Mathematical Divergence Waterfall Chart */}
+                <div className="flex-1 w-full min-h-0 my-2">
+                  <ShapWaterfallChart contributing_factors={data.contributing_factors} />
                 </div>
 
                 <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-400">
                   <span>Factor Count: {data.contributing_factors?.length || 0}</span>
-                  <span className="font-mono">KernelExplainer</span>
+                  <span className="font-mono">KernelExplainer / ONNX</span>
                 </div>
               </div>
             </div>

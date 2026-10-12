@@ -3,7 +3,7 @@
 **Intelligence Engine B: Predictive Outage-Risk Assessment & Boundary Enforcement Architecture**  
 **Lead Systems Architecture & API Integration Group**  
 **Document Classification:** Definitive Engineering Standard  
-**Revision:** 2.2.1  
+**Revision:** 3.0.0  
 
 ---
 
@@ -302,7 +302,57 @@ insert into risk_predictions failed: ERROR: invalid input syntax for type json (
 
 ---
 
-## 5. Verification Matrix
+## 5. Phase 3: Explainable AI (XAI) Mathematical Rendering (TreeSHAP Waterfall Architecture)
+
+Phase 3 implements the visual mathematical explainability layer for Engine B, transforming raw Python TreeSHAP attribution coefficients into a high-performance, fluid, and memoized horizontal divergence waterfall chart.
+
+### 5.1. XAI Humanization Dictionary & Domain Formatter
+**Source File:** [`frontend/lib/formatters/shap-dictionary.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/lib/formatters/shap-dictionary.ts)
+- Translates ML feature strings into operational electrical engineering terminology:
+  - `voltage_sag_depth` &rarr; `"Voltage Sag Depth"`
+  - `load_volatility` / `load_volatility_24h` &rarr; `"Load Volatility Index"` / `"24h Load Volatility Index"`
+  - `hour_sin` &rarr; `"Diurnal Peak Alignment"`
+  - `fault_count_24h` &rarr; `"24h Transient Fault Frequency"`
+  - `voltage` &rarr; `"Bus Voltage"`
+  - `load` &rarr; `"Active Feeder Load"`
+  - `fault_count_recent` &rarr; `"Recent Transient Fault Frequency"`
+  - `voltage_mean_12h` &rarr; `"12h Voltage Baseline Mean"`
+- Exposes `formatShapFeature(key: string): string` with title-case fallback for newly added model features.
+
+### 5.2. Memoization & Re-Render Guarding (`areShapPropsEqual`)
+**Source File:** [`frontend/components/engine-b/shap-waterfall-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/engine-b/shap-waterfall-chart.tsx)
+- Recharts generates heavy SVG DOM trees which can induce main-thread stutter if re-rendered during the 30-second TanStack background polling cycles.
+- Wrapped in `React.memo` with a custom comparator `areShapPropsEqual(prevProps, nextProps)` that executes an $O(N)$ deep comparison across `contributing_factors` (`feature_name` and `contribution`). SVG re-renders occur strictly when the underlying ML factors change.
+
+### 5.3. Recharts SVG DOM Topology & Polarity Fills
+- **Layout:** Vertical horizontal-bar layout (`<BarChart layout="vertical">` inside `<ResponsiveContainer>`).
+- **Dynamic Polarity Cells:**
+  - Positive SHAP contributions ($> 0$, risk-increasing factors): `#f43f5e` (Tailwind `rose-500`).
+  - Negative SHAP contributions ($< 0$, risk-suppressing factors): `#34d399` (Tailwind `emerald-400`).
+- **Minimalist Axis Engineering:**
+  - Noisy grid lines stripped via `<CartesianGrid vertical={false} horizontal={false} />`.
+  - Hidden numeric X-axis for an uncluttered operational presentation.
+  - Custom Y-axis SVG renderer with automatic label truncation ($> 22$ characters) and tooltip fallback `<title>` tags.
+
+### 5.4. Framer Motion Entrance Dynamics
+- Embedded in a `<motion.div>` with spring physics:
+  - Initial state: `{ opacity: 0, scale: 0.97, filter: "blur(4px)" }`
+  - Animate state: `{ opacity: 1, scale: 1, filter: "blur(0px)" }`
+  - Transition: `{ type: "spring", stiffness: 300, damping: 24, mass: 0.8 }`
+
+### 5.5. Liquid Glass Tooltip Injection (`CustomShapTooltip`)
+- Specular glass container: `bg-black/60 backdrop-blur-xl border border-white/10 shadow-2xl rounded-xl p-3 text-white`.
+- Prominent humanized feature header with raw technical feature subtext.
+- Signed 4-decimal magnitude formatting (`+0.1234` or `-0.0456`) color-matched to polarity.
+- Directional badges: "Risk Increasing" (`TrendingUp`) vs "Risk Suppressing" (`TrendingDown`).
+
+### 5.6. Summary Dashboard Integration
+**Source File:** [`frontend/app/dashboard/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-b/page.tsx)
+- Mounted directly into Panel 2, connected to 100% live PostgreSQL materialized data via `useEngineBSummary()`.
+
+---
+
+## 6. Verification Matrix
 
 | Target Layer | Component / File | Verification Method | Result |
 | :--- | :--- | :--- | :--- |
@@ -313,6 +363,8 @@ insert into risk_predictions failed: ERROR: invalid input syntax for type json (
 | **JSON Serialization**| `handlers/prediction_handler.go` | `PersistPrediction` fallback `[]byte("[]")` | Verified (No nil/"null" leakage) |
 | **Driver Wire Format** | `handlers/prediction_handler.go` | Explicit `string(factorsJSON)` argument | Verified (Transmits text OID 25, not bytea) |
 | **SQL Query Cast** | `handlers/prediction_handler.go` | Explicit `$7::jsonb` insert parameter cast | Verified (Eliminates `bytea` coercion error) |
+| **XAI Dictionary** | `lib/formatters/shap-dictionary.ts` | Domain nomenclature mapping & fallback | 100% Covered |
+| **XAI Chart** | `components/engine-b/shap-waterfall-chart.tsx` | Memoized Recharts SVG with dynamic polarity | Verified |
 | **Go Gateway** | `handlers/summary_handler.go` | `go vet ./cmd/api ./handlers` | 0 errors |
 | **Go Gateway** | `handlers/prediction_handler.go` | `IngestTelemetry` compilation | 0 errors |
 | **Go Gateway** | Full Gateway Codebase | `go vet ./...` & `go build ./...` | 0 errors |
@@ -324,8 +376,10 @@ insert into risk_predictions failed: ERROR: invalid input syntax for type json (
 
 ---
 
-## 6. Directory of Key Files
+## 7. Directory of Key Files
 
+- [`frontend/lib/formatters/shap-dictionary.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/lib/formatters/shap-dictionary.ts) — Humanized electrical engineering nomenclature dictionary
+- [`frontend/components/engine-b/shap-waterfall-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/engine-b/shap-waterfall-chart.tsx) — Memoized horizontal divergence waterfall chart
 - [`frontend/store/feeder-store.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/store/feeder-store.ts) — Global Zustand feeder context store with canonical UUID defaults
 - [`frontend/components/dashboard/feeder-selector.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/feeder-selector.tsx) — Dynamic grid asset selector & fallback metadata
 - [`frontend/types/engine-b-ingestion.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/types/engine-b-ingestion.ts) — Zod runtime validation with strict UUID enforcement
@@ -339,4 +393,4 @@ insert into risk_predictions failed: ERROR: invalid input syntax for type json (
 - [`backend/ai-services/engine_b/api/prediction_routes.py`](file:///c:/users/hp/Desktop/gridsense-ai/backend/ai-services/engine_b/api/prediction_routes.py) — FastAPI inference route with key verification
 - [`frontend/app/api/proxy/v1/prediction/summary/route.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/api/proxy/v1/prediction/summary/route.ts) — Summary proxy route (Query Pathway)
 - [`frontend/hooks/use-engine-b-summary.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/hooks/use-engine-b-summary.ts) — TanStack Query 30s polling hook
-- [`frontend/app/dashboard/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-b/page.tsx) — Summary dashboard page with Liquid Glass metric cards
+- [`frontend/app/dashboard/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-b/page.tsx) — Summary dashboard page with Liquid Glass metric cards and mounted XAI TreeSHAP waterfall chart

@@ -129,6 +129,9 @@ func main() {
 	// Initialize Auth handler
 	authHandler := handlers.NewAuthHandler(cfg.AuthServiceURL)
 
+	// Initialize Grid Asset handler
+	assetHandler := handlers.NewAssetHandler(db)
+
 	// 6. Setup Router (ServeMux) and apply Middleware
 	mux := http.NewServeMux()
 
@@ -157,6 +160,11 @@ func main() {
 
 	authProtectedPriorities := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(dashboardHandler.HandleGetPriorityAreas))
 	mux.Handle("/api/v1/priorities", enableCORS(authProtectedPriorities))
+
+	// Grid Assets (Feeders) read-only route
+	authProtectedAssets := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(assetHandler.GetFeeders))
+	mux.Handle("/api/v1/assets/feeders", enableCORS(authProtectedAssets))
+	mux.Handle("/api/v1/feeders", enableCORS(authProtectedAssets))
 
 	// Engine B outage-risk prediction, same auth pattern as reliability.
 	authProtectedPrediction := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(predictionHandler.ExecuteInference))

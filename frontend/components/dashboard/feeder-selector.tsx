@@ -2,8 +2,9 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, ChevronDown, Check, Activity, Search } from "lucide-react";
+import { Zap, ChevronDown, Check, Activity, Search, Loader2, Database } from "lucide-react";
 import { useFeederStore } from "@/store/feeder-store";
+import { useFeeders } from "@/hooks/use-feeders";
 
 export interface FeederOption {
   id: string;
@@ -13,7 +14,11 @@ export interface FeederOption {
   status: "STABLE" | "VULNERABLE" | "HIGH_RISK";
 }
 
-export const KNOWN_FEEDERS: FeederOption[] = [
+/**
+ * Resilient static baseline fallback used exclusively when the PostgreSQL database
+ * is offline or the feeders table is temporarily unpopulated.
+ */
+export const FALLBACK_FEEDERS: FeederOption[] = [
   {
     id: "FDR-001",
     name: "North Corridor Feeder",
@@ -64,6 +69,12 @@ export default function FeederSelector({ isExpanded, className = "" }: FeederSel
   const activeFeederId = useFeederStore((state) => state.activeFeederId);
   const setActiveFeeder = useFeederStore((state) => state.setActiveFeeder);
 
+  // Dynamic live query from Go API Gateway -> PostgreSQL `feeders` table
+  const { data: liveFeeders, isLoading, isError } = useFeeders();
+
+  const isLive = Boolean(liveFeeders && liveFeeders.length > 0);
+  const availableFeeders: FeederOption[] = isLive ? liveFeeders! : FALLBACK_FEEDERS;
+
   // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -102,7 +113,7 @@ export default function FeederSelector({ isExpanded, className = "" }: FeederSel
   }, [isExpanded]);
 
   const activeFeeder =
-    KNOWN_FEEDERS.find((f) => f.id === activeFeederId) || {
+    availableFeeders.find((f) => f.id === activeFeederId) || {
       id: activeFeederId || "FDR-001",
       name: "Grid Telemetry Feeder",
       substation: "Primary Substation",
@@ -110,7 +121,7 @@ export default function FeederSelector({ isExpanded, className = "" }: FeederSel
       status: "STABLE" as const,
     };
 
-  const filteredFeeders = KNOWN_FEEDERS.filter(
+  const filteredFeeders = availableFeeders.filter(
     (f) =>
       f.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -170,11 +181,14 @@ export default function FeederSelector({ isExpanded, className = "" }: FeederSel
               <span className="font-semibold text-xs text-slate-800 truncate font-mono">
                 {activeFeeder.id}
               </span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
-                  isOpen ? "rotate-180 text-emerald-600" : ""
-                }`}
-              />
+              <div className="flex items-center gap-1">
+                {isLoading && <Loader2 className="w-3 h-3 text-emerald-500 animate-spin" />}
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                    isOpen ? "rotate-180 text-emerald-600" : ""
+                  }`}
+                />
+              </div>
             </div>
           </motion.div>
         )}
@@ -197,9 +211,18 @@ export default function FeederSelector({ isExpanded, className = "" }: FeederSel
                   <Activity className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Asset Selector</span>
                 </div>
-                <span className="text-[10px] font-mono text-emerald-700 font-semibold uppercase tracking-wider">
-                  Sync Active
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {isLive ? (
+                    <span className="inline-flex items-center gap-1 text-[9px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live DB
+                    </span>
+                  ) : (
+                    <span className="text-[9px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">
+                      Fallback
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
@@ -215,7 +238,12 @@ export default function FeederSelector({ isExpanded, className = "" }: FeederSel
 
             {/* Feeder Options List */}
             <div className="max-h-56 overflow-y-auto p-1.5 space-y-1">
-              {filteredFeeders.length === 0 ? (
+              {isLoading && availableFeeders.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                  <span>Querying PostgreSQL...</span>
+                </div>
+              ) : filteredFeeders.length === 0 ? (
                 <div className="py-4 text-center text-xs text-slate-400 font-medium">
                   No matching grid feeders
                 </div>
@@ -279,7 +307,10 @@ export default function FeederSelector({ isExpanded, className = "" }: FeederSel
 
             {/* Footer Summary */}
             <div className="px-3 py-1.5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between text-[9px] text-slate-500">
-              <span>Engines A & B Context</span>
+              <span className="flex items-center gap-1">
+                <Database className="w-3 h-3 text-slate-400" />
+                <span>feeders table</span>
+              </span>
               <span className="font-mono text-emerald-600 font-semibold">sessionStorage</span>
             </div>
           </motion.div>

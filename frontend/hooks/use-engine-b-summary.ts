@@ -14,9 +14,81 @@ export interface EngineBPredictionSummary {
   risk_level: string;
   model_version: string;
   contributing_factors: ShapFactor[];
+  historical_telemetry?: any[];
 }
 
 export const ENGINE_B_SUMMARY_QUERY_KEY = "engine-b-summary";
+
+/**
+ * Phase 5: Defensive Data Normalization Layer
+ * Intercepts cold start, null, undefined, or malformed data from the Go API Gateway.
+ * Guarantees structured empty arrays ([]) for contributing_factors and historical_telemetry
+ * to mathematically prevent Recharts iteration crashes.
+ */
+export function sanitizeEngineBPredictionSummary(
+  rawData: any,
+  fallbackFeederId = ""
+): EngineBPredictionSummary {
+  if (!rawData || typeof rawData !== "object") {
+    return {
+      feeder_id: fallbackFeederId,
+      generated_at: new Date().toISOString(),
+      horizon_hours: 6,
+      risk_score: 0,
+      risk_level: "LOW",
+      model_version: "champion_v1.0.0",
+      contributing_factors: [],
+      historical_telemetry: [],
+    };
+  }
+
+  // Intercept and sanitize contributing_factors (guaranteed structured array [])
+  let sanitizedFactors: ShapFactor[] = [];
+  if (Array.isArray(rawData?.contributing_factors)) {
+    sanitizedFactors = rawData.contributing_factors
+      .filter((f: any) => f && typeof f === "object")
+      .map((f: any) => ({
+        feature_name:
+          typeof f.feature_name === "string" && f.feature_name.trim().length > 0
+            ? f.feature_name.trim()
+            : "Unknown Factor",
+        contribution:
+          typeof f.contribution === "number" && !Number.isNaN(f.contribution)
+            ? f.contribution
+            : 0,
+      }));
+  }
+
+  // Intercept and sanitize historical_telemetry if present (guaranteed structured array [])
+  const sanitizedTelemetry = Array.isArray(rawData?.historical_telemetry)
+    ? rawData.historical_telemetry.filter((t: any) => t && typeof t === "object")
+    : [];
+
+  return {
+    feeder_id:
+      typeof rawData.feeder_id === "string" && rawData.feeder_id.trim().length > 0
+        ? rawData.feeder_id.trim()
+        : fallbackFeederId,
+    generated_at:
+      typeof rawData.generated_at === "string" && !Number.isNaN(Date.parse(rawData.generated_at))
+        ? rawData.generated_at
+        : new Date().toISOString(),
+    horizon_hours:
+      typeof rawData.horizon_hours === "number" && !Number.isNaN(rawData.horizon_hours)
+        ? rawData.horizon_hours
+        : 6,
+    risk_score:
+      typeof rawData.risk_score === "number" && !Number.isNaN(rawData.risk_score)
+        ? rawData.risk_score
+        : 0,
+    risk_level:
+      typeof rawData.risk_level === "string" ? rawData.risk_level.toUpperCase() : "LOW",
+    model_version:
+      typeof rawData.model_version === "string" ? rawData.model_version : "champion_v1.0.0",
+    contributing_factors: sanitizedFactors,
+    historical_telemetry: sanitizedTelemetry,
+  };
+}
 
 /**
  * Custom TanStack Query polling hook for Engine B Materialized Risk Prediction Summary.
@@ -62,27 +134,9 @@ export function useEngineBSummary() {
       }
 
       const rawData = await response.json();
-
-      // Defensive Data Transformation Layer (Part III):
-      // Intercept and sanitize payload from Go Gateway. Guarantees contributing_factors
-      // is always an array so Recharts iteration never throws undefined mapping exceptions.
-      const sanitizedData: EngineBPredictionSummary = {
-        feeder_id: typeof rawData?.feeder_id === "string" ? rawData.feeder_id : (activeFeederId || ""),
-        generated_at: typeof rawData?.generated_at === "string" ? rawData.generated_at : new Date().toISOString(),
-        horizon_hours: typeof rawData?.horizon_hours === "number" ? rawData.horizon_hours : 6,
-        risk_score: typeof rawData?.risk_score === "number" ? rawData.risk_score : 0,
-        risk_level: typeof rawData?.risk_level === "string" ? rawData.risk_level : "LOW",
-        model_version: typeof rawData?.model_version === "string" ? rawData.model_version : "champion_v1.0.0",
-        contributing_factors: Array.isArray(rawData?.contributing_factors)
-          ? rawData.contributing_factors.map((f: any) => ({
-              feature_name: typeof f?.feature_name === "string" ? f.feature_name : "Unknown Feature",
-              contribution: typeof f?.contribution === "number" ? f.contribution : 0,
-            }))
-          : [],
-      };
-
-      return sanitizedData;
+      return sanitizeEngineBPredictionSummary(rawData, activeFeederId);
     },
+    select: (data) => sanitizeEngineBPredictionSummary(data, activeFeederId || ""),
     enabled: Boolean(activeFeederId),
     refetchInterval: 30_000, // Poll the database every 30 seconds for live updates
     staleTime: 15_000, // Consider the cache fresh for 15 seconds

@@ -18,8 +18,9 @@ import { motion, Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useFeederStore } from "@/store/feeder-store";
 import { useEngineBSummary } from "@/hooks/use-engine-b-summary";
-import { ShapWaterfallChart } from "@/components/engine-b/shap-waterfall-chart";
-import { TemporalForecastChart } from "@/components/engine-b/temporal-forecast-chart";
+import { ShapWaterfallChart } from "@/components/charts/shap-waterfall-chart";
+import { TemporalForecastChart } from "@/components/charts/temporal-forecast-chart";
+import { ChartErrorBoundary } from "@/components/ui/chart-error-fallback";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -287,186 +288,203 @@ export default function EngineBDashboardPage() {
             animate="visible"
             className="space-y-6"
           >
-            {/* Top-Level Liquid Glass Metric Cards (Step I.2) */}
-            <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Metric Card 1: Risk Score (0-100) */}
-              <motion.div
-                variants={cardItemVariants}
-                className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Predictive Risk Score
-                  </span>
-                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 shadow-xs border border-emerald-500/20">
-                    <Activity className="w-4 h-4" />
-                  </div>
-                </div>
-
-                <div className="my-4">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-light tracking-tight text-slate-900 font-mono">
-                      {Number(data.risk_score).toFixed(1)}
+            {/* Top-Level Liquid Glass Metric Cards wrapped in isolated Error Boundary */}
+            <ChartErrorBoundary
+              fallbackTitle="KPI Metric Panel Failure"
+              fallbackDescription="A localized rendering exception occurred in the Predictive Risk KPI cards. Other modules remain active."
+            >
+              <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Metric Card 1: Risk Score (0-100) */}
+                <motion.div
+                  variants={cardItemVariants}
+                  className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Predictive Risk Score
                     </span>
-                    <span className="text-sm font-semibold text-slate-500">/ 100</span>
-                  </div>
-                  <div className="w-full bg-slate-200/60 rounded-full h-1.5 mt-3 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        data.risk_score > 70
-                          ? "bg-red-500"
-                          : data.risk_score > 40
-                          ? "bg-amber-500"
-                          : "bg-emerald-500"
-                      }`}
-                      style={{ width: `${Math.min(100, Math.max(0, data.risk_score))}%` }}
-                    />
-                  </div>
-                </div>
-
-                <p className="text-[11px] text-slate-500 font-medium">
-                  Calculated from 24h rolling temporal window
-                </p>
-              </motion.div>
-
-              {/* Metric Card 2: Risk Tier (risk_level with strict polarity) */}
-              {(() => {
-                const styling = getRiskTierStyling(data.risk_level);
-                return (
-                  <motion.div
-                    variants={cardItemVariants}
-                    className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between transition-all duration-300"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                        Risk Tier Classification
-                      </span>
-                      <div className={`p-2 rounded-xl bg-white/70 border border-white/80 shadow-xs ${styling.text}`}>
-                        <Zap className={`w-4 h-4 ${styling.pulse}`} />
-                      </div>
+                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 shadow-xs border border-emerald-500/20">
+                      <Activity className="w-4 h-4" />
                     </div>
+                  </div>
 
-                    <div className="my-4">
-                      <div className="flex items-center gap-2.5">
-                        <span className={`text-3xl font-bold tracking-tight ${styling.text}`}>
-                          {data.risk_level.toUpperCase()}
+                  <div className="my-4">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl font-light tracking-tight text-slate-900 font-mono">
+                        {Number(data.risk_score).toFixed(1)}
+                      </span>
+                      <span className="text-sm font-semibold text-slate-500">/ 100</span>
+                    </div>
+                    <div className="w-full bg-slate-200/60 rounded-full h-1.5 mt-3 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          data.risk_score > 70
+                            ? "bg-red-500"
+                            : data.risk_score > 40
+                            ? "bg-amber-500"
+                            : "bg-emerald-500"
+                        }`}
+                        style={{ width: `${Math.min(100, Math.max(0, data.risk_score))}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Calculated from 24h rolling temporal window
+                  </p>
+                </motion.div>
+
+                {/* Metric Card 2: Risk Tier (risk_level with strict polarity) */}
+                {(() => {
+                  const styling = getRiskTierStyling(data.risk_level);
+                  return (
+                    <motion.div
+                      variants={cardItemVariants}
+                      className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between transition-all duration-300"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                          Risk Tier Classification
+                        </span>
+                        <div className={`p-2 rounded-xl bg-white/70 border border-white/80 shadow-xs ${styling.text}`}>
+                          <Zap className={`w-4 h-4 ${styling.pulse}`} />
+                        </div>
+                      </div>
+
+                      <div className="my-4">
+                        <div className="flex items-center gap-2.5">
+                          <span className={`text-3xl font-bold tracking-tight ${styling.text}`}>
+                            {data.risk_level.toUpperCase()}
+                          </span>
+                        </div>
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border mt-2 ${styling.badge}`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${styling.text} bg-current`} />
+                          Status: {styling.label}
                         </span>
                       </div>
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border mt-2 ${styling.badge}`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${styling.text} bg-current`} />
-                        Status: {styling.label}
-                      </span>
+
+                      <p className="text-[11px] text-slate-600 font-medium">
+                        Dispatched to Grid Automation Priority Queue
+                      </p>
+                    </motion.div>
+                  );
+                })()}
+
+                {/* Metric Card 3: Evaluation Horizon */}
+                <motion.div
+                  variants={cardItemVariants}
+                  className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Evaluation Horizon
+                    </span>
+                    <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 shadow-xs">
+                      <Clock className="w-4 h-4" />
                     </div>
-
-                    <p className="text-[11px] text-slate-600 font-medium">
-                      Dispatched to Grid Automation Priority Queue
-                    </p>
-                  </motion.div>
-                );
-              })()}
-
-              {/* Metric Card 3: Evaluation Horizon */}
-              <motion.div
-                variants={cardItemVariants}
-                className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    Evaluation Horizon
-                  </span>
-                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 shadow-xs">
-                    <Clock className="w-4 h-4" />
                   </div>
-                </div>
 
-                <div className="my-4">
-                  <p className="text-2xl font-medium tracking-tight text-slate-900">
-                    {data.horizon_hours}-Hour Predictive Horizon
-                  </p>
-                  <p className="text-xs text-slate-600 mt-1 font-medium">
-                    Generated: {new Date(data.generated_at).toLocaleString()}
-                  </p>
-                </div>
+                  <div className="my-4">
+                    <p className="text-2xl font-medium tracking-tight text-slate-900">
+                      {data.horizon_hours}-Hour Predictive Horizon
+                    </p>
+                    <p className="text-xs text-slate-600 mt-1 font-medium">
+                      Generated: {new Date(data.generated_at).toLocaleString()}
+                    </p>
+                  </div>
 
-                <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-500">
-                  <span className="flex items-center gap-1 font-medium">
-                    <Cpu className="w-3 h-3 text-slate-500" />
-                    Model Engine
-                  </span>
-                  <span className="font-mono text-slate-700 font-semibold">
-                    {data.model_version}
-                  </span>
-                </div>
+                  <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-500">
+                    <span className="flex items-center gap-1 font-medium">
+                      <Cpu className="w-3 h-3 text-slate-500" />
+                      Model Engine
+                    </span>
+                    <span className="font-mono text-slate-700 font-semibold">
+                      {data.model_version}
+                    </span>
+                  </div>
+                </motion.div>
               </motion.div>
-            </motion.div>
+            </ChartErrorBoundary>
 
             {/* STEP II: DUAL-AXIS TEMPORAL FORECASTING & SHAP EXPLAINABILITY */}
             <motion.div variants={containerVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Panel 1: Temporal Horizon Forecast (Phase 4 Recharts Dual-Axis) */}
-              <motion.div
-                variants={cardItemVariants}
-                className="h-96 relative z-10 hover:z-20 bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
+              <ChartErrorBoundary
+                fallbackTitle="Temporal Forecast Failure"
+                fallbackDescription="A localized rendering exception occurred in the Temporal Forecast chart."
+                className="h-96"
               >
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200/50">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shadow-xs">
-                      <TrendingDown className="w-4 h-4" />
+                <motion.div
+                  variants={cardItemVariants}
+                  className="h-96 relative z-10 hover:z-20 bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200/50">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shadow-xs">
+                        <TrendingDown className="w-4 h-4" />
+                      </div>
+                      <h2 className="text-sm font-semibold text-slate-900">
+                        Temporal Horizon Forecast & Outage Risk
+                      </h2>
                     </div>
-                    <h2 className="text-sm font-semibold text-slate-900">
-                      Temporal Horizon Forecast & Outage Risk
-                    </h2>
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 border border-emerald-500/30">
+                      Dual-Axis Timeline
+                    </span>
                   </div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 border border-emerald-500/30">
-                    Dual-Axis Timeline
-                  </span>
-                </div>
 
-                {/* Phase 4: Dual-Axis Recharts Engine */}
-                <div className="flex-1 w-full min-h-0 my-2">
-                  <TemporalForecastChart
-                    generatedAt={data.generated_at}
-                    horizonHours={data.horizon_hours}
-                    riskScore={data.risk_score}
-                  />
-                </div>
+                  {/* Phase 4 & 5: Dual-Axis Recharts Engine */}
+                  <div className="flex-1 w-full min-h-0 my-2">
+                    <TemporalForecastChart
+                      generatedAt={data.generated_at}
+                      horizonHours={data.horizon_hours}
+                      riskScore={data.risk_score}
+                    />
+                  </div>
 
-                <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                  <span>Horizon Depth: {data.horizon_hours}h</span>
-                  <span className="font-mono text-slate-700">ONNX Inference Stream</span>
-                </div>
-              </motion.div>
+                  <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                    <span>Horizon Depth: {data.horizon_hours}h</span>
+                    <span className="font-mono text-slate-700">ONNX Inference Stream</span>
+                  </div>
+                </motion.div>
+              </ChartErrorBoundary>
 
               {/* Panel 2: Feature Attribution (SHAP) */}
-              <motion.div
-                variants={cardItemVariants}
-                className="h-96 bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
+              <ChartErrorBoundary
+                fallbackTitle="Feature Attribution Failure"
+                fallbackDescription="A localized rendering exception occurred in the TreeSHAP waterfall chart."
+                className="h-96"
               >
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200/50">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600 border border-purple-500/20 shadow-xs">
-                      <Layers className="w-4 h-4" />
+                <motion.div
+                  variants={cardItemVariants}
+                  className="h-96 bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200/50">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600 border border-purple-500/20 shadow-xs">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <h2 className="text-sm font-semibold text-slate-900">
+                        Feature Attribution (TreeSHAP)
+                      </h2>
                     </div>
-                    <h2 className="text-sm font-semibold text-slate-900">
-                      Feature Attribution (TreeSHAP)
-                    </h2>
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 border border-emerald-500/30">
+                      Live XAI Matrix
+                    </span>
                   </div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 border border-emerald-500/30">
-                    Live XAI Matrix
-                  </span>
-                </div>
 
-                {/* Mathematical Divergence Waterfall Chart */}
-                <div className="flex-1 w-full min-h-0 my-2">
-                  <ShapWaterfallChart contributing_factors={data.contributing_factors} />
-                </div>
+                  {/* Mathematical Divergence Waterfall Chart */}
+                  <div className="flex-1 w-full min-h-0 my-2">
+                    <ShapWaterfallChart contributing_factors={data.contributing_factors} />
+                  </div>
 
-                <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                  <span>Factor Count: {data.contributing_factors?.length || 0}</span>
-                  <span className="font-mono text-slate-700">KernelExplainer / ONNX</span>
-                </div>
-              </motion.div>
+                  <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                    <span>Factor Count: {data.contributing_factors?.length || 0}</span>
+                    <span className="font-mono text-slate-700">KernelExplainer / ONNX</span>
+                  </div>
+                </motion.div>
+              </ChartErrorBoundary>
             </motion.div>
           </motion.div>
         )}

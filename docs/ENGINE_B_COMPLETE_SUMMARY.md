@@ -608,3 +608,51 @@ To ensure heavy glossy containers ease into position with physical weight and en
    ```
    - `stiffness: 220` & `damping: 28`: Eliminates underdamped bounce while providing a crisp, snapping settle.
    - `mass: 0.6`: Imparts physical inertia, matching the high optical density of the Liquid Glass containers.
+
+---
+
+## 9. Phase 5: Reusability & Error Boundaries
+
+**Phase 5 Integration Date:** October 13, 2026  
+**Architectural Scope:** Generic Telemetry Chart Abstraction, Dynamic Feature Dictionaries, Isolated Liquid Glass Error Boundaries, and Upstream Defensive Data Normalization.
+
+### 9.1. Component Abstraction & Decoupling (Shared Infrastructure)
+
+To prepare GridSense AI's visualization engine for subsequent pipeline expansions (Engines C and D), the core charting components were extracted from engine-specific directories into global infrastructure assets located in [`frontend/components/charts/`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/charts):
+
+1. **Generic Temporal Forecast Chart ([`components/charts/temporal-forecast-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/charts/temporal-forecast-chart.tsx)):**
+   - **Generic Metric Array (`ChartMetricConfig[]`):** Rather than hardcoding voltage and load SVG paths, the component accepts an arbitrary array of telemetry metrics (`key`, `name`, `color`, `strokeDasharray`, `strokeWidth`, `unit`). Recharts dynamically iterates over this configuration to render independent `<Line>` SVG nodes.
+   - **Dynamic Evaluation Horizon (`horizonDepth`):** Exposes a configurable prediction depth prop (`horizonDepth`, aliased to `horizonHours` for backwards compatibility), allowing future engines to display 12h, 24h, or 48h predictive trajectories without code alterations.
+   - **Dynamic Tooltip Metric Inspection:** The native tooltip dynamically iterates through `activeMetrics`, rendering contextual cards with metric-specific colors and unit annotations.
+
+2. **Decoupled Explainable AI Waterfall Chart ([`components/charts/shap-waterfall-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/charts/shap-waterfall-chart.tsx)):**
+   - **Dynamic Feature Dictionary (`featureDictionary`):** Stripped hardcoded electrical nomenclature in favor of a flexible resolver prop accepting either a static lookup table (`Record<string, string>`) or a transformation callback (`(raw: string) => string`).
+   - **Configurable Polarity Colors & Baseline:** Exposes `positiveColor`, `negativeColor`, and `baselineValue` props to support arbitrary machine learning attribution models with model-specific polarity semantics.
+
+3. **Shared Asset Migration:**
+   - Moved chart components from `components/engine-b/` to `components/charts/`.
+   - Maintained seamless re-exports in `components/engine-b/` for legacy compatibility while migrating `app/dashboard/engine-b/page.tsx` to the shared infrastructure path.
+
+---
+
+### 9.2. Isolated Liquid Glass Error Boundaries
+
+To guarantee that a localized rendering failure in a single SVG chart cannot crash or unmount the entire dashboard:
+
+1. **Liquid Glass Error Fallback UI ([`components/ui/chart-error-fallback.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ui/chart-error-fallback.tsx)):**
+   - Employs the enterprise Liquid Glass visual design system tinted with critical alert optics (`bg-red-500/10 backdrop-blur-2xl bg-gradient-to-br from-red-500/20 via-rose-500/10 to-amber-500/10 border border-red-500/30`).
+   - Displays a localized *"Visualization Render Failure"* alert with detailed error diagnostics and an isolated *"Reload Component"* retry trigger.
+2. **Tri-Panel Boundary Isolation ([`app/dashboard/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-b/page.tsx)):**
+   - Encapsulated the **Predictive Risk KPI Panel**, the **Temporal Horizon Forecast Panel**, and the **TreeSHAP Feature Attribution Panel** within distinct `<ChartErrorBoundary>` instances.
+   - An SVG exception or corrupt payload in one module isolates cleanly, leaving adjacent telemetry panels fully operational and interactive.
+
+---
+
+### 9.3. Defensive Data Normalization Layer
+
+To protect Recharts components from cold-start anomalies or schema discrepancies from the Go API Gateway:
+
+1. **Upstream Sanitization Pipeline ([`hooks/use-engine-b-summary.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/hooks/use-engine-b-summary.ts)):**
+   - Implemented `sanitizeEngineBPredictionSummary` integrated into both `queryFn` and TanStack Query's `select` pipeline.
+   - Intercepts `null`, `undefined`, or malformed `contributing_factors` and `historical_telemetry` payloads during cold-start states or network degradation, systematically injecting guaranteed empty arrays (`[]`).
+   - Validates numeric boundaries and ISO-8601 timestamps before payloads reach visualization modules, mathematically preventing Recharts `.map()` iteration exceptions from reaching the DOM.

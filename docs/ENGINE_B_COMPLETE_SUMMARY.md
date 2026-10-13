@@ -445,23 +445,21 @@ To eliminate visual defects, text clipping constraints, disparate button compone
 **Phase 4 Integration Date:** October 13, 2026  
 **Architectural Scope:** Optical Physics Overhaul, Dual-Axis Recharts Decluttering, Go Gateway Payload Alignment, and Framer Motion Spring Orchestration.
 
-### 8.1. Spatial Tooltip Refactoring (Floating UI)
+### 8.1. Native Recharts Custom Tooltip Architecture (`allowEscapeViewBox` & `offset`)
 
 **UX Defect & Root Cause:**
-The default Recharts tooltips were trapped within the SVG bounding box, causing them to physically obstruct critical data trajectories and bleed off-screen when the cursor approached the container edges. Because native Recharts tooltips render directly adjacent to or over the pointer within the SVG coordinates, operators attempting to inspect peak risk anomalies or granular voltage signals experienced severe visual occlusion.
+Default Recharts tooltips were originally trapped within SVG bounding boxes, causing them to physically obstruct critical data trajectories and bleed off-screen when the cursor approached container edges.
 
-**Engineered Solution & Spatial Architecture:**
-1. **Decoupled Virtual Element Anchoring:**
-   Recharts' native tooltip rendering was decoupled and replaced with an external Floating UI Virtual Element anchor (`refs.setPositionReference`). Instead of rendering within the SVG DOM tree, mouse movement across the chart extracts coordinate data (`activeCoordinate` and `nativeEvent`) to feed a dynamic zero-dimension virtual bounding rectangle.
-2. **Collision Detection Middleware Stack:**
-   Configured `@floating-ui/react`'s `useFloating` hook with an enterprise collision avoidance pipeline:
-   - `offset(30)`: Physically displaces the tooltip 30px away from the cursor pointer, preventing hover obstruction.
-   - `flip({ fallbackPlacements: ['bottom-start', 'left-start', 'right-start'] })`: Dynamically detects container boundary collisions and flips placement when approaching container edges.
-   - `shift({ padding: 20 })`: Glides the modal smoothly along the axis if confined in boundary corners.
-3. **Framer Motion Layout Transitions:**
-   Rendered completely outside the Recharts `<ResponsiveContainer>` utilizing Framer Motion's `<AnimatePresence>` and `<motion.div layout>`. The `layout` prop ensures that when Floating UI's `flip()` middleware executes an orientation shift (e.g. flipping from top-start to bottom-start), the modal animates fluidly across the cursor axis rather than jarringly teleporting in the DOM.
+**Engineered Native Solution:**
+To eliminate brittle external positioning engines and ensure zero React prop injection violations, custom tooltips (`ShapCustomTooltip` and `TemporalCustomTooltip`) were restored natively within the Recharts SVG tree using the following enterprise configuration:
+1. **Dedicated Functional Components:**
+   `ShapCustomTooltip` and `TemporalCustomTooltip` receive Recharts' injected props (`active`, `payload`, `label`) directly as functional components, preserving full TypeScript and React prop compatibility.
+2. **SVG ViewBox Boundary Escape:**
+   Enabling `allowEscapeViewBox={{ x: true, y: true }}` permits the tooltip container to break cleanly outside the SVG clipping box, eliminating edge truncation without needing portal detachments.
+3. **Cursor Offset Physics:**
+   Configuring `offset={40}` dynamically pushes the tooltip 40px away from the pointer along the coordinate axis, guaranteeing that telemetry lines, baseline steps, and prediction curves remain visible during cursor inspection.
 4. **Liquid Glass Aesthetic:**
-   Enforces non-obstructive semi-translucency via `bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.5)] rounded-2xl p-4 z-50 text-slate-50`.
+   Enforces specular Liquid Glass styling via `bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.5)] rounded-2xl p-4 z-50 text-slate-50 min-w-[200px] select-none pointer-events-none`.
 
 ---
 

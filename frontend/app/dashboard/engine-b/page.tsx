@@ -26,22 +26,23 @@ const containerVariants: Variants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.04,
+      staggerChildren: 0.1,
+      delayChildren: 0.05,
     },
   },
 };
 
 const cardItemVariants: Variants = {
-  hidden: { opacity: 0, y: 15 },
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
   visible: {
     opacity: 1,
     y: 0,
+    scale: 1,
     transition: {
       type: "spring",
-      stiffness: 250,
-      damping: 25,
-      mass: 0.5,
+      stiffness: 220,
+      damping: 28,
+      mass: 0.6,
     },
   },
 };
@@ -291,7 +292,7 @@ export default function EngineBDashboardPage() {
               {/* Metric Card 1: Risk Score (0-100) */}
               <motion.div
                 variants={cardItemVariants}
-                className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.05)] bg-gradient-to-br from-white/60 via-white/20 to-transparent rounded-2xl p-6 flex flex-col justify-between"
+                className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
@@ -334,7 +335,7 @@ export default function EngineBDashboardPage() {
                 return (
                   <motion.div
                     variants={cardItemVariants}
-                    className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.05)] bg-gradient-to-br from-white/60 via-white/20 to-transparent rounded-2xl p-6 flex flex-col justify-between transition-all duration-300"
+                    className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between transition-all duration-300"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
@@ -369,7 +370,7 @@ export default function EngineBDashboardPage() {
               {/* Metric Card 3: Evaluation Horizon */}
               <motion.div
                 variants={cardItemVariants}
-                className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.05)] bg-gradient-to-br from-white/60 via-white/20 to-transparent rounded-2xl p-6 flex flex-col justify-between"
+                className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
@@ -406,7 +407,7 @@ export default function EngineBDashboardPage() {
               {/* Panel 1: Temporal Horizon Forecast (Phase 4 Recharts Dual-Axis) */}
               <motion.div
                 variants={cardItemVariants}
-                className="h-96 rounded-3xl bg-white/40 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.05)] bg-gradient-to-br from-white/60 via-white/20 to-transparent p-6 flex flex-col justify-between"
+                className="h-96 bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200/50">
                   <div className="flex items-center gap-2.5">
@@ -440,7 +441,7 @@ export default function EngineBDashboardPage() {
               {/* Panel 2: Feature Attribution (SHAP) */}
               <motion.div
                 variants={cardItemVariants}
-                className="h-96 rounded-3xl bg-white/40 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.05)] bg-gradient-to-br from-white/60 via-white/20 to-transparent p-6 flex flex-col justify-between"
+                className="h-96 bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200/50">
                   <div className="flex items-center gap-2.5">

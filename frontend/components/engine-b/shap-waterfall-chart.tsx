@@ -52,16 +52,16 @@ function CustomShapTooltip({ active, payload }: CustomTooltipProps) {
   const formattedValue = (isPositive ? "+" : "") + value.toFixed(4);
 
   return (
-    <div className="bg-white/90 backdrop-blur-xl border border-white/80 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.08)] bg-gradient-to-br from-white/95 via-white/80 to-white/60 rounded-xl p-3 text-slate-900 min-w-56 select-none pointer-events-none">
-      <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-200/60">
-        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-700 font-mono">
+    <div className="bg-slate-900/40 backdrop-blur-2xl border border-slate-700/50 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.1)] rounded-2xl p-3.5 text-white min-w-56 select-none pointer-events-none">
+      <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10">
+        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-300 font-mono">
           SHAP ATTRIBUTION
         </span>
         <span
           className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${
             isPositive
-              ? "bg-rose-500/15 text-rose-700 border border-rose-500/30"
-              : "bg-emerald-500/15 text-emerald-800 border border-emerald-500/30"
+              ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+              : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
           }`}
         >
           {isPositive ? (
@@ -78,18 +78,18 @@ function CustomShapTooltip({ active, payload }: CustomTooltipProps) {
         </span>
       </div>
 
-      <p className="text-xs font-semibold text-slate-900 leading-snug">
+      <p className="text-xs font-semibold text-white leading-snug">
         {data.formattedName}
       </p>
-      <p className="text-[10px] text-slate-600 font-mono mt-0.5">
+      <p className="text-[10px] text-slate-400 font-mono mt-0.5">
         {data.rawName}
       </p>
 
-      <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-slate-200/60">
-        <span className="text-[11px] font-medium text-slate-600">Feature Impact:</span>
+      <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-white/10">
+        <span className="text-[11px] font-medium text-slate-300">Feature Impact:</span>
         <span
           className={`font-mono text-sm font-bold tracking-tight ${
-            isPositive ? "text-rose-600" : "text-emerald-600"
+            isPositive ? "text-rose-400" : "text-emerald-400"
           }`}
         >
           {formattedValue}

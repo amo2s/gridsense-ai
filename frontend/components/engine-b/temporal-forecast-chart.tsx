@@ -99,18 +99,18 @@ function CustomTemporalTooltip({ active, payload }: any) {
       : "text-emerald-600";
 
   return (
-    <div className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.05)] bg-gradient-to-br from-white/95 via-white/80 to-white/60 rounded-2xl p-4 text-slate-900 min-w-64 select-none pointer-events-none transition-all">
+    <div className="bg-slate-900/40 backdrop-blur-2xl border border-slate-700/50 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.1)] rounded-2xl p-4 text-white min-w-64 select-none pointer-events-none transition-all">
       {/* Header Badge */}
-      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/60">
-        <span className="text-[10px] uppercase font-bold tracking-wider font-mono text-slate-600 flex items-center gap-1.5">
-          <Clock className="w-3 h-3 text-slate-500" />
+      <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+        <span className="text-[10px] uppercase font-bold tracking-wider font-mono text-slate-300 flex items-center gap-1.5">
+          <Clock className="w-3 h-3 text-slate-400" />
           {point.timeLabel}
         </span>
         <span
           className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
             isForecast
-              ? "bg-rose-500/10 text-rose-700 border-rose-500/30"
-              : "bg-emerald-500/10 text-emerald-800 border-emerald-500/30"
+              ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+              : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
           }`}
         >
           {isForecast ? (
@@ -132,47 +132,47 @@ function CustomTemporalTooltip({ active, payload }: any) {
         /* Emphasis on Forecasted Outage Probability */
         <div className="space-y-2.5">
           <div>
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
               Projected Outage Risk
             </span>
             <div className="flex items-baseline gap-1 mt-0.5">
               <span className={`text-2xl font-bold font-mono tracking-tight ${probColor}`}>
                 {prob != null ? prob.toFixed(1) : "--"}
               </span>
-              <span className="text-xs font-semibold text-slate-500">% probability</span>
+              <span className="text-xs font-semibold text-slate-400">% probability</span>
             </div>
           </div>
-          <div className="pt-2 border-t border-slate-200/50 text-[11px] text-slate-600 flex justify-between">
+          <div className="pt-2 border-t border-white/10 text-[11px] text-slate-400 flex justify-between">
             <span>Telemetry Context:</span>
-            <span className="italic text-slate-500">Post-Evaluation Projection</span>
+            <span className="italic text-slate-400">Post-Evaluation Projection</span>
           </div>
         </div>
       ) : (
         /* Emphasis on Historical Voltage & Load Telemetry */
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
-            <div className="p-2 rounded-xl bg-white/70 border border-white/80 shadow-xs">
-              <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-700 uppercase">
-                <Zap className="w-3 h-3 text-blue-600" />
+            <div className="p-2 rounded-xl bg-slate-800/60 border border-slate-700/60 shadow-xs">
+              <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-400 uppercase">
+                <Zap className="w-3 h-3 text-blue-400" />
                 Voltage
               </div>
-              <p className="text-base font-bold text-slate-900 font-mono mt-0.5">
+              <p className="text-base font-bold text-white font-mono mt-0.5">
                 {voltage != null ? `${voltage.toFixed(1)} V` : "--"}
               </p>
             </div>
-            <div className="p-2 rounded-xl bg-white/70 border border-white/80 shadow-xs">
-              <div className="flex items-center gap-1 text-[10px] font-semibold text-purple-700 uppercase">
-                <Activity className="w-3 h-3 text-purple-600" />
+            <div className="p-2 rounded-xl bg-slate-800/60 border border-slate-700/60 shadow-xs">
+              <div className="flex items-center gap-1 text-[10px] font-semibold text-purple-400 uppercase">
+                <Activity className="w-3 h-3 text-purple-400" />
                 Load
               </div>
-              <p className="text-base font-bold text-slate-900 font-mono mt-0.5">
+              <p className="text-base font-bold text-white font-mono mt-0.5">
                 {load != null ? `${load.toFixed(1)} kW` : "--"}
               </p>
             </div>
           </div>
           {prob != null && (
             <div className="pt-1.5 flex items-center justify-between text-[11px]">
-              <span className="text-slate-600 font-medium">Historical Risk Baseline:</span>
+              <span className="text-slate-400 font-medium">Historical Risk Baseline:</span>
               <span className={`font-mono font-bold ${probColor}`}>{prob.toFixed(1)}%</span>
             </div>
           )}
@@ -301,7 +301,9 @@ const TemporalForecastChartBase: React.FC<TemporalForecastChartProps> = ({
             dataKey="timeLabel"
             tickLine={false}
             axisLine={{ stroke: "#cbd5e1" }}
-            tick={{ fill: "#0f172a", fontSize: 11, fontWeight: 500 }}
+            minTickGap={45}
+            tickMargin={12}
+            tick={{ fill: "#0f172a", fontSize: 11, fontWeight: "bold" }}
             dy={8}
             interval="preserveStartEnd"
           />
@@ -318,11 +320,11 @@ const TemporalForecastChartBase: React.FC<TemporalForecastChartProps> = ({
             width={45}
           />
 
-          {/* Secondary Y-Axis (Right - Telemetry: Voltage & Load) */}
+          {/* Secondary Y-Axis (Right - Telemetry: Voltage & Load with Domain Padding) */}
           <YAxis
             yAxisId="right"
             orientation="right"
-            domain={["auto", "auto"]}
+            domain={["dataMin - 15", "dataMax + 15"]}
             tickLine={false}
             axisLine={false}
             tick={{ fill: "#64748b", fontSize: 11, fontWeight: 500 }}
@@ -349,26 +351,26 @@ const TemporalForecastChartBase: React.FC<TemporalForecastChartProps> = ({
             name="Outage Probability (%)"
           />
 
-          {/* Secondary Telemetry: Voltage (Solid Line) */}
+          {/* Secondary Telemetry: Voltage (Solid Line - 1.5 strokeWidth) */}
           <Line
             yAxisId="right"
             type="monotone"
             dataKey="voltage"
             stroke="#2563eb"
-            strokeWidth={1.75}
+            strokeWidth={1.5}
             dot={false}
             activeDot={{ r: 4, fill: "#2563eb", stroke: "#ffffff", strokeWidth: 2 }}
             name="Voltage (V)"
           />
 
-          {/* Secondary Telemetry: Load (Dashed Line) */}
+          {/* Secondary Telemetry: Load (Dashed Line - 4 4 strokeDasharray, 1.5 strokeWidth) */}
           <Line
             yAxisId="right"
             type="monotone"
             dataKey="load"
             stroke="#7c3aed"
-            strokeWidth={1.75}
-            strokeDasharray="3 3"
+            strokeWidth={1.5}
+            strokeDasharray="4 4"
             dot={false}
             activeDot={{ r: 4, fill: "#7c3aed", stroke: "#ffffff", strokeWidth: 2 }}
             name="Load (kW)"

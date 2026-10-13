@@ -440,12 +440,147 @@ To eliminate visual defects, text clipping constraints, disparate button compone
 
 ---
 
-## 8. Phase 4: Telemetry Forecasting & System Resilience
+## 8. Phase 4: Liquid Glass Design System, Temporal Chart Optimization & Pipeline Alignment
 
-**Phase 4 Integration Date:** October 13, 2026
+**Phase 4 Integration Date:** October 13, 2026  
+**Architectural Scope:** Optical Physics Overhaul, Dual-Axis Recharts Decluttering, Go Gateway Payload Alignment, and Framer Motion Spring Orchestration.
 
-The global UI/UX layer underwent a comprehensive aesthetic and accessibility overhaul to establish infrastructure-grade visual hierarchy across the Engine B Query Pathway. The global top navigation bar ([`components/dashboard/topbar.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/topbar.tsx)) was streamlined from an excessive vertical profile down to an ultra-sleek `h-12 md:h-14` envelope with tightened `py-2` padding, optimizing visible viewport space while maintaining crisp vertical alignment of the dynamic feeder asset badge (`activeFeeder.name`). Concurrently, the summary dashboard ([`app/dashboard/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-b/page.tsx)) transitioned from dark, flat glass styles to a specular, high-gloss "Liquid Glass" card aesthetic composed of `bg-white/40 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.05)] bg-gradient-to-br from-white/60 via-white/20 to-transparent`, delivering realistic specular highlight reflections. Crucially, accessibility failures on the TreeSHAP waterfall chart ([`components/engine-b/shap-waterfall-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/engine-b/shap-waterfall-chart.tsx)) were resolved by transforming faint slate ticks (`#cbd5e1`) into stark, high-contrast slate-900 (`#0f172a`) SVG fills with `font-semibold` visual weighting across both axis renderers and the redesigned interactive Liquid Glass tooltip.
+---
 
-To bridge the gap between historical operations and predictive risk, Phase 4 deployed a dedicated dual-axis chronological timeline component ([`components/engine-b/temporal-forecast-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/engine-b/temporal-forecast-chart.tsx)). Built with Recharts `<ResponsiveContainer>` and `<ComposedChart>`, the component constructs a continuous temporal trajectory separating the 24-hour historical telemetry rolling window from forward-looking predictive horizons via an SVG `<ReferenceLine>` labeled "Present Evaluation Moment" with bold dashed strokes (`stroke='#059669'`, `strokeWidth=2.5`). The primary left Y-axis maps outage probability strictly from 0% to 100% using a monotone `<Area>` fill backed by a dynamic multi-stop SVG `<linearGradient>` (transitioning from emerald `#10b981` at the baseline, through amber `#f59e0b`, to rose/crimson `#e11d48` at elevated risk tiers). The secondary right Y-axis visualizes physical grid metrics using thin, distinct `<Line>` components—solid blue for voltage and dashed purple for load—insulating electrical signals from the filled probability area. The component is wrapped in Framer Motion spring physics (`stiffness: 250, damping: 25, mass: 0.5`) with a context-aware Liquid Glass tooltip that emphasizes electrical telemetry to the left of evaluation and switches focus to outage risk percentages across the forecast horizon, all protected from 30-second polling jitter via memoization with a custom `areTemporalPropsEqual` comparator.
+### 8.1. Optical Physics of the Liquid Glass Design System
 
-Resilience engineering was integrated into the client-side data layer to guarantee unbroken operational visibility during upstream microservice outages. In [`hooks/use-engine-b-summary.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/hooks/use-engine-b-summary.ts), the TanStack React Query polling configuration was upgraded with `placeholderData: (prev) => prev`, ensuring that if background database or Go API Gateway polls fail with an HTTP 503 Service Unavailable or network timeout, previous live data is retained in memory rather than unmounting the view into blank skeletons. In [`app/dashboard/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-b/page.tsx), network degradation states are intercepted to project a persistent Framer Motion banner (`bg-amber-100 border border-amber-400 text-amber-900 rounded-lg p-4 shadow-md`) directly at the top of the dashboard content area. The banner explicitly alerts operators that live synchronization is unavailable while displaying cached intelligence, dynamically binds the exact timestamp of the last successful synchronization (`dataUpdatedAt` / `generated_at`), and embeds a manual "Force Retry" trigger built strictly with [`@/components/ui/button`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ui/button.tsx) (`variant='outline'`, `size='sm'`), completing the resilient CQRS lifecycle.
+The Engine B dashboard tier transitioned from rudimentary frosted glassmorphism (flat backdrop blurs) to an enterprise-grade **Liquid Glass** design system simulating a wet, polished, refractive physical medium. True optical realism is achieved through precise mathematical stacking of specular reflections, surface distortions, and diffused ambient absorption:
+
+1. **Base Translucency & Surface Distortion:**
+   - Base opacity and refractive blur are established via `bg-white/20` and `backdrop-blur-2xl`. This suppresses background noise while allowing underlying grid elements to softly refract through the container body.
+2. **Fluid Surface Lighting (Gradient Light Sweep):**
+   - Implements a multi-stop diagonal surface luminance sweep:
+     ```css
+     bg-gradient-to-br from-white/60 via-white/10 to-white/5
+     ```
+     This models directional incident light raking across a curved glass perimeter, creating high-intensity specular highlights at the top-left vertex that smoothly taper into deep transparency.
+3. **Specular Edge Highlights & Perimeter Rim Reflection:**
+   - Real glass reveals sharp, bright internal reflections along its leading edges. This is constructed using a high-precision multi-stop inset box-shadow:
+     ```css
+     shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)]
+     ```
+     The first stop injects a vivid 1px white highlight along the top and left boundaries; the second stop renders a soft 3px rim catch along the opposing bottom-right inner bevel.
+4. **Diffused Grounding Ambient Shadow:**
+   - Rather than muddy, high-opacity black shadows, the liquid containers are grounded using a deep, diffused, tinted drop shadow:
+     ```css
+     shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)]
+     ```
+     This yields realistic elevation without obscuring the background substrate.
+5. **Fluid Geometry & Perimeter Bounding:**
+   - Containers apply aggressive corner curvature via `rounded-3xl` and an ultra-fine translucent boundary via `border border-white/40`.
+6. **Inverted Liquid Glass for Chart Tooltips:**
+   - Interactive Recharts tooltips (for both the SHAP waterfall and Temporal forecast charts) deploy an inverted dark liquid glass formulation to ensure optical contrast against bright chart graphics:
+     ```css
+     bg-slate-900/40 backdrop-blur-2xl border border-slate-700/50 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.1)] rounded-2xl
+     ```
+
+**Standardized Liquid Glass Container Utility String:**
+```css
+bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40
+```
+*Applied to:* Top navigation bar ([`topbar.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/topbar.tsx)), 3 primary metric cards ([`page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-b/page.tsx)), Network Resilience Monitor ([`network-resilience-monitor.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/network-resilience-monitor.tsx)), Telemetry Ingestion Form Container ([`ingestion/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/ingestion/engine-b/page.tsx)), SHAP waterfall wrapper, and Temporal forecast wrapper.
+
+---
+
+### 8.2. Dual-Axis Temporal Forecast Chart Decluttering & UI Optimization
+
+To eliminate extreme data density and visual clustering on the 24-hour timeline in [`components/engine-b/temporal-forecast-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/engine-b/temporal-forecast-chart.tsx):
+
+1. **Physical Metric vs. Risk Probability Axis Separation:**
+   - **Primary Left Y-Axis (`yAxisId="left"`):** Dedicated exclusively to the 0% to 100% mathematical outage probability curve. Renders a monotone `<Area>` with a multi-stop dynamic severity gradient (emerald `#10b981` $\to$ amber `#f59e0b` $\to$ crimson `#e11d48`).
+   - **Secondary Right Y-Axis (`yAxisId="right"`):** Explicitly set to `orientation="right"`, displacing physical telemetry (historical voltage in V and load in kW) to the right perimeter of the chart, eliminating axis collision with the risk percentage scale.
+2. **Dynamic Domain Padding:**
+   - Configured secondary Y-axis with `domain={['dataMin - 15', 'dataMax + 15']}`. This injects vertical breathing room, compressing voltage and load lines so they do not intersect violently with the peaks of the outage probability area.
+3. **Timeline Density Control & Label Culling:**
+   - Injected `minTickGap={45}` and `tickMargin={12}` on `<XAxis>`, mathematically culling dense chronological labels and preventing text overlap.
+   - Set tick typography to high-contrast `#0f172a` with `fontWeight: "bold"` for readability against the light liquid glass canvas.
+4. **Visual Weight De-escalation:**
+   - Reduced telemetry line `strokeWidth` to `1.5` (solid blue `#2563eb` for voltage).
+   - Applied dashed array `strokeDasharray="4 4"` to load (`#7c3aed`), instantly distinguishing the electrical metrics without competing with the primary risk forecast curve.
+5. **Present Evaluation Moment Alignment:**
+   - Distinct SVG `<ReferenceLine>` labeled *"Present Evaluation Moment"* (`stroke="#059669"`, `strokeWidth=2.5`, `strokeDasharray="4 4"`) cleanly bifurcates historical Command Pathway observations from forward-looking Query Pathway ONNX inference.
+
+---
+
+### 8.3. Frontend-Backend Pipeline Alignment & Defensive Parsing
+
+To prevent data serialization mismatch and eliminate React runtime unmount crashes between the Go API Gateway and the Next.js presentation layer:
+
+1. **Strict TypeScript Interface Mapping ([`hooks/use-engine-b-summary.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/hooks/use-engine-b-summary.ts)):**
+   Reflects the exact wire format of Go's `PredictionSummaryDTO`:
+   ```typescript
+   export interface ShapFactor {
+     feature_name: string;
+     contribution: number;
+   }
+
+   export interface EngineBPredictionSummary {
+     feeder_id: string;
+     generated_at: string; // ISO-8601
+     horizon_hours: number;
+     risk_score: number;
+     risk_level: string;
+     model_version: string;
+     contributing_factors: ShapFactor[];
+   }
+   ```
+2. **Defensive Transformation Layer (Zero-Crash Fallback):**
+   - Intercepts raw JSON immediately following fetch resolution.
+   - If the Go Gateway returns a `null` or `undefined` `contributing_factors` payload (e.g., during database synchronization cold starts or unmaterialized asset windows), the parser injects a guaranteed empty array `[]` fallback:
+     ```typescript
+     contributing_factors: Array.isArray(rawData?.contributing_factors)
+       ? rawData.contributing_factors.map((f: any) => ({
+           feature_name: typeof f?.feature_name === "string" ? f.feature_name : "Unknown Feature",
+           contribution: typeof f?.contribution === "number" ? f.contribution : 0,
+         }))
+       : []
+     ```
+     This completely protects Recharts bar mapping and `.map()` iterations from throwing `TypeError: cannot read property 'map' of undefined`.
+3. **Dynamic Cache Key Isolation:**
+   - Bound TanStack Query key strictly to dynamic asset variables: `queryKey: [ENGINE_B_SUMMARY_QUERY_KEY, activeFeederId]`. Switching feeder assets in the global Zustand store instantly invalidates queries and fetches fresh materialized records without cache cross-contamination.
+4. **Network Resilience & Fallback Retain:**
+   - Configured `placeholderData: (prev) => prev` to retain cached telemetry during transient 502/503/504 gateway degradation. Projects a persistent degradation banner with manual retry triggers built using `@/components/ui/button`.
+
+---
+
+### 8.4. Framer Motion Physics & Mounting Orchestration
+
+To ensure heavy glossy containers ease into position with physical weight and enterprise fluidity:
+
+1. **Sequential Stagger Orchestration:**
+   ```typescript
+   const containerVariants: Variants = {
+     hidden: { opacity: 0 },
+     visible: {
+       opacity: 1,
+       transition: {
+         staggerChildren: 0.1,
+         delayChildren: 0.05,
+       },
+     },
+   };
+   ```
+2. **Heavy-Body Spring Dynamics:**
+   ```typescript
+   const cardItemVariants: Variants = {
+     hidden: { opacity: 0, y: 20, scale: 0.95 },
+     visible: {
+       opacity: 1,
+       y: 0,
+       scale: 1,
+       transition: {
+         type: "spring",
+         stiffness: 220,
+         damping: 28,
+         mass: 0.6,
+       },
+     },
+   };
+   ```
+   - `stiffness: 220` & `damping: 28`: Eliminates underdamped bounce while providing a crisp, snapping settle.
+   - `mass: 0.6`: Imparts physical inertia, matching the high optical density of the Liquid Glass containers.

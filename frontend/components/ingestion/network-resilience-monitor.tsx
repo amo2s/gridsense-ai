@@ -13,7 +13,7 @@ import { Activity, ShieldCheck, Cpu, Radio, Network } from "lucide-react";
  */
 export default function NetworkResilienceMonitor() {
   return (
-    <div className="flex flex-col gap-5 bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] rounded-2xl p-6">
+    <div className="flex flex-col gap-5 bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6">
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-slate-200/60">
         <div className="flex items-center gap-2.5">

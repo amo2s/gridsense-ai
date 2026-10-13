@@ -61,8 +61,27 @@ export function useEngineBSummary() {
         throw customErr;
       }
 
-      const data: EngineBPredictionSummary = await response.json();
-      return data;
+      const rawData = await response.json();
+
+      // Defensive Data Transformation Layer (Part III):
+      // Intercept and sanitize payload from Go Gateway. Guarantees contributing_factors
+      // is always an array so Recharts iteration never throws undefined mapping exceptions.
+      const sanitizedData: EngineBPredictionSummary = {
+        feeder_id: typeof rawData?.feeder_id === "string" ? rawData.feeder_id : (activeFeederId || ""),
+        generated_at: typeof rawData?.generated_at === "string" ? rawData.generated_at : new Date().toISOString(),
+        horizon_hours: typeof rawData?.horizon_hours === "number" ? rawData.horizon_hours : 6,
+        risk_score: typeof rawData?.risk_score === "number" ? rawData.risk_score : 0,
+        risk_level: typeof rawData?.risk_level === "string" ? rawData.risk_level : "LOW",
+        model_version: typeof rawData?.model_version === "string" ? rawData.model_version : "champion_v1.0.0",
+        contributing_factors: Array.isArray(rawData?.contributing_factors)
+          ? rawData.contributing_factors.map((f: any) => ({
+              feature_name: typeof f?.feature_name === "string" ? f.feature_name : "Unknown Feature",
+              contribution: typeof f?.contribution === "number" ? f.contribution : 0,
+            }))
+          : [],
+      };
+
+      return sanitizedData;
     },
     enabled: Boolean(activeFeederId),
     refetchInterval: 30_000, // Poll the database every 30 seconds for live updates

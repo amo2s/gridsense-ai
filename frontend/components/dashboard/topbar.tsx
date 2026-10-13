@@ -131,7 +131,7 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
 
   return (
     <header className="sticky top-4 z-40 w-full pr-4 pl-0 md:pr-6 md:pl-2 pt-4 mb-4">
-      <div className="flex items-center justify-between px-6 py-3 liquid-panel">
+      <div className="flex items-center justify-between px-6 py-3 bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40">
         
         {/* Left side: Branding & Breadcrumbs */}
         <div className="flex items-center gap-8">

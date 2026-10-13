@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useFeederStore } from "@/store/feeder-store";
 import { useEngineBSummary } from "@/hooks/use-engine-b-summary";
 import { ShapWaterfallChart } from "@/components/engine-b/shap-waterfall-chart";
+import { TemporalForecastChart } from "@/components/engine-b/temporal-forecast-chart";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -56,7 +57,27 @@ const cardItemVariants: Variants = {
  */
 export default function EngineBDashboardPage() {
   const activeFeederId = useFeederStore((state) => state.activeFeederId);
-  const { data, isLoading, isError, error, refetch, isFetching } = useEngineBSummary();
+  const { data, isLoading, isError, error, refetch, isFetching, dataUpdatedAt } = useEngineBSummary();
+
+  // Phase 4 Resilience: Intercept network degradation / 503 outage states
+  const isDegraded = Boolean(
+    isError &&
+      data &&
+      (error?.status === 503 ||
+        error?.status === 504 ||
+        error?.status === 502 ||
+        error?.message?.includes("503") ||
+        error?.message?.toLowerCase().includes("unavailable") ||
+        error?.message?.toLowerCase().includes("timeout") ||
+        error?.message?.toLowerCase().includes("gateway") ||
+        error?.message?.toLowerCase().includes("fetch"))
+  );
+
+  const lastFetchTimestamp = dataUpdatedAt
+    ? new Date(dataUpdatedAt).toLocaleTimeString()
+    : data?.generated_at
+    ? new Date(data.generated_at).toLocaleTimeString()
+    : "Recent";
 
   // Polarity helper for Metric Card 2 (Risk Tier)
   const getRiskTierStyling = (levelRaw?: string) => {
@@ -145,6 +166,37 @@ export default function EngineBDashboardPage() {
           </div>
         </header>
 
+        {/* Persistent Amber Degradation Banner (Phase 4: Network Resilience) */}
+        {isDegraded && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-amber-100 border border-amber-400 text-amber-900 rounded-lg p-4 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-sm text-amber-950">
+                  System Degradation Alert: Live synchronization with Engine B is currently unavailable. Displaying cached intelligence.
+                </p>
+                <p className="text-xs text-amber-800/90 mt-0.5">
+                  Last successful synchronization: <span className="font-mono font-semibold">{lastFetchTimestamp}</span>
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="shrink-0 rounded-lg bg-white/80 hover:bg-white border-amber-400 text-amber-950 font-semibold shadow-xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isFetching ? "animate-spin" : ""}`} />
+              Force Retry
+            </Button>
+          </motion.div>
+        )}
+
         {/* STATE 0: No Active Feeder Selected */}
         {!activeFeederId && (
           <div className="flex flex-col items-center justify-center p-12 text-center rounded-3xl bg-amber-500/10 border border-amber-500/30 backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]">
@@ -205,8 +257,8 @@ export default function EngineBDashboardPage() {
           </div>
         )}
 
-        {/* STATE 3: GENERIC ERROR (NON-404) */}
-        {activeFeederId && !isLoading && isError && !is404 && (
+        {/* STATE 3: GENERIC ERROR (NON-404, NO CACHED DATA) */}
+        {activeFeederId && !isLoading && isError && !is404 && !data && (
           <div className="flex flex-col items-center justify-center p-10 text-center rounded-3xl bg-red-500/10 border border-red-500/30 backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]">
             <AlertTriangle className="w-8 h-8 text-red-500 mb-3" />
             <h3 className="text-base font-semibold text-red-800 mb-1">
@@ -234,18 +286,18 @@ export default function EngineBDashboardPage() {
             animate="visible"
             className="space-y-6"
           >
-            {/* Top-Level Liquid Glass Metric Cards */}
+            {/* Top-Level Liquid Glass Metric Cards (Step I.2) */}
             <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Metric Card 1: Risk Score (0-100) */}
               <motion.div
                 variants={cardItemVariants}
-                className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-2xl p-6 flex flex-col justify-between"
+                className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.05)] bg-gradient-to-br from-white/60 via-white/20 to-transparent rounded-2xl p-6 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
                     Predictive Risk Score
                   </span>
-                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 shadow-xs border border-emerald-500/20">
                     <Activity className="w-4 h-4" />
                   </div>
                 </div>
@@ -255,7 +307,7 @@ export default function EngineBDashboardPage() {
                     <span className="text-4xl font-light tracking-tight text-slate-900 font-mono">
                       {Number(data.risk_score).toFixed(1)}
                     </span>
-                    <span className="text-sm font-semibold text-slate-400">/ 100</span>
+                    <span className="text-sm font-semibold text-slate-500">/ 100</span>
                   </div>
                   <div className="w-full bg-slate-200/60 rounded-full h-1.5 mt-3 overflow-hidden">
                     <div
@@ -271,7 +323,7 @@ export default function EngineBDashboardPage() {
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-slate-500 font-medium">
                   Calculated from 24h rolling temporal window
                 </p>
               </motion.div>
@@ -282,13 +334,13 @@ export default function EngineBDashboardPage() {
                 return (
                   <motion.div
                     variants={cardItemVariants}
-                    className={`bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-2xl p-6 flex flex-col justify-between transition-all duration-300`}
+                    className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.05)] bg-gradient-to-br from-white/60 via-white/20 to-transparent rounded-2xl p-6 flex flex-col justify-between transition-all duration-300"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
                         Risk Tier Classification
                       </span>
-                      <div className={`p-2 rounded-xl bg-white/60 ${styling.text}`}>
+                      <div className={`p-2 rounded-xl bg-white/70 border border-white/80 shadow-xs ${styling.text}`}>
                         <Zap className={`w-4 h-4 ${styling.pulse}`} />
                       </div>
                     </div>
@@ -307,7 +359,7 @@ export default function EngineBDashboardPage() {
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-slate-600 font-medium">
                       Dispatched to Grid Automation Priority Queue
                     </p>
                   </motion.div>
@@ -317,87 +369,85 @@ export default function EngineBDashboardPage() {
               {/* Metric Card 3: Evaluation Horizon */}
               <motion.div
                 variants={cardItemVariants}
-                className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-2xl p-6 flex flex-col justify-between"
+                className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.05)] bg-gradient-to-br from-white/60 via-white/20 to-transparent rounded-2xl p-6 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
                     Evaluation Horizon
                   </span>
-                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
+                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 shadow-xs">
                     <Clock className="w-4 h-4" />
                   </div>
                 </div>
 
                 <div className="my-4">
-                  <p className="text-2xl font-medium tracking-tight text-slate-800">
+                  <p className="text-2xl font-medium tracking-tight text-slate-900">
                     {data.horizon_hours}-Hour Predictive Horizon
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-slate-600 mt-1 font-medium">
                     Generated: {new Date(data.generated_at).toLocaleString()}
                   </p>
                 </div>
 
-                <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-400">
-                  <span className="flex items-center gap-1">
-                    <Cpu className="w-3 h-3 text-slate-400" />
+                <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-500">
+                  <span className="flex items-center gap-1 font-medium">
+                    <Cpu className="w-3 h-3 text-slate-500" />
                     Model Engine
                   </span>
-                  <span className="font-mono text-slate-600 font-medium">
+                  <span className="font-mono text-slate-700 font-semibold">
                     {data.model_version}
                   </span>
                 </div>
               </motion.div>
             </motion.div>
 
-            {/* STEP 5: SHAP EXPLAINABILITY & HORIZON PLACEHOLDERS */}
+            {/* STEP II: DUAL-AXIS TEMPORAL FORECASTING & SHAP EXPLAINABILITY */}
             <motion.div variants={containerVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Panel 1: Temporal Horizon Forecast */}
+              {/* Panel 1: Temporal Horizon Forecast (Phase 4 Recharts Dual-Axis) */}
               <motion.div
                 variants={cardItemVariants}
-                className="h-96 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-6 flex flex-col justify-between"
+                className="h-96 rounded-3xl bg-white/40 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.05)] bg-gradient-to-br from-white/60 via-white/20 to-transparent p-6 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200/50">
                   <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600">
+                    <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shadow-xs">
                       <TrendingDown className="w-4 h-4" />
                     </div>
-                    <h2 className="text-sm font-semibold text-slate-800">
-                      Temporal Horizon Forecast
+                    <h2 className="text-sm font-semibold text-slate-900">
+                      Temporal Horizon Forecast & Outage Risk
                     </h2>
                   </div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-white/60 text-slate-500 border border-white">
-                    Phase 3 Pipeline
+                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 border border-emerald-500/30">
+                    Dual-Axis Timeline
                   </span>
                 </div>
 
-                {/* Structural Graphic Placeholder */}
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 my-2 rounded-2xl bg-white/20 border border-dashed border-slate-300/60">
-                  <BarChart2 className="w-10 h-10 text-slate-400 mb-2 opacity-60" />
-                  <p className="text-xs font-semibold text-slate-700">
-                    Temporal Trajectory Projection
-                  </p>
-                  <p className="text-[11px] text-slate-500 max-w-xs mt-1">
-                    Rolling 6-hour risk evolution curve with Upper/Lower confidence bounds scheduled for Phase 3 SVG rendering.
-                  </p>
+                {/* Phase 4: Dual-Axis Recharts Engine */}
+                <div className="flex-1 w-full min-h-0 my-2">
+                  <TemporalForecastChart
+                    generatedAt={data.generated_at}
+                    horizonHours={data.horizon_hours}
+                    riskScore={data.risk_score}
+                  />
                 </div>
 
-                <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-400">
+                <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-500 font-medium">
                   <span>Horizon Depth: {data.horizon_hours}h</span>
-                  <span className="font-mono">ONNX Inference Stream</span>
+                  <span className="font-mono text-slate-700">ONNX Inference Stream</span>
                 </div>
               </motion.div>
 
               {/* Panel 2: Feature Attribution (SHAP) */}
               <motion.div
                 variants={cardItemVariants}
-                className="h-96 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-6 flex flex-col justify-between"
+                className="h-96 rounded-3xl bg-white/40 backdrop-blur-xl border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.05)] bg-gradient-to-br from-white/60 via-white/20 to-transparent p-6 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200/50">
                   <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600">
+                    <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600 border border-purple-500/20 shadow-xs">
                       <Layers className="w-4 h-4" />
                     </div>
-                    <h2 className="text-sm font-semibold text-slate-800">
+                    <h2 className="text-sm font-semibold text-slate-900">
                       Feature Attribution (TreeSHAP)
                     </h2>
                   </div>
@@ -411,9 +461,9 @@ export default function EngineBDashboardPage() {
                   <ShapWaterfallChart contributing_factors={data.contributing_factors} />
                 </div>
 
-                <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-400">
+                <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-[11px] text-slate-500 font-medium">
                   <span>Factor Count: {data.contributing_factors?.length || 0}</span>
-                  <span className="font-mono">KernelExplainer / ONNX</span>
+                  <span className="font-mono text-slate-700">KernelExplainer / ONNX</span>
                 </div>
               </motion.div>
             </motion.div>

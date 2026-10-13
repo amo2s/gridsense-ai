@@ -52,16 +52,16 @@ function CustomShapTooltip({ active, payload }: CustomTooltipProps) {
   const formattedValue = (isPositive ? "+" : "") + value.toFixed(4);
 
   return (
-    <div className="bg-slate-950/80 bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-xl p-3 text-white min-w-56 select-none pointer-events-none">
-      <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-white/10">
-        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-300 font-mono">
+    <div className="bg-white/90 backdrop-blur-xl border border-white/80 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_8px_32px_0_rgba(0,0,0,0.08)] bg-gradient-to-br from-white/95 via-white/80 to-white/60 rounded-xl p-3 text-slate-900 min-w-56 select-none pointer-events-none">
+      <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-200/60">
+        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-700 font-mono">
           SHAP ATTRIBUTION
         </span>
         <span
           className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${
             isPositive
-              ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-              : "bg-emerald-400/20 text-emerald-300 border border-emerald-400/30"
+              ? "bg-rose-500/15 text-rose-700 border border-rose-500/30"
+              : "bg-emerald-500/15 text-emerald-800 border border-emerald-500/30"
           }`}
         >
           {isPositive ? (
@@ -78,18 +78,18 @@ function CustomShapTooltip({ active, payload }: CustomTooltipProps) {
         </span>
       </div>
 
-      <p className="text-xs font-semibold text-white/95 leading-snug">
+      <p className="text-xs font-semibold text-slate-900 leading-snug">
         {data.formattedName}
       </p>
-      <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+      <p className="text-[10px] text-slate-600 font-mono mt-0.5">
         {data.rawName}
       </p>
 
-      <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-white/10">
-        <span className="text-[11px] text-slate-300">Feature Impact:</span>
+      <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-slate-200/60">
+        <span className="text-[11px] font-medium text-slate-600">Feature Impact:</span>
         <span
           className={`font-mono text-sm font-bold tracking-tight ${
-            isPositive ? "text-rose-500" : "text-emerald-400"
+            isPositive ? "text-rose-600" : "text-emerald-600"
           }`}
         >
           {formattedValue}
@@ -130,7 +130,7 @@ export function areShapPropsEqual(
 
 /**
  * Custom Y-Axis Label Renderer (Step 1)
- * Typography: text-xs font-medium text-slate-300 with calculated dy offset
+ * Typography: text-xs font-semibold text-slate-900 (#0f172a) with calculated dy offset
  * to center the SVG text node vertically against each horizontal bar.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -146,8 +146,8 @@ function renderYAxisTick(props: any) {
         y={0}
         dy="0.35em"
         textAnchor="end"
-        fill="#cbd5e1"
-        className="text-xs font-medium text-slate-300 select-none font-sans"
+        fill="#0f172a"
+        className="text-xs font-semibold text-slate-900 select-none font-sans"
       >
         <title>{text}</title>
         {truncated}
@@ -181,13 +181,13 @@ const ShapWaterfallChartBase: React.FC<ShapWaterfallChartProps> = ({
       <div
         className={`w-full h-full flex flex-col items-center justify-center p-6 text-center ${className}`}
       >
-        <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 mb-2">
+        <div className="w-10 h-10 rounded-2xl bg-white/60 border border-white/80 shadow-xs flex items-center justify-center text-slate-600 mb-2">
           <Activity className="w-5 h-5" />
         </div>
-        <p className="text-xs font-semibold text-slate-700">
+        <p className="text-xs font-semibold text-slate-800">
           No Feature Attribution Factors Available
         </p>
-        <p className="text-[11px] text-slate-400 max-w-xs mt-1">
+        <p className="text-[11px] text-slate-500 max-w-xs mt-1">
           Inference payload does not contain TreeSHAP factor decompositions for this snapshot.
         </p>
       </div>

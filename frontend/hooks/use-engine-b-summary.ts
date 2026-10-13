@@ -69,5 +69,6 @@ export function useEngineBSummary() {
     staleTime: 15_000, // Consider the cache fresh for 15 seconds
     retry: 1, // Fail fast on actual 404s
     refetchOnWindowFocus: true,
+    placeholderData: (prev) => prev, // Phase 4: Cache retention during failure/503 states
   });
 }

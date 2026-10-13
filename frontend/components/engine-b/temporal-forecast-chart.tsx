@@ -319,12 +319,13 @@ const TemporalForecastChartBase: React.FC<TemporalForecastChartProps> = ({
             width={45}
           />
 
-          {/* Native Recharts Custom Tooltip with allowEscapeViewBox and offset */}
+          {/* Native Recharts Custom Tooltip with restricted horizontal escape and elevated stacking */}
           <Tooltip
             content={<TemporalCustomTooltip />}
             cursor={{ stroke: "transparent", fill: "transparent" }}
             offset={40}
-            allowEscapeViewBox={{ x: true, y: true }}
+            allowEscapeViewBox={{ x: false, y: true }}
+            wrapperStyle={{ zIndex: 100 }}
           />
 
           {/* Primary Forecast Area: Monotone Area Fill with Dynamic Severity Gradient */}

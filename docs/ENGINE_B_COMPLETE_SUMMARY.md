@@ -454,11 +454,13 @@ Default Recharts tooltips were originally trapped within SVG bounding boxes, cau
 To eliminate brittle external positioning engines and ensure zero React prop injection violations, custom tooltips (`ShapCustomTooltip` and `TemporalCustomTooltip`) were restored natively within the Recharts SVG tree using the following enterprise configuration:
 1. **Dedicated Functional Components:**
    `ShapCustomTooltip` and `TemporalCustomTooltip` receive Recharts' injected props (`active`, `payload`, `label`) directly as functional components, preserving full TypeScript and React prop compatibility.
-2. **SVG ViewBox Boundary Escape:**
-   Enabling `allowEscapeViewBox={{ x: true, y: true }}` permits the tooltip container to break cleanly outside the SVG clipping box, eliminating edge truncation without needing portal detachments.
+2. **Boundary Collision & Inward Flipping (`allowEscapeViewBox={{ x: false, y: true }}`):**
+   Setting `x: false` forces Recharts to calculate the left and right perimeters of the chart container and flip the tooltip inward before it bleeds off the right viewport edge or crosses into adjacent layout columns. Setting `y: true` maintains vertical flexibility to escape top and bottom clipping.
 3. **Cursor Offset Physics:**
    Configuring `offset={40}` dynamically pushes the tooltip 40px away from the pointer along the coordinate axis, guaranteeing that telemetry lines, baseline steps, and prediction curves remain visible during cursor inspection.
-4. **Liquid Glass Aesthetic:**
+4. **Elevated Stacking Context (`wrapperStyle={{ zIndex: 100 }}` & `relative z-10 hover:z-20`):**
+   Explicitly sets `wrapperStyle={{ zIndex: 100 }}` on the `<Tooltip>` container and applies `relative z-10 hover:z-20` to the Temporal Forecast card wrapper in `app/dashboard/engine-b/page.tsx`, completely preventing tooltips from sliding underneath neighboring cards.
+5. **Liquid Glass Aesthetic:**
    Enforces specular Liquid Glass styling via `bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.5)] rounded-2xl p-4 z-50 text-slate-50 min-w-[200px] select-none pointer-events-none`.
 
 ---

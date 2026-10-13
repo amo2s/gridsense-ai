@@ -203,12 +203,13 @@ const ShapWaterfallChartBase: React.FC<ShapWaterfallChartProps> = ({
             width={170}
           />
 
-          {/* Native Recharts Custom Tooltip with allowEscapeViewBox and offset */}
+          {/* Native Recharts Custom Tooltip with restricted horizontal escape and elevated stacking */}
           <Tooltip
             content={<ShapCustomTooltip />}
             cursor={{ stroke: "transparent", fill: "transparent" }}
             offset={40}
-            allowEscapeViewBox={{ x: true, y: true }}
+            allowEscapeViewBox={{ x: false, y: true }}
+            wrapperStyle={{ zIndex: 100 }}
           />
 
           {/* Divergence Bar with Dynamic Polarity & Hover Dimming */}

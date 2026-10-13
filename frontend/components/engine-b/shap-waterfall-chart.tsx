@@ -208,7 +208,7 @@ const ShapWaterfallChartBase: React.FC<ShapWaterfallChartProps> = ({
           />
 
           {/* Decoupled Recharts Tooltip triggering activePayload without SVG obstruction */}
-          <Tooltip content={<></>} cursor={{ fill: "transparent" }} />
+          <Tooltip content={() => null} cursor={{ fill: "transparent" }} />
 
           {/* Divergence Bar with Dynamic Polarity & Hover Dimming */}
           <Bar

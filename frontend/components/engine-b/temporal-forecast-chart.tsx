@@ -283,7 +283,7 @@ const TemporalForecastChartBase: React.FC<TemporalForecastChartProps> = ({
           />
 
           {/* Decoupled Recharts Tooltip triggering activePayload without SVG obstruction */}
-          <Tooltip content={<></>} cursor={{ stroke: "transparent", fill: "transparent" }} />
+          <Tooltip content={() => null} cursor={{ stroke: "transparent", fill: "transparent" }} />
 
           {/* Primary Forecast Area: Monotone Area Fill with Dynamic Severity Gradient */}
           <Area

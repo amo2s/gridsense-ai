@@ -445,9 +445,27 @@ To eliminate visual defects, text clipping constraints, disparate button compone
 **Phase 4 Integration Date:** October 13, 2026  
 **Architectural Scope:** Optical Physics Overhaul, Dual-Axis Recharts Decluttering, Go Gateway Payload Alignment, and Framer Motion Spring Orchestration.
 
+### 8.1. Spatial Tooltip Refactoring (Floating UI)
+
+**UX Defect & Root Cause:**
+The default Recharts tooltips were trapped within the SVG bounding box, causing them to physically obstruct critical data trajectories and bleed off-screen when the cursor approached the container edges. Because native Recharts tooltips render directly adjacent to or over the pointer within the SVG coordinates, operators attempting to inspect peak risk anomalies or granular voltage signals experienced severe visual occlusion.
+
+**Engineered Solution & Spatial Architecture:**
+1. **Decoupled Virtual Element Anchoring:**
+   Recharts' native tooltip rendering was decoupled and replaced with an external Floating UI Virtual Element anchor (`refs.setPositionReference`). Instead of rendering within the SVG DOM tree, mouse movement across the chart extracts coordinate data (`activeCoordinate` and `nativeEvent`) to feed a dynamic zero-dimension virtual bounding rectangle.
+2. **Collision Detection Middleware Stack:**
+   Configured `@floating-ui/react`'s `useFloating` hook with an enterprise collision avoidance pipeline:
+   - `offset(30)`: Physically displaces the tooltip 30px away from the cursor pointer, preventing hover obstruction.
+   - `flip({ fallbackPlacements: ['bottom-start', 'left-start', 'right-start'] })`: Dynamically detects container boundary collisions and flips placement when approaching container edges.
+   - `shift({ padding: 20 })`: Glides the modal smoothly along the axis if confined in boundary corners.
+3. **Framer Motion Layout Transitions:**
+   Rendered completely outside the Recharts `<ResponsiveContainer>` utilizing Framer Motion's `<AnimatePresence>` and `<motion.div layout>`. The `layout` prop ensures that when Floating UI's `flip()` middleware executes an orientation shift (e.g. flipping from top-start to bottom-start), the modal animates fluidly across the cursor axis rather than jarringly teleporting in the DOM.
+4. **Liquid Glass Aesthetic:**
+   Enforces non-obstructive semi-translucency via `bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.5)] rounded-2xl p-4 z-50 text-slate-50`.
+
 ---
 
-### 8.1. Optical Physics of the Liquid Glass Design System
+### 8.2. Optical Physics of the Liquid Glass Design System
 
 The Engine B dashboard tier transitioned from rudimentary frosted glassmorphism (flat backdrop blurs) to an enterprise-grade **Liquid Glass** design system simulating a wet, polished, refractive physical medium. True optical realism is achieved through precise mathematical stacking of specular reflections, surface distortions, and diffused ambient absorption:
 
@@ -473,11 +491,12 @@ The Engine B dashboard tier transitioned from rudimentary frosted glassmorphism 
      This yields realistic elevation without obscuring the background substrate.
 5. **Fluid Geometry & Perimeter Bounding:**
    - Containers apply aggressive corner curvature via `rounded-3xl` and an ultra-fine translucent boundary via `border border-white/40`.
-6. **Inverted Liquid Glass for Chart Tooltips:**
-   - Interactive Recharts tooltips (for both the SHAP waterfall and Temporal forecast charts) deploy an inverted dark liquid glass formulation to ensure optical contrast against bright chart graphics:
+6. **High-Contrast Modal Tooltips (Modal Visibility):**
+   - Interactive Recharts tooltips (`CustomTooltip`) deploy a stark dark-mode Liquid Glass formulation with deep drop shadow and maximum modal contrast (`z-50`):
      ```css
-     bg-slate-900/40 backdrop-blur-2xl border border-slate-700/50 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.1)] rounded-2xl
+     bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl rounded-xl p-4 text-slate-50 z-50
      ```
+   - Primary metric numbers (SHAP score or Outage Risk %) render prominently at `font-bold text-lg` to accelerate operator scanning, while secondary descriptors remain `text-sm text-slate-400`.
 
 **Standardized Liquid Glass Container Utility String:**
 ```css
@@ -487,27 +506,32 @@ bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-wh
 
 ---
 
-### 8.2. Dual-Axis Temporal Forecast Chart Decluttering & UI Optimization
+### 8.3. Dual-Axis Temporal & SHAP Chart Decluttering & Layout Optimization
 
-To eliminate extreme data density and visual clustering on the 24-hour timeline in [`components/engine-b/temporal-forecast-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/engine-b/temporal-forecast-chart.tsx):
+To eliminate layout bounding box constraints, text truncation, and visual clustering:
 
-1. **Physical Metric vs. Risk Probability Axis Separation:**
+1. **SHAP Waterfall Chart Bounding Box Rectification ([`components/engine-b/shap-waterfall-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/engine-b/shap-waterfall-chart.tsx)):**
+   - **Y-Axis Width Expansion:** Expanded `<YAxis width={180} />` to provide ample physical pixel width for full humanized feature names (e.g., *"24h Voltage Transient Frequency"*, *"Load Volatility Index"*).
+   - **BarChart Margins:** Adjusted wrapper margins to `{ top: 20, right: 30, left: 20, bottom: 20 }`.
+   - **Zero Ellipses:** Rendered complete string values with `text-xs font-semibold text-slate-900 select-none font-sans`, fully eliminating ellipses and text clipping.
+2. **Physical Metric vs. Risk Probability Axis Separation ([`components/engine-b/temporal-forecast-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/engine-b/temporal-forecast-chart.tsx)):**
    - **Primary Left Y-Axis (`yAxisId="left"`):** Dedicated exclusively to the 0% to 100% mathematical outage probability curve. Renders a monotone `<Area>` with a multi-stop dynamic severity gradient (emerald `#10b981` $\to$ amber `#f59e0b` $\to$ crimson `#e11d48`).
    - **Secondary Right Y-Axis (`yAxisId="right"`):** Explicitly set to `orientation="right"`, displacing physical telemetry (historical voltage in V and load in kW) to the right perimeter of the chart, eliminating axis collision with the risk percentage scale.
-2. **Dynamic Domain Padding:**
+3. **Dynamic Domain Padding:**
    - Configured secondary Y-axis with `domain={['dataMin - 15', 'dataMax + 15']}`. This injects vertical breathing room, compressing voltage and load lines so they do not intersect violently with the peaks of the outage probability area.
-3. **Timeline Density Control & Label Culling:**
+4. **Timeline Density Control & Edge Padding:**
    - Injected `minTickGap={45}` and `tickMargin={12}` on `<XAxis>`, mathematically culling dense chronological labels and preventing text overlap.
+   - Added `padding={{ left: 20, right: 20 }}` to `<XAxis>` to prevent first and last ticks from kissing container borders.
    - Set tick typography to high-contrast `#0f172a` with `fontWeight: "bold"` for readability against the light liquid glass canvas.
-4. **Visual Weight De-escalation:**
+5. **Visual Weight De-escalation:**
    - Reduced telemetry line `strokeWidth` to `1.5` (solid blue `#2563eb` for voltage).
    - Applied dashed array `strokeDasharray="4 4"` to load (`#7c3aed`), instantly distinguishing the electrical metrics without competing with the primary risk forecast curve.
-5. **Present Evaluation Moment Alignment:**
-   - Distinct SVG `<ReferenceLine>` labeled *"Present Evaluation Moment"* (`stroke="#059669"`, `strokeWidth=2.5`, `strokeDasharray="4 4"`) cleanly bifurcates historical Command Pathway observations from forward-looking Query Pathway ONNX inference.
+6. **Reference Line Boundary Anchoring:**
+   - Distinct SVG `<ReferenceLine>` labeled *"Present Evaluation Moment"* (`stroke="#059669"`, `strokeWidth=2.5`, `strokeDasharray="5 4"`) anchors securely inside the chart area with `position="insideTopLeft"` and `dx={-10}`, completely eliminating text bleed off the container's right bounding box.
 
 ---
 
-### 8.3. Frontend-Backend Pipeline Alignment & Defensive Parsing
+### 8.4. Frontend-Backend Pipeline Alignment & Defensive Parsing
 
 To prevent data serialization mismatch and eliminate React runtime unmount crashes between the Go API Gateway and the Next.js presentation layer:
 
@@ -548,7 +572,7 @@ To prevent data serialization mismatch and eliminate React runtime unmount crash
 
 ---
 
-### 8.4. Framer Motion Physics & Mounting Orchestration
+### 8.5. Framer Motion Physics & Mounting Orchestration
 
 To ensure heavy glossy containers ease into position with physical weight and enterprise fluidity:
 

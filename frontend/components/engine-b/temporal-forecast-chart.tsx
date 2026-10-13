@@ -1,7 +1,8 @@
 "use client";
 
-import React, { memo, useMemo } from "react";
-import { motion } from "framer-motion";
+import React, { memo, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useFloating, offset, flip, shift } from "@floating-ui/react";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -30,6 +31,14 @@ export interface TemporalForecastChartProps {
   horizonHours?: number;
   riskScore?: number;
   className?: string;
+}
+
+interface TooltipState {
+  isOpen: boolean;
+  x: number;
+  y: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: any;
 }
 
 /**
@@ -71,118 +80,6 @@ export function areTemporalPropsEqual(
 }
 
 /**
- * High-Gloss Liquid Glass Custom Tooltip (Step II.3)
- * Context-aware: emphasizes historical voltage/load on the left of evaluation moment,
- * and emphasizes forecasted outage probability percentage on the right.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CustomTemporalTooltip({ active, payload }: any) {
-  if (!active || !payload || !payload.length) {
-    return null;
-  }
-
-  const point = payload[0]?.payload as TemporalDataPoint;
-  if (!point) return null;
-
-  const isForecast = Boolean(point.isForecast);
-  const prob = point.outage_probability != null ? Number(point.outage_probability) : null;
-  const voltage = point.voltage != null ? Number(point.voltage) : null;
-  const load = point.load != null ? Number(point.load) : null;
-
-  const probColor =
-    prob == null
-      ? "text-slate-600"
-      : prob > 70
-      ? "text-rose-600"
-      : prob > 40
-      ? "text-amber-600"
-      : "text-emerald-600";
-
-  return (
-    <div className="bg-slate-900/40 backdrop-blur-2xl border border-slate-700/50 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.1)] rounded-2xl p-4 text-white min-w-64 select-none pointer-events-none transition-all">
-      {/* Header Badge */}
-      <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
-        <span className="text-[10px] uppercase font-bold tracking-wider font-mono text-slate-300 flex items-center gap-1.5">
-          <Clock className="w-3 h-3 text-slate-400" />
-          {point.timeLabel}
-        </span>
-        <span
-          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-            isForecast
-              ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
-              : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-          }`}
-        >
-          {isForecast ? (
-            <>
-              <AlertTriangle className="w-2.5 h-2.5" />
-              Forecast Horizon
-            </>
-          ) : (
-            <>
-              <ShieldCheck className="w-2.5 h-2.5" />
-              Historical Baseline
-            </>
-          )}
-        </span>
-      </div>
-
-      {/* Context-Aware Focus */}
-      {isForecast ? (
-        /* Emphasis on Forecasted Outage Probability */
-        <div className="space-y-2.5">
-          <div>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              Projected Outage Risk
-            </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className={`text-2xl font-bold font-mono tracking-tight ${probColor}`}>
-                {prob != null ? prob.toFixed(1) : "--"}
-              </span>
-              <span className="text-xs font-semibold text-slate-400">% probability</span>
-            </div>
-          </div>
-          <div className="pt-2 border-t border-white/10 text-[11px] text-slate-400 flex justify-between">
-            <span>Telemetry Context:</span>
-            <span className="italic text-slate-400">Post-Evaluation Projection</span>
-          </div>
-        </div>
-      ) : (
-        /* Emphasis on Historical Voltage & Load Telemetry */
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="p-2 rounded-xl bg-slate-800/60 border border-slate-700/60 shadow-xs">
-              <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-400 uppercase">
-                <Zap className="w-3 h-3 text-blue-400" />
-                Voltage
-              </div>
-              <p className="text-base font-bold text-white font-mono mt-0.5">
-                {voltage != null ? `${voltage.toFixed(1)} V` : "--"}
-              </p>
-            </div>
-            <div className="p-2 rounded-xl bg-slate-800/60 border border-slate-700/60 shadow-xs">
-              <div className="flex items-center gap-1 text-[10px] font-semibold text-purple-400 uppercase">
-                <Activity className="w-3 h-3 text-purple-400" />
-                Load
-              </div>
-              <p className="text-base font-bold text-white font-mono mt-0.5">
-                {load != null ? `${load.toFixed(1)} kW` : "--"}
-              </p>
-            </div>
-          </div>
-          {prob != null && (
-            <div className="pt-1.5 flex items-center justify-between text-[11px]">
-              <span className="text-slate-400 font-medium">Historical Risk Baseline:</span>
-              <span className={`font-mono font-bold ${probColor}`}>{prob.toFixed(1)}%</span>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
  * Phase 4: Dual-Axis Temporal Forecasting Component
  * Bridges 24h historical telemetry (voltage, load) with forward-looking outage risk probability.
  */
@@ -193,6 +90,26 @@ const TemporalForecastChartBase: React.FC<TemporalForecastChartProps> = ({
   riskScore = 50,
   className = "",
 }) => {
+  // State Management (Step 3: Floating UI Virtual Anchor)
+  const [tooltipState, setTooltipState] = useState<TooltipState>({
+    isOpen: false,
+    x: 0,
+    y: 0,
+    payload: null,
+  });
+
+  // Floating UI Hook Configuration (Step 3)
+  const { refs, floatingStyles } = useFloating({
+    open: tooltipState.isOpen,
+    strategy: "fixed",
+    placement: "top-start",
+    middleware: [
+      offset(30), // Pushes tooltip exactly 30px away from the cursor
+      flip({ fallbackPlacements: ["bottom-start", "left-start", "right-start"] }), // Smart collision detection
+      shift({ padding: 20 }), // Glides along the axis if trapped
+    ],
+  });
+
   // Construct chronological dataset combining 24h historical telemetry and forward prediction horizon
   const chartData = useMemo<TemporalDataPoint[]>(() => {
     if (data && data.length > 0) {
@@ -283,6 +200,38 @@ const TemporalForecastChartBase: React.FC<TemporalForecastChartProps> = ({
         <ComposedChart
           data={chartData}
           margin={{ top: 25, right: 35, left: 10, bottom: 15 }}
+          onMouseMove={(e: any) => {
+            if (e && e.activePayload && e.activePayload.length > 0) {
+              const nativeEvent = e.nativeEvent as MouseEvent | undefined;
+              const clientX = nativeEvent?.clientX ?? (e.activeCoordinate?.x ?? 0);
+              const clientY = nativeEvent?.clientY ?? (e.activeCoordinate?.y ?? 0);
+
+              refs.setPositionReference({
+                getBoundingClientRect: () => ({
+                  width: 0,
+                  height: 0,
+                  x: clientX,
+                  y: clientY,
+                  top: clientY,
+                  left: clientX,
+                  right: clientX,
+                  bottom: clientY,
+                }),
+              });
+
+              setTooltipState({
+                isOpen: true,
+                x: clientX,
+                y: clientY,
+                payload: e.activePayload,
+              });
+            } else {
+              setTooltipState((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
+            }
+          }}
+          onMouseLeave={() => {
+            setTooltipState((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
+          }}
         >
           {/* Subtle horizontal grid lines */}
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.6} />
@@ -303,6 +252,7 @@ const TemporalForecastChartBase: React.FC<TemporalForecastChartProps> = ({
             axisLine={{ stroke: "#cbd5e1" }}
             minTickGap={45}
             tickMargin={12}
+            padding={{ left: 20, right: 30 }}
             tick={{ fill: "#0f172a", fontSize: 11, fontWeight: "bold" }}
             dy={8}
             interval="preserveStartEnd"
@@ -332,11 +282,8 @@ const TemporalForecastChartBase: React.FC<TemporalForecastChartProps> = ({
             width={45}
           />
 
-          {/* Liquid Glass Interactive Tooltip */}
-          <Tooltip
-            content={<CustomTemporalTooltip />}
-            cursor={{ stroke: "#94a3b8", strokeWidth: 1.5, strokeDasharray: "4 4" }}
-          />
+          {/* Decoupled Recharts Tooltip triggering activePayload without SVG obstruction */}
+          <Tooltip content={<></>} cursor={{ stroke: "transparent", fill: "transparent" }} />
 
           {/* Primary Forecast Area: Monotone Area Fill with Dynamic Severity Gradient */}
           <Area
@@ -391,11 +338,121 @@ const TemporalForecastChartBase: React.FC<TemporalForecastChartProps> = ({
                 fontSize: 11,
                 fontWeight: 700,
                 dy: -12,
+                dx: -100,
               }}
             />
           )}
         </ComposedChart>
       </ResponsiveContainer>
+
+      {/* Spatially-Aware Floating UI Tooltip with Framer Motion Layout Transitions */}
+      <AnimatePresence>
+        {tooltipState.isOpen && (() => {
+          const point = tooltipState.payload?.[0]?.payload as TemporalDataPoint | undefined;
+          if (!point) return null;
+
+          const isForecast = Boolean(point.isForecast);
+          const prob = point.outage_probability != null ? Number(point.outage_probability) : null;
+          const voltage = point.voltage != null ? Number(point.voltage) : null;
+          const load = point.load != null ? Number(point.load) : null;
+
+          return (
+            <motion.div
+              layout
+              ref={refs.setFloating}
+              style={floatingStyles}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{
+                type: "spring",
+                stiffness: 300,
+                damping: 25,
+              }}
+              className="pointer-events-none select-none z-50 bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.5)] rounded-2xl p-4 text-slate-50 min-w-64"
+            >
+              {/* Header Badge */}
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-700/50">
+                <span className="text-xs font-medium text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  {point.timeLabel}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+                    isForecast
+                      ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                      : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                  }`}
+                >
+                  {isForecast ? (
+                    <>
+                      <AlertTriangle className="w-3 h-3" />
+                      Forecast Horizon
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-3 h-3" />
+                      Historical Baseline
+                    </>
+                  )}
+                </span>
+              </div>
+
+              {/* Context-Aware Content */}
+              {isForecast ? (
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-xs font-medium text-slate-400">
+                      Outage Risk:
+                    </span>
+                    <div className="flex items-baseline gap-1.5 mt-0.5">
+                      <span className="font-mono font-bold text-lg text-slate-50 tracking-tight">
+                        {prob != null ? `${prob.toFixed(1)}%` : "--"}
+                      </span>
+                      <span className="text-xs font-medium text-slate-400">probability</span>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-slate-700/50 text-xs font-medium text-slate-400 flex justify-between">
+                    <span>Evaluation Stage:</span>
+                    <span className="text-slate-300">Post-Evaluation Projection</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 shadow-xs">
+                      <div className="flex items-center gap-1 text-xs font-medium text-slate-400">
+                        <Zap className="w-3.5 h-3.5 text-blue-400" />
+                        Voltage
+                      </div>
+                      <p className="font-mono font-bold text-lg text-slate-50 mt-0.5">
+                        {voltage != null ? `${voltage.toFixed(1)} V` : "--"}
+                      </p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 shadow-xs">
+                      <div className="flex items-center gap-1 text-xs font-medium text-slate-400">
+                        <Activity className="w-3.5 h-3.5 text-purple-400" />
+                        Load
+                      </div>
+                      <p className="font-mono font-bold text-lg text-slate-50 mt-0.5">
+                        {load != null ? `${load.toFixed(1)} kW` : "--"}
+                      </p>
+                    </div>
+                  </div>
+                  {prob != null && (
+                    <div className="pt-2 border-t border-slate-700/50 flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-400">Baseline Risk:</span>
+                      <span className="font-mono font-bold text-lg text-slate-50">
+                        {prob.toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
     </motion.div>
   );
 };

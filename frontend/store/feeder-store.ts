@@ -7,7 +7,20 @@ export interface ActiveFeederInfo {
   substation: string;
   voltageClass?: string;
   status?: string;
+  substationId?: string;
 }
+
+/**
+ * Normalizes an identifier string (UUID or code) by stripping leading/trailing whitespace
+ * and enforcing lowercase transformation. Conforms strictly to boundary contracts
+ * enforced by PostgreSQL, the Go API Gateway, and Python AI services.
+ * Returns null if input is null, undefined, or empty/whitespace.
+ */
+export const normalizeIdentifier = (id: string | null | undefined): string | null => {
+  if (id === null || id === undefined) return null;
+  const trimmed = id.trim().toLowerCase();
+  return trimmed.length > 0 ? trimmed : null;
+};
 
 export interface FeederState {
   /** Currently active single feeder context across all engines (e.g., 'f47ac10b-58cc-4372-a567-0e02b2c3d479') */
@@ -16,6 +29,12 @@ export interface FeederState {
   activeFeeder: ActiveFeederInfo | null;
   /** Array of selected feeders for multi-asset comparison views */
   selectedFeeders: string[];
+  /**
+   * Currently active substation identifier representing the hierarchical parent context for Engine C.
+   * Accommodates empty state (null) before an operator selects a substation without triggering compilation errors.
+   */
+  activeSubstationId: string | null;
+
   /** Sets the primary active feeder and guarantees it exists in selectedFeeders */
   setActiveFeeder: (id: string, metadata?: Partial<ActiveFeederInfo>) => void;
   /** Clears active feeder context */
@@ -24,6 +43,13 @@ export interface FeederState {
   setSelectedFeeders: (feeders: string[]) => void;
   /** Toggles feeder membership in selectedFeeders array */
   toggleSelectedFeeder: (id: string) => void;
+
+  /** Sets the active substation identifier with strict trim and lowercase normalization */
+  setActiveSubstationId: (id: string | null | undefined) => void;
+  /** Alias for setActiveSubstationId to maintain flexible caller conventions across Engine C components */
+  setActiveSubstation: (id: string | null | undefined) => void;
+  /** Clears active substation context */
+  clearActiveSubstation: () => void;
 }
 
 export const DEFAULT_FEEDER_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
@@ -52,6 +78,7 @@ export const useFeederStore = create<FeederState>()(
       activeFeederId: DEFAULT_FEEDER_ID,
       activeFeeder: DEFAULT_FEEDER_INFO,
       selectedFeeders: [DEFAULT_FEEDER_ID],
+      activeSubstationId: null,
 
       setActiveFeeder: (id: string, metadata?: Partial<ActiveFeederInfo>) => {
         const normalizedId = id.trim().toLowerCase();
@@ -117,6 +144,21 @@ export const useFeederStore = create<FeederState>()(
           };
         });
       },
+
+      setActiveSubstationId: (id: string | null | undefined) => {
+        const normalizedId = normalizeIdentifier(id);
+        set({ activeSubstationId: normalizedId });
+      },
+
+      setActiveSubstation: (id: string | null | undefined) => {
+        const normalizedId = normalizeIdentifier(id);
+        set({ activeSubstationId: normalizedId });
+      },
+
+      clearActiveSubstation: () =>
+        set({
+          activeSubstationId: null,
+        }),
     }),
     {
       name: "gridsense-active-feeder-context",
@@ -131,6 +173,23 @@ export const useFeederStore = create<FeederState>()(
           removeItem: () => {},
         };
       }),
+      partialize: (state) => ({
+        activeFeederId: state.activeFeederId,
+        activeFeeder: state.activeFeeder,
+        selectedFeeders: state.selectedFeeders,
+        activeSubstationId: state.activeSubstationId,
+      }),
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState as Partial<FeederState>) || {};
+        return {
+          ...currentState,
+          ...persisted,
+          activeSubstationId:
+            persisted.activeSubstationId !== undefined && persisted.activeSubstationId !== null
+              ? normalizeIdentifier(persisted.activeSubstationId)
+              : (currentState.activeSubstationId ?? null),
+        };
+      },
     }
   )
 );

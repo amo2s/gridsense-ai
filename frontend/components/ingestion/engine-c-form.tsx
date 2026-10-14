@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { subHours } from "date-fns";
@@ -18,7 +18,11 @@ import {
   Building2,
   Zap,
   Activity,
-  Gauge
+  Gauge,
+  Clock,
+  RefreshCw,
+  FlaskConical,
+  Radio
 } from "lucide-react";
 import { toast } from "sonner";
 import { useFeederStore } from "@/store/feeder-store";
@@ -27,27 +31,38 @@ import {
   EngineCTelemetryWindow,
   EngineCTelemetryReading,
 } from "@/types/engine-c-ingestion";
+import { 
+  useEngineCFSM, 
+  parsePydanticRejection 
+} from "@/hooks/use-engine-c-fsm";
+import RejectionInspectorPanel from "@/components/ingestion/rejection-inspector-panel";
 
-type FormStateFSM = "IDLE" | "SUBMITTING" | "SUCCESS" | "ERROR";
+const GATEWAY_TIMEOUT_MS = 8000;
 
 /**
  * ============================================================================
- * ENGINE C MANUAL TELEMETRY INGESTION FORM (COMMAND PATHWAY - STEP 1.2)
+ * ENGINE C MANUAL TELEMETRY INGESTION FORM (COMMAND PATHWAY - STEPS 1.3 & 1.4)
  * ============================================================================
- * Uncontrolled form state powered by React Hook Form + Zod boundary validation.
- * Perfectly mirrors Python Pydantic v2 anomaly contracts (Engine C).
+ * Governed by a 5-State Finite State Machine (FSM):
+ *  - Initializing | Connected | Receiving Data | Schema Error | Timeout
  * Enforces:
- *  - 24-step sliding window requirement
- *  - Physical bounds: Voltage [0, 500V], Load >= 0, Freq >= 0, Avail [0, 1]
- *  - Temporal integrity: Anti-leakage (<= now UTC) and ascending monotonicity
+ *  - 8-Second (8000ms) AbortController timeout budget
+ *  - Interception & translation of HTTP 400/422 Pydantic v2 error responses
+ *  - Liquid Glass Rejection Inspector Panel
+ *  - Idempotent Retry actions without data array mutation
  */
 export default function EngineCForm() {
   const activeFeederId = useFeederStore((state) => state.activeFeederId);
   const activeSubstationId = useFeederStore((state) => state.activeSubstationId);
   const activeFeeder = useFeederStore((state) => state.activeFeeder);
 
-  const [formStatus, setFormStatus] = useState<FormStateFSM>("IDLE");
-  const [submissionFeedback, setSubmissionFeedback] = useState<string | null>(null);
+  // Phase 1.3: Deterministic Finite State Machine
+  const {
+    context: fsm,
+    dispatch,
+    isSubmitting: isFSMSubmitting,
+    abortControllerRef,
+  } = useEngineCFSM();
 
   const {
     register,
@@ -80,12 +95,7 @@ export default function EngineCForm() {
 
   /**
    * Generates a 24-hour diurnal sliding window baseline for Engine C anomaly detection.
-   * Produces 24 strictly ascending hourly timestamps ending at the top of current UTC hour.
-   * Conforms strictly to Pydantic v2 physical and electrical contracts:
-   * - Voltage: 230V (+/- 8V diurnal variance) within [0.0, 500.0]
-   * - Load: Diurnal curve centered at 520 kW (>= 0.0)
-   * - Frequency: Grid standard 50.0 Hz (+/- 0.15 Hz, >= 0.0)
-   * - Availability: High baseline 0.98 - 1.00 within [0.0, 1.0]
+   * Produces 24 strictly ascending hourly timestamps ending at top of current UTC hour.
    */
   const handleGenerateBaseline = () => {
     const now = new Date();
@@ -131,24 +141,108 @@ export default function EngineCForm() {
     toast.success("Synthesized 24-hour sliding window telemetry baseline conforming to Pydantic v2 contracts.");
   };
 
-  const onSubmit = async (data: EngineCTelemetryWindow) => {
+  /**
+   * Core Network Dispatcher with 8-Second AbortController and HTTP 400/422 Translation
+   */
+  const executeSubmission = async (
+    data: EngineCTelemetryWindow,
+    simulationHeader?: string
+  ) => {
+    // FSM Guard: Transition allowed ONLY if not already in flight
+    if (fsm.state === "Connected" || fsm.state === "Receiving Data") {
+      console.warn("[FSM Guard] Network submission already in flight. Duplicate dispatch prevented.");
+      return;
+    }
+
+    dispatch({ type: "INITIATE_SUBMISSION" });
+
+    // Step 1.3: Instantiate AbortController bound to 8000ms budget
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const timeoutTimer = setTimeout(() => {
+      controller.abort();
+      console.error("Gateway request timed out after 8000ms budget exceeded.");
+      dispatch({
+        type: "TIMEOUT_TRIGGERED",
+        error: `Go API Gateway execution budget of ${GATEWAY_TIMEOUT_MS}ms exceeded. Connection severed by client AbortController.`,
+      });
+      toast.error("Go Gateway timeout: 8-second budget exceeded. Connection severed.");
+    }, GATEWAY_TIMEOUT_MS);
+
     try {
-      setFormStatus("SUBMITTING");
-      setSubmissionFeedback(null);
+      // Transition to Receiving Data
+      dispatch({ type: "CONNECTION_ESTABLISHED" });
 
-      // Simulated network transport to Go API Gateway command ingress
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const requestHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (simulationHeader) {
+        requestHeaders["x-simulate-response"] = simulationHeader;
+      }
 
-      setFormStatus("SUCCESS");
-      setSubmissionFeedback(
-        `Successfully validated and staged ${data.readings.length} sequential telemetry readings for Feeder ${data.feeder_id}.`
-      );
-      toast.success("Telemetry payload validated by Zod client engine and staged for Gateway ingestion!");
-    } catch (err: unknown) {
-      setFormStatus("ERROR");
-      const msg = err instanceof Error ? err.message : "Failed to stage command ingestion payload.";
-      setSubmissionFeedback(msg);
-      toast.error(msg);
+      const res = await fetch("/api/proxy/v1/anomaly/ingest", {
+        method: "POST",
+        headers: requestHeaders,
+        body: JSON.stringify(data),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutTimer);
+
+      // Step 1.4: Intercept HTTP 400 and HTTP 422 Pydantic v2 rejections
+      if (res.status === 400 || res.status === 422) {
+        let errJson: unknown = null;
+        try {
+          errJson = await res.json();
+        } catch {
+          errJson = { detail: "Failed to parse structured JSON rejection payload from Gateway." };
+        }
+
+        const parsedRejection = parsePydanticRejection(res.status, errJson);
+        dispatch({ type: "REJECTION_INTERCEPTED", rejection: parsedRejection });
+        toast.error(`Upstream HTTP ${res.status}: ${parsedRejection.errorCount} boundary violations intercepted.`);
+        return;
+      }
+
+      if (!res.ok) {
+        const errText = await res.text();
+        const fallbackRejection = parsePydanticRejection(res.status, { error: errText });
+        dispatch({ type: "REJECTION_INTERCEPTED", rejection: fallbackRejection });
+        toast.error(`Gateway returned HTTP ${res.status}.`);
+        return;
+      }
+
+      const responseData = await res.json();
+      dispatch({ type: "SUCCESS_RECEIVED", response: responseData });
+      toast.success("Command payload successfully ingested and validated by Go Gateway!");
+    } catch (err: any) {
+      clearTimeout(timeoutTimer);
+
+      if (err.name === "AbortError") {
+        // If aborted by the 8-second timer
+        return;
+      }
+
+      const networkRejection = parsePydanticRejection(500, {
+        error: err.message || "Network transmission to Go Gateway failed.",
+      });
+      dispatch({ type: "REJECTION_INTERCEPTED", rejection: networkRejection });
+      toast.error(err.message || "Network transmission failed.");
+    }
+  };
+
+  /**
+   * Idempotent Retry Action: Re-initiates submission without mutating readings or timestamps
+   */
+  const handleIdempotentRetry = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const currentValues = (control as any)._formValues as EngineCTelemetryWindow;
+    if (currentValues && currentValues.readings && currentValues.readings.length >= 24) {
+      dispatch({ type: "IDEMPOTENT_RETRY" });
+      executeSubmission(currentValues);
+    } else {
+      handleSubmit((data) => executeSubmission(data))();
     }
   };
 
@@ -185,8 +279,8 @@ export default function EngineCForm() {
   const rootReadingsError = errors.readings?.root?.message || (!Array.isArray(errors.readings) && (errors.readings as any)?.message);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Dynamic Header: Global Zustand Context Data Binding */}
+    <form onSubmit={handleSubmit((data) => executeSubmission(data))} className="space-y-6">
+      {/* Dynamic Header: Global Zustand Context Data Binding & FSM Status */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-200/60">
         <div>
           <div className="flex flex-wrap items-center gap-2.5">
@@ -213,23 +307,65 @@ export default function EngineCForm() {
                 {activeSubstationId || activeFeeder?.substation || "Unassigned"}
               </span>
             </span>
+
+            {/* FSM Status Indicator Badge */}
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold font-mono border shadow-xs ${
+              fsm.state === "Connected" || fsm.state === "Receiving Data"
+                ? "bg-blue-500/10 text-blue-700 border-blue-500/30"
+                : fsm.state === "Schema Error"
+                ? "bg-rose-500/10 text-rose-700 border-rose-500/30"
+                : fsm.state === "Timeout"
+                ? "bg-amber-500/10 text-amber-700 border-amber-500/30"
+                : "bg-slate-100 text-slate-600 border-slate-200"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                isFSMSubmitting ? "bg-blue-500 animate-ping" : fsm.state === "Schema Error" ? "bg-rose-500" : fsm.state === "Timeout" ? "bg-amber-500" : "bg-emerald-500"
+              }`} />
+              <span>FSM:</span>
+              <span>{fsm.state}</span>
+            </span>
           </div>
           <p className="text-xs text-slate-500 mt-1.5">
-            Hierarchical asset binding dynamically mapped via Phase 0.2 Zustand store expansion
+            Deterministic FSM Lifecycle &bull; 8-Second AbortController Gateway Budget
           </p>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2.5">
+        {/* Action Controls & Diagnostic Verification Triggers */}
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleGenerateBaseline}
-            disabled={formStatus === "SUBMITTING"}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-emerald-800 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 rounded-xl backdrop-blur-md shadow-sm transition-all duration-200 disabled:opacity-50 cursor-pointer"
+            disabled={isFSMSubmitting}
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-emerald-800 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 rounded-xl backdrop-blur-md shadow-sm transition-all duration-200 disabled:opacity-50 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
             Generate 24h Baseline
           </button>
+
+          {/* Diagnostic Simulation: 422 Rejection */}
+          <button
+            type="button"
+            onClick={() => handleSubmit((data) => executeSubmission(data, "422"))()}
+            disabled={isFSMSubmitting}
+            title="Simulate upstream Pydantic v2 422 Unprocessable Entity rejection"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-800 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 rounded-xl shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-50"
+          >
+            <FlaskConical className="w-3.5 h-3.5 text-rose-600" />
+            Test 422
+          </button>
+
+          {/* Diagnostic Simulation: 8s Timeout */}
+          <button
+            type="button"
+            onClick={() => handleSubmit((data) => executeSubmission(data, "timeout"))()}
+            disabled={isFSMSubmitting}
+            title="Simulate slow Go Gateway exceeding 8000ms AbortController budget"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-amber-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 rounded-xl shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-50"
+          >
+            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            Test 8s Timeout
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -241,13 +377,74 @@ export default function EngineCForm() {
                 availability: 1.0,
               });
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white/60 hover:bg-white/80 border border-white/80 rounded-xl shadow-xs transition-all duration-200 cursor-pointer"
+            disabled={isFSMSubmitting}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white/60 hover:bg-white/80 border border-white/80 rounded-xl shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5 text-slate-600" />
-            Add Reading
+            Add Row
           </button>
         </div>
       </div>
+
+      {/* Step 1.4: Rejection Inspector Panel (Rendered when FSM is in Schema Error) */}
+      {fsm.state === "Schema Error" && fsm.rejection && (
+        <RejectionInspectorPanel
+          rejection={fsm.rejection}
+          onRetry={handleIdempotentRetry}
+          onDismiss={() => dispatch({ type: "RESET" })}
+          isRetrying={isFSMSubmitting}
+        />
+      )}
+
+      {/* Step 1.3: Timeout Callout Panel (Rendered when FSM is in Timeout) */}
+      {fsm.state === "Timeout" && (
+        <motion.div
+          initial={{ opacity: 0, y: -8, scale: 0.99 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          className="rounded-3xl border border-amber-500/35 bg-white/30 backdrop-blur-2xl bg-gradient-to-br from-white/75 via-amber-50/25 to-white/10 p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_20px_50px_-12px_rgba(245,158,11,0.18)] flex flex-col gap-4"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-200/50">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-600 shadow-xs">
+                <Clock className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold tracking-tight text-amber-950">
+                    Gateway Timeout Budget Exceeded ({GATEWAY_TIMEOUT_MS}ms)
+                  </h3>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-amber-500/15 text-amber-800 border border-amber-500/35">
+                    CONNECTION SEVERED
+                  </span>
+                </div>
+                <p className="text-xs text-amber-800/80 mt-0.5">
+                  The Go API Gateway failed to respond within the budgeted 8-second window.
+                </p>
+              </div>
+            </div>
+
+            <span className="text-[11px] font-mono font-semibold text-amber-700 bg-white/70 px-2.5 py-1 rounded-xl border border-white/90">
+              Retries: {fsm.retryCount}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white/60 border border-white/80 text-xs text-slate-700 leading-relaxed flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <p className="text-xs text-slate-600">
+              The request was terminated by the client <span className="font-mono font-semibold text-slate-800">AbortController</span> to prevent state corruption. You may re-attempt transmission idempotently without mutating readings.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleIdempotentRetry}
+              disabled={isFSMSubmitting}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isFSMSubmitting ? "animate-spin" : ""}`} />
+              <span>Retry Transmission (Idempotent)</span>
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Sliding Window Metric Overview */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -315,7 +512,7 @@ export default function EngineCForm() {
           <div className="flex items-center gap-2">
             <Database className="w-4 h-4 text-slate-500" />
             <h4 className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
-              24-Hour Telemetry Matrix (Zod &amp; Pydantic v2 Enforced)
+              24-Hour Telemetry Matrix (Pydantic v2 Enforced)
             </h4>
           </div>
           <span className="text-[11px] font-mono text-slate-500">
@@ -360,6 +557,7 @@ export default function EngineCForm() {
                     {/* Timestamp Input */}
                     <input
                       type="text"
+                      disabled={isFSMSubmitting}
                       {...register(`readings.${index}.timestamp` as const)}
                       placeholder="YYYY-MM-DDTHH:mm:ssZ"
                       className={`col-span-3 px-2 py-1 bg-white/70 border rounded-md font-mono text-[11px] text-slate-700 shadow-2xs focus:outline-none transition-colors ${
@@ -373,6 +571,7 @@ export default function EngineCForm() {
                     <input
                       type="number"
                       step="0.1"
+                      disabled={isFSMSubmitting}
                       {...register(`readings.${index}.voltage` as const, { valueAsNumber: true })}
                       placeholder="0 - 500"
                       className={`col-span-2 px-2 py-1 bg-white/70 border rounded-md font-mono text-[11px] text-right text-slate-700 shadow-2xs focus:outline-none transition-colors ${
@@ -386,6 +585,7 @@ export default function EngineCForm() {
                     <input
                       type="number"
                       step="0.1"
+                      disabled={isFSMSubmitting}
                       {...register(`readings.${index}.load` as const, { valueAsNumber: true })}
                       placeholder=">= 0"
                       className={`col-span-2 px-2 py-1 bg-white/70 border rounded-md font-mono text-[11px] text-right text-slate-700 shadow-2xs focus:outline-none transition-colors ${
@@ -399,6 +599,7 @@ export default function EngineCForm() {
                     <input
                       type="number"
                       step="0.01"
+                      disabled={isFSMSubmitting}
                       {...register(`readings.${index}.frequency` as const, { valueAsNumber: true })}
                       placeholder=">= 0"
                       className={`col-span-2 px-2 py-1 bg-white/70 border rounded-md font-mono text-[11px] text-right text-slate-700 shadow-2xs focus:outline-none transition-colors ${
@@ -412,6 +613,7 @@ export default function EngineCForm() {
                     <input
                       type="number"
                       step="0.01"
+                      disabled={isFSMSubmitting}
                       {...register(`readings.${index}.availability` as const, { valueAsNumber: true })}
                       placeholder="0 - 1"
                       className={`col-span-1 px-1.5 py-1 bg-white/70 border rounded-md font-mono text-[11px] text-right text-slate-700 shadow-2xs focus:outline-none transition-colors ${
@@ -425,8 +627,9 @@ export default function EngineCForm() {
                     <div className="col-span-1 flex justify-center">
                       <button
                         type="button"
+                        disabled={isFSMSubmitting}
                         onClick={() => remove(index)}
-                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors disabled:opacity-40"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -465,43 +668,60 @@ export default function EngineCForm() {
         )}
       </div>
 
-      {/* Submission Feedback Banner */}
+      {/* Success Notification Banner */}
       <AnimatePresence>
-        {submissionFeedback && (
+        {Boolean(fsm.successResponse) && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className={`p-3.5 rounded-xl border flex items-center gap-2.5 text-xs ${
-              formStatus === "SUCCESS"
-                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800"
-                : "bg-rose-500/10 border-rose-500/30 text-rose-800"
-            }`}
+            className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 text-xs flex items-center gap-2.5 backdrop-blur-md shadow-xs"
           >
-            {formStatus === "SUCCESS" ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            ) : (
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-            )}
-            <span>{submissionFeedback}</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="flex-1">
+              <span className="font-semibold">Telemetry Ingestion Accepted: </span>
+              <span>Sliding window validated and persisted by Go Gateway. Model inference dispatched.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "RESET" })}
+              className="text-[11px] font-semibold text-emerald-700 hover:underline cursor-pointer"
+            >
+              Clear
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Submission Footer */}
+      {/* Submission Footer with In-Flight Guardrail Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3 border-t border-slate-200/60">
-        <div className="text-xs text-slate-500">
-          <span>Boundary Target: </span>
-          <span className="font-mono text-slate-700">POST /api/proxy/v1/anomalies/detect</span>
+        <div className="text-xs text-slate-500 flex items-center gap-2">
+          <span>Boundary: </span>
+          <span className="font-mono text-slate-700">POST /api/proxy/v1/anomaly/ingest</span>
+          {isFSMSubmitting && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-mono text-blue-600 font-semibold animate-pulse">
+              <Radio className="w-3 h-3" />
+              <span>In-Flight ({fsm.state})</span>
+            </span>
+          )}
         </div>
 
         <button
           type="submit"
-          disabled={!isWindowComplete || formStatus === "SUBMITTING"}
+          disabled={!isWindowComplete || isFSMSubmitting}
           className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
         >
-          <Send className="w-3.5 h-3.5" />
-          <span>Stage Command Payload</span>
+          {isFSMSubmitting ? (
+            <>
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />
+              <span>Processing Ingestion...</span>
+            </>
+          ) : (
+            <>
+              <Send className="w-3.5 h-3.5" />
+              <span>Stage Command Payload</span>
+            </>
+          )}
         </button>
       </div>
     </form>

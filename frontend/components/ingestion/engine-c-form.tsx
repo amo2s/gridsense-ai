@@ -3,10 +3,8 @@
 import React, { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { subHours } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Sparkles, 
   ShieldAlert, 
   Layers, 
   Send, 
@@ -29,7 +27,6 @@ import { useFeederStore } from "@/store/feeder-store";
 import {
   EngineCTelemetryWindowSchema,
   EngineCTelemetryWindow,
-  EngineCTelemetryReading,
 } from "@/types/engine-c-ingestion";
 import { 
   useEngineCFSM, 
@@ -92,54 +89,6 @@ export default function EngineCForm() {
     }
     setValue("substation_id", activeSubstationId || null);
   }, [activeFeederId, activeSubstationId, setValue]);
-
-  /**
-   * Generates a 24-hour diurnal sliding window baseline for Engine C anomaly detection.
-   * Produces 24 strictly ascending hourly timestamps ending at top of current UTC hour.
-   */
-  const handleGenerateBaseline = () => {
-    const now = new Date();
-    const endHour = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate(),
-      now.getUTCHours(),
-      0, 0, 0
-    ));
-
-    const baseline: EngineCTelemetryReading[] = [];
-
-    for (let i = 23; i >= 0; i--) {
-      const readingTime = subHours(endHour, i);
-      const hour = readingTime.getUTCHours();
-
-      // Diurnal voltage sine wave: bounded strictly [0, 500]
-      const voltageNoise = (Math.random() * 2 - 1) * 1.2;
-      const voltage = Math.round(Math.min(500, Math.max(0, 230 + 10 * Math.sin(((hour - 5) / 24) * 2 * Math.PI) + voltageNoise)) * 10) / 10;
-
-      // Diurnal load curve peaking in evening hours (18:00 UTC): >= 0
-      const loadNoise = (Math.random() * 2 - 1) * 8;
-      const load = Math.round(Math.max(0, 520 + 160 * Math.sin(((hour - 11) / 24) * 2 * Math.PI) + loadNoise) * 10) / 10;
-
-      // Frequency nominal around 50Hz: >= 0
-      const frequencyNoise = (Math.random() * 2 - 1) * 0.08;
-      const frequency = Math.round(Math.max(0, 50.0 + frequencyNoise) * 100) / 100;
-
-      // Availability index strictly [0.0, 1.0]
-      const availability = Math.round(Math.min(1.0, Math.max(0.0, 0.98 + Math.random() * 0.02)) * 100) / 100;
-
-      baseline.push({
-        timestamp: readingTime.toISOString(),
-        voltage,
-        load,
-        frequency,
-        availability,
-      });
-    }
-
-    replace(baseline);
-    toast.success("Synthesized 24-hour sliding window telemetry baseline conforming to Pydantic v2 contracts.");
-  };
 
   /**
    * Core Network Dispatcher with 8-Second AbortController and HTTP 400/422 Translation
@@ -332,16 +281,6 @@ export default function EngineCForm() {
 
         {/* Action Controls & Diagnostic Verification Triggers */}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleGenerateBaseline}
-            disabled={isFSMSubmitting}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-emerald-800 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 rounded-xl backdrop-blur-md shadow-sm transition-all duration-200 disabled:opacity-50 cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            Generate 24h Baseline
-          </button>
-
           {/* Diagnostic Simulation: 422 Rejection */}
           <button
             type="button"
@@ -522,9 +461,9 @@ export default function EngineCForm() {
 
         {fields.length === 0 ? (
           <div className="py-12 text-center text-slate-400 text-xs">
-            No telemetry readings staged. Click{" "}
-            <span className="font-semibold text-emerald-700">"Generate 24h Baseline"</span>{" "}
-            to auto-populate sequential operational vectors.
+            No telemetry readings staged. Use the{" "}
+            <span className="font-semibold text-slate-700">"Add Row"</span>{" "}
+            button above to stage manual operational vectors.
           </div>
         ) : (
           <div className="max-h-[420px] overflow-y-auto divide-y divide-white/40">

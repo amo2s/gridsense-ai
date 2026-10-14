@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { subHours } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -21,30 +22,24 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useFeederStore } from "@/store/feeder-store";
-
-export interface EngineCTelemetryReadingForm {
-  timestamp: string;
-  voltage: number;
-  load: number;
-  frequency: number;
-  availability: number;
-}
-
-export interface EngineCIngestionFormData {
-  feeder_id: string;
-  substation_id: string | null;
-  readings: EngineCTelemetryReadingForm[];
-}
+import {
+  EngineCTelemetryWindowSchema,
+  EngineCTelemetryWindow,
+  EngineCTelemetryReading,
+} from "@/types/engine-c-ingestion";
 
 type FormStateFSM = "IDLE" | "SUBMITTING" | "SUCCESS" | "ERROR";
 
 /**
  * ============================================================================
- * ENGINE C MANUAL TELEMETRY INGESTION FORM (COMMAND PATHWAY)
+ * ENGINE C MANUAL TELEMETRY INGESTION FORM (COMMAND PATHWAY - STEP 1.2)
  * ============================================================================
- * High-performance uncontrolled form state management powered by React Hook Form.
- * Directly binds to Phase 0.2 global Zustand store context (activeFeederId + activeSubstationId).
- * Pre-scaffolded for 24-step sliding window telemetry with zero re-render overhead.
+ * Uncontrolled form state powered by React Hook Form + Zod boundary validation.
+ * Perfectly mirrors Python Pydantic v2 anomaly contracts (Engine C).
+ * Enforces:
+ *  - 24-step sliding window requirement
+ *  - Physical bounds: Voltage [0, 500V], Load >= 0, Freq >= 0, Avail [0, 1]
+ *  - Temporal integrity: Anti-leakage (<= now UTC) and ascending monotonicity
  */
 export default function EngineCForm() {
   const activeFeederId = useFeederStore((state) => state.activeFeederId);
@@ -59,9 +54,10 @@ export default function EngineCForm() {
     control,
     handleSubmit,
     setValue,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<EngineCIngestionFormData>({
+    formState: { errors },
+  } = useForm<EngineCTelemetryWindow>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(EngineCTelemetryWindowSchema) as any,
     defaultValues: {
       feeder_id: activeFeederId || "",
       substation_id: activeSubstationId || null,
@@ -74,21 +70,22 @@ export default function EngineCForm() {
     name: "readings",
   });
 
-  // Keep feeder_id and substation_id synchronized with global store without causing re-renders
+  // Keep feeder_id and substation_id synchronized with global store without triggering full form re-renders
   useEffect(() => {
     if (activeFeederId) {
-      setValue("feeder_id", activeFeederId);
+      setValue("feeder_id", activeFeederId, { shouldValidate: true });
     }
     setValue("substation_id", activeSubstationId || null);
   }, [activeFeederId, activeSubstationId, setValue]);
 
   /**
    * Generates a 24-hour diurnal sliding window baseline for Engine C anomaly detection.
-   * Produces 24 ascending hourly timestamps with realistic operational parameters:
-   * - Voltage: Centered at 230V (+/- 8V diurnal variance)
-   * - Load: Diurnal curve centered at 520 kW
-   * - Frequency: Grid standard 50.0 Hz (+/- 0.15 Hz nominal variance)
-   * - Availability: High baseline 0.98 - 1.00
+   * Produces 24 strictly ascending hourly timestamps ending at the top of current UTC hour.
+   * Conforms strictly to Pydantic v2 physical and electrical contracts:
+   * - Voltage: 230V (+/- 8V diurnal variance) within [0.0, 500.0]
+   * - Load: Diurnal curve centered at 520 kW (>= 0.0)
+   * - Frequency: Grid standard 50.0 Hz (+/- 0.15 Hz, >= 0.0)
+   * - Availability: High baseline 0.98 - 1.00 within [0.0, 1.0]
    */
   const handleGenerateBaseline = () => {
     const now = new Date();
@@ -100,26 +97,26 @@ export default function EngineCForm() {
       0, 0, 0
     ));
 
-    const baseline: EngineCTelemetryReadingForm[] = [];
+    const baseline: EngineCTelemetryReading[] = [];
 
     for (let i = 23; i >= 0; i--) {
       const readingTime = subHours(endHour, i);
       const hour = readingTime.getUTCHours();
 
-      // Diurnal voltage sine wave
+      // Diurnal voltage sine wave: bounded strictly [0, 500]
       const voltageNoise = (Math.random() * 2 - 1) * 1.2;
-      const voltage = Math.round((230 + 10 * Math.sin(((hour - 5) / 24) * 2 * Math.PI) + voltageNoise) * 10) / 10;
+      const voltage = Math.round(Math.min(500, Math.max(0, 230 + 10 * Math.sin(((hour - 5) / 24) * 2 * Math.PI) + voltageNoise)) * 10) / 10;
 
-      // Diurnal load curve peaking in evening hours (18:00 UTC)
+      // Diurnal load curve peaking in evening hours (18:00 UTC): >= 0
       const loadNoise = (Math.random() * 2 - 1) * 8;
-      const load = Math.round((520 + 160 * Math.sin(((hour - 11) / 24) * 2 * Math.PI) + loadNoise) * 10) / 10;
+      const load = Math.round(Math.max(0, 520 + 160 * Math.sin(((hour - 11) / 24) * 2 * Math.PI) + loadNoise) * 10) / 10;
 
-      // Frequency nominal around 50Hz
+      // Frequency nominal around 50Hz: >= 0
       const frequencyNoise = (Math.random() * 2 - 1) * 0.08;
-      const frequency = Math.round((50.0 + frequencyNoise) * 100) / 100;
+      const frequency = Math.round(Math.max(0, 50.0 + frequencyNoise) * 100) / 100;
 
-      // Availability index
-      const availability = Math.round((0.98 + Math.random() * 0.02) * 100) / 100;
+      // Availability index strictly [0.0, 1.0]
+      const availability = Math.round(Math.min(1.0, Math.max(0.0, 0.98 + Math.random() * 0.02)) * 100) / 100;
 
       baseline.push({
         timestamp: readingTime.toISOString(),
@@ -131,20 +128,22 @@ export default function EngineCForm() {
     }
 
     replace(baseline);
-    toast.success("Synthesized 24-hour sliding window telemetry baseline for Engine C.");
+    toast.success("Synthesized 24-hour sliding window telemetry baseline conforming to Pydantic v2 contracts.");
   };
 
-  const onSubmit = async (data: EngineCIngestionFormData) => {
+  const onSubmit = async (data: EngineCTelemetryWindow) => {
     try {
       setFormStatus("SUBMITTING");
       setSubmissionFeedback(null);
 
-      // Scaffolded dispatch to Go API Gateway Command Ingress (Step 1.2 / 1.3 will wire proxy transport)
+      // Simulated network transport to Go API Gateway command ingress
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       setFormStatus("SUCCESS");
-      setSubmissionFeedback(`Successfully validated ${data.readings.length} readings for Feeder ${data.feeder_id}.`);
-      toast.success("Command payload validated and staged for Gateway ingestion!");
+      setSubmissionFeedback(
+        `Successfully validated and staged ${data.readings.length} sequential telemetry readings for Feeder ${data.feeder_id}.`
+      );
+      toast.success("Telemetry payload validated by Zod client engine and staged for Gateway ingestion!");
     } catch (err: unknown) {
       setFormStatus("ERROR");
       const msg = err instanceof Error ? err.message : "Failed to stage command ingestion payload.";
@@ -182,6 +181,8 @@ export default function EngineCForm() {
 
   const readingsCount = fields.length;
   const isWindowComplete = readingsCount >= 24;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rootReadingsError = errors.readings?.root?.message || (!Array.isArray(errors.readings) && (errors.readings as any)?.message);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -268,10 +269,10 @@ export default function EngineCForm() {
         <div className="p-3.5 rounded-2xl bg-white/40 border border-white/60 shadow-xs backdrop-blur-md">
           <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
             <Zap className="w-3.5 h-3.5 text-slate-400" />
-            <span>Voltage Class</span>
+            <span>Voltage Boundary</span>
           </div>
-          <span className="text-lg font-bold font-mono text-slate-800">
-            {activeFeeder?.voltageClass || "33kV"}
+          <span className="text-sm font-bold font-mono text-slate-800">
+            [0.0V - 500.0V]
           </span>
         </div>
 
@@ -280,21 +281,33 @@ export default function EngineCForm() {
             <Gauge className="w-3.5 h-3.5 text-slate-400" />
             <span>Nominal Freq</span>
           </div>
-          <span className="text-lg font-bold font-mono text-slate-800">
-            50.00 Hz
+          <span className="text-sm font-bold font-mono text-slate-800">
+            &gt;= 0.0 Hz (50Hz Typ)
           </span>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-white/40 border border-white/60 shadow-xs backdrop-blur-md">
           <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
             <Activity className="w-3.5 h-3.5 text-slate-400" />
-            <span>Asset Status</span>
+            <span>Availability Limit</span>
           </div>
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
-            {activeFeeder?.status || "STABLE"}
+          <span className="text-sm font-bold font-mono text-slate-800">
+            [0.00 - 1.00]
           </span>
         </div>
       </div>
+
+      {/* Global Window Validation Error Banner */}
+      {rootReadingsError && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-800 text-xs flex items-center gap-2.5 backdrop-blur-md shadow-xs"
+        >
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span className="font-medium">{rootReadingsError}</span>
+        </motion.div>
+      )}
 
       {/* Telemetry Matrix Container */}
       <div className="rounded-2xl border border-white/60 bg-white/30 backdrop-blur-xl shadow-inner overflow-hidden">
@@ -302,7 +315,7 @@ export default function EngineCForm() {
           <div className="flex items-center gap-2">
             <Database className="w-4 h-4 text-slate-500" />
             <h4 className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
-              24-Hour Telemetry Matrix (Uncontrolled Input Array)
+              24-Hour Telemetry Matrix (Zod &amp; Pydantic v2 Enforced)
             </h4>
           </div>
           <span className="text-[11px] font-mono text-slate-500">
@@ -317,10 +330,10 @@ export default function EngineCForm() {
             to auto-populate sequential operational vectors.
           </div>
         ) : (
-          <div className="max-h-[380px] overflow-y-auto divide-y divide-white/40">
-            <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-slate-50/50 text-[11px] font-semibold text-slate-500 uppercase tracking-wider sticky top-0 backdrop-blur-md">
+          <div className="max-h-[420px] overflow-y-auto divide-y divide-white/40">
+            <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-slate-50/70 text-[11px] font-semibold text-slate-500 uppercase tracking-wider sticky top-0 backdrop-blur-md z-10 border-b border-white/60">
               <span className="col-span-1">#</span>
-              <span className="col-span-3">Timestamp (UTC)</span>
+              <span className="col-span-3">Timestamp (UTC ISO-8601)</span>
               <span className="col-span-2 text-right">Voltage (V)</span>
               <span className="col-span-2 text-right">Load (kW)</span>
               <span className="col-span-2 text-right">Freq (Hz)</span>
@@ -328,60 +341,126 @@ export default function EngineCForm() {
               <span className="col-span-1 text-center">Action</span>
             </div>
 
-            {fields.map((field, index) => (
-              <div
-                key={field.id}
-                className="grid grid-cols-12 gap-2 px-4 py-2 items-center text-xs hover:bg-white/40 transition-colors"
-              >
-                <span className="col-span-1 text-slate-400 font-mono text-[11px]">
-                  {index + 1}
-                </span>
+            {fields.map((field, index) => {
+              const rowErrors = errors.readings?.[index];
+              const hasTimestampError = !!rowErrors?.timestamp;
+              const hasVoltageError = !!rowErrors?.voltage;
+              const hasLoadError = !!rowErrors?.load;
+              const hasFrequencyError = !!rowErrors?.frequency;
+              const hasAvailabilityError = !!rowErrors?.availability;
+              const hasRowError = hasTimestampError || hasVoltageError || hasLoadError || hasFrequencyError || hasAvailabilityError;
 
-                <input
-                  type="text"
-                  {...register(`readings.${index}.timestamp` as const)}
-                  className="col-span-3 px-2 py-1 bg-white/60 border border-white/80 rounded-md font-mono text-[11px] text-slate-700 shadow-2xs focus:outline-emerald-500"
-                />
+              return (
+                <div key={field.id} className="p-2 space-y-1.5 hover:bg-white/40 transition-colors">
+                  <div className="grid grid-cols-12 gap-2 items-center text-xs">
+                    <span className="col-span-1 text-slate-400 font-mono text-[11px] pl-2">
+                      {index + 1}
+                    </span>
 
-                <input
-                  type="number"
-                  step="0.1"
-                  {...register(`readings.${index}.voltage` as const, { valueAsNumber: true })}
-                  className="col-span-2 px-2 py-1 bg-white/60 border border-white/80 rounded-md font-mono text-[11px] text-right text-slate-700 shadow-2xs focus:outline-emerald-500"
-                />
+                    {/* Timestamp Input */}
+                    <input
+                      type="text"
+                      {...register(`readings.${index}.timestamp` as const)}
+                      placeholder="YYYY-MM-DDTHH:mm:ssZ"
+                      className={`col-span-3 px-2 py-1 bg-white/70 border rounded-md font-mono text-[11px] text-slate-700 shadow-2xs focus:outline-none transition-colors ${
+                        hasTimestampError 
+                          ? "border-rose-400 focus:ring-1 focus:ring-rose-500 bg-rose-50/70" 
+                          : "border-white/80 focus:ring-1 focus:ring-emerald-500"
+                      }`}
+                    />
 
-                <input
-                  type="number"
-                  step="0.1"
-                  {...register(`readings.${index}.load` as const, { valueAsNumber: true })}
-                  className="col-span-2 px-2 py-1 bg-white/60 border border-white/80 rounded-md font-mono text-[11px] text-right text-slate-700 shadow-2xs focus:outline-emerald-500"
-                />
+                    {/* Voltage Input: [0.0, 500.0] */}
+                    <input
+                      type="number"
+                      step="0.1"
+                      {...register(`readings.${index}.voltage` as const, { valueAsNumber: true })}
+                      placeholder="0 - 500"
+                      className={`col-span-2 px-2 py-1 bg-white/70 border rounded-md font-mono text-[11px] text-right text-slate-700 shadow-2xs focus:outline-none transition-colors ${
+                        hasVoltageError 
+                          ? "border-rose-400 focus:ring-1 focus:ring-rose-500 bg-rose-50/70" 
+                          : "border-white/80 focus:ring-1 focus:ring-emerald-500"
+                      }`}
+                    />
 
-                <input
-                  type="number"
-                  step="0.01"
-                  {...register(`readings.${index}.frequency` as const, { valueAsNumber: true })}
-                  className="col-span-2 px-2 py-1 bg-white/60 border border-white/80 rounded-md font-mono text-[11px] text-right text-slate-700 shadow-2xs focus:outline-emerald-500"
-                />
+                    {/* Load Input: >= 0.0 */}
+                    <input
+                      type="number"
+                      step="0.1"
+                      {...register(`readings.${index}.load` as const, { valueAsNumber: true })}
+                      placeholder=">= 0"
+                      className={`col-span-2 px-2 py-1 bg-white/70 border rounded-md font-mono text-[11px] text-right text-slate-700 shadow-2xs focus:outline-none transition-colors ${
+                        hasLoadError 
+                          ? "border-rose-400 focus:ring-1 focus:ring-rose-500 bg-rose-50/70" 
+                          : "border-white/80 focus:ring-1 focus:ring-emerald-500"
+                      }`}
+                    />
 
-                <input
-                  type="number"
-                  step="0.01"
-                  {...register(`readings.${index}.availability` as const, { valueAsNumber: true })}
-                  className="col-span-1 px-1.5 py-1 bg-white/60 border border-white/80 rounded-md font-mono text-[11px] text-right text-slate-700 shadow-2xs focus:outline-emerald-500"
-                />
+                    {/* Frequency Input: >= 0.0 */}
+                    <input
+                      type="number"
+                      step="0.01"
+                      {...register(`readings.${index}.frequency` as const, { valueAsNumber: true })}
+                      placeholder=">= 0"
+                      className={`col-span-2 px-2 py-1 bg-white/70 border rounded-md font-mono text-[11px] text-right text-slate-700 shadow-2xs focus:outline-none transition-colors ${
+                        hasFrequencyError 
+                          ? "border-rose-400 focus:ring-1 focus:ring-rose-500 bg-rose-50/70" 
+                          : "border-white/80 focus:ring-1 focus:ring-emerald-500"
+                      }`}
+                    />
 
-                <div className="col-span-1 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                    {/* Availability Input: [0.0, 1.0] */}
+                    <input
+                      type="number"
+                      step="0.01"
+                      {...register(`readings.${index}.availability` as const, { valueAsNumber: true })}
+                      placeholder="0 - 1"
+                      className={`col-span-1 px-1.5 py-1 bg-white/70 border rounded-md font-mono text-[11px] text-right text-slate-700 shadow-2xs focus:outline-none transition-colors ${
+                        hasAvailabilityError 
+                          ? "border-rose-400 focus:ring-1 focus:ring-rose-500 bg-rose-50/70" 
+                          : "border-white/80 focus:ring-1 focus:ring-emerald-500"
+                      }`}
+                    />
+
+                    {/* Action */}
+                    <div className="col-span-1 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => remove(index)}
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Localized Inline Error Feedback */}
+                  {hasRowError && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="ml-6 flex flex-wrap items-center gap-2 p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[10px] text-rose-700 font-medium"
+                    >
+                      <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
+                      {rowErrors?.timestamp?.message && (
+                        <span>{rowErrors.timestamp.message}</span>
+                      )}
+                      {rowErrors?.voltage?.message && (
+                        <span>{rowErrors.voltage.message}</span>
+                      )}
+                      {rowErrors?.load?.message && (
+                        <span>{rowErrors.load.message}</span>
+                      )}
+                      {rowErrors?.frequency?.message && (
+                        <span>{rowErrors.frequency.message}</span>
+                      )}
+                      {rowErrors?.availability?.message && (
+                        <span>{rowErrors.availability.message}</span>
+                      )}
+                    </motion.div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

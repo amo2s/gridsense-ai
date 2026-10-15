@@ -89,6 +89,8 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
         formattedPath = "Reliability Intelligence";
       } else if (path === "engine-b") {
         formattedPath = "Engine B: Outage-Risk Intelligence";
+      } else if (path === "engine-c") {
+        formattedPath = "Engine C: Anomaly Intelligence";
       } else if (index > 0 && paths[index - 1] === "engine-a") {
         // Handle dynamic [id] segments gracefully instead of rendering raw UUIDs
         formattedPath = `Area Details: ${path.substring(0, 6).toUpperCase()}`;
@@ -108,6 +110,12 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   // Dynamic Layout Page Title Resolution
   const getDynamicPageTitle = () => {
     if (pageTitle) return pageTitle;
+    if (pathname === "/dashboard/engine-c" || pathname.startsWith("/dashboard/engine-c")) {
+      return "Engine C: Anomaly Intelligence";
+    }
+    if (pathname.includes("/dashboard/ingestion/engine-c")) {
+      return "Engine C: Telemetry Ingestion";
+    }
     if (pathname === "/dashboard/engine-b" || pathname.startsWith("/dashboard/engine-b")) {
       return "Engine B: Outage-Risk Intelligence";
     }

@@ -29,6 +29,7 @@ import { AnomalySeverity } from "@/types/engine-c-anomaly";
 import TriLayerAnomalyMatrix from "@/components/dashboard/engine-c/tri-layer-anomaly-matrix";
 import SeasonalSTLTunnelChart from "@/components/dashboard/engine-c/seasonal-stl-tunnel-chart";
 import SHAPDivergenceWaterfall from "@/components/dashboard/engine-c/shap-divergence-waterfall";
+import ChartErrorBoundary from "@/components/dashboard/engine-c/chart-error-boundary";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -142,6 +143,9 @@ export default function EngineCDashboardPage() {
     refetch,
     dataUpdatedAt,
     dispatchMockAlert,
+    isDegraded,
+    degradedMessage,
+    lastSuccessfulSync,
   } = useEngineCAnomaly();
 
   // Cadence timer for live visual feedback of the 30-second polling cycle
@@ -203,6 +207,49 @@ export default function EngineCDashboardPage() {
       animate="visible"
       className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6"
     >
+      {/* Blueprint Step 4.4: Degraded State UI Fallback (HTTP 503 Systemic Degradation) */}
+      <AnimatePresence>
+        {isDegraded && (
+          <motion.div
+            initial={{ opacity: 0, y: -16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -16, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 350, damping: 28 }}
+            className="rounded-3xl border border-amber-500/40 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-orange-500/15 backdrop-blur-2xl p-5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(245,158,11,0.2)]"
+            data-testid="degraded-state-banner"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="p-3 rounded-2xl bg-amber-500/25 border border-amber-500/40 text-amber-700 shadow-xs shrink-0">
+                  <AlertTriangle className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500/25 text-amber-900 border border-amber-500/40">
+                      HTTP 503 INTERCEPTED
+                    </span>
+                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                      SYSTEMIC DEGRADATION: PYTHON ENGINE C OFFLINE - GATEWAY HTTP 503
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                    Upstream Python ML inference engine is currently unreachable. Aggressive polling retries have been suppressed to protect the Go Gateway. Displaying cached anomaly intelligence to preserve operational situational awareness.
+                  </p>
+                </div>
+              </div>
+              <div className="flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 border-amber-500/20 pt-2 sm:pt-0 shrink-0">
+                <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-amber-900/70">
+                  Situational Awareness
+                </span>
+                <span className="text-xs font-mono font-bold text-amber-950 bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-500/30">
+                  Last Successful Sync: {lastSuccessfulSync || "Awaiting Telemetry"}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Dynamic Header: Global Zustand Asset Context & Polling Status */}
       <motion.div
         variants={cardItemVariants}
@@ -428,43 +475,61 @@ export default function EngineCDashboardPage() {
         </motion.div>
       </div>
 
-      {/* Blueprint Step 3.1: Tri-Layer Anomaly Detection Matrix */}
+      {/* Blueprint Step 3.1 & 4.3: Tri-Layer Anomaly Detection Matrix with Isolated Error Boundary */}
       <motion.div variants={cardItemVariants}>
-        <TriLayerAnomalyMatrix
-          layerFlags={
-            data?.layer_flags ?? {
-              layer1_stat: false,
-              layer2_seas: false,
-              layer3_multi: false,
+        <ChartErrorBoundary
+          componentName="Tri-Layer Anomaly Matrix"
+          fallbackTitle="ENGINE C FAULT TRAPPED: TRI-LAYER ANOMALY MATRIX"
+          fallbackDescription="The Multi-Layer Anomaly KPI matrix encountered a localized rendering exception. Real-time telemetry ingestion and adjacent charting modules remain live."
+        >
+          <TriLayerAnomalyMatrix
+            layerFlags={
+              data?.layer_flags ?? {
+                layer1_stat: false,
+                layer2_seas: false,
+                layer3_multi: false,
+              }
             }
-          }
-          confidenceScore={data?.confidence_score ?? 0}
-          severity={severity}
-          riskScore={riskScore}
-          isAnomaly={Boolean(data?.is_anomaly)}
-          activeFeederId={activeFeederId}
-          inferenceLatencyMs={data?.inference_latency_ms ?? 0}
-        />
+            confidenceScore={data?.confidence_score ?? 0}
+            severity={severity}
+            riskScore={riskScore}
+            isAnomaly={Boolean(data?.is_anomaly)}
+            activeFeederId={activeFeederId}
+            inferenceLatencyMs={data?.inference_latency_ms ?? 0}
+          />
+        </ChartErrorBoundary>
       </motion.div>
 
-      {/* Blueprint Step 3.2: Seasonal STL Residual Tunnel Chart */}
+      {/* Blueprint Step 3.2 & 4.3: Seasonal STL Residual Tunnel Chart with Isolated Error Boundary */}
       <motion.div variants={cardItemVariants}>
-        <SeasonalSTLTunnelChart
-          telemetry={data?.stl_telemetry ?? []}
-          isAnomaly={Boolean(data?.is_anomaly)}
-          severity={severity}
-          activeFeederId={activeFeederId}
-        />
+        <ChartErrorBoundary
+          componentName="Seasonal STL Residual Tunnel"
+          fallbackTitle="ENGINE C FAULT TRAPPED: SEASONAL STL RESIDUAL TUNNEL"
+          fallbackDescription="The Seasonal STL timeline chart encountered an SVG calculation exception. Statistical outlier monitoring and multivariate models remain live."
+        >
+          <SeasonalSTLTunnelChart
+            telemetry={data?.stl_telemetry ?? []}
+            isAnomaly={Boolean(data?.is_anomaly)}
+            severity={severity}
+            activeFeederId={activeFeederId}
+          />
+        </ChartErrorBoundary>
       </motion.div>
 
-      {/* Blueprint Step 3.3 & 3.4: Horizontal SHAP Divergence Waterfall */}
+      {/* Blueprint Step 3.3, 3.4 & 4.3: Horizontal SHAP Divergence Waterfall with Isolated Error Boundary */}
       <motion.div variants={cardItemVariants}>
-        <SHAPDivergenceWaterfall
-          attributions={data?.ranked_attributions ?? []}
-          isAnomaly={Boolean(data?.is_anomaly)}
-          activeFeederId={activeFeederId}
-          confidenceScore={data?.confidence_score ?? 0}
-        />
+        <ChartErrorBoundary
+          componentName="SHAP Divergence Waterfall"
+          fallbackTitle="ENGINE C FAULT TRAPPED: SHAP DIVERGENCE WATERFALL"
+          fallbackDescription="The explainable AI divergence waterfall encountered a feature attribution rendering exception. Point-outlier and seasonal drift tracking remain live."
+        >
+          <SHAPDivergenceWaterfall
+            attributions={data?.ranked_attributions ?? []}
+            isAnomaly={Boolean(data?.is_anomaly)}
+            activeFeederId={activeFeederId}
+            confidenceScore={data?.confidence_score ?? 0}
+          />
+        </ChartErrorBoundary>
       </motion.div>
 
       {/* Deterministic Explanations Audit Trail Panel */}

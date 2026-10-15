@@ -54,6 +54,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Diagnostic Simulation Hook: Python Engine C Offline / Gateway HTTP 503
+    const simulate503 = req.headers.get("x-simulate-503");
+    if (simulate503 === "true") {
+      return NextResponse.json(
+        {
+          error: "Service Unavailable",
+          message: "SYSTEMIC DEGRADATION: PYTHON ENGINE C OFFLINE - GATEWAY HTTP 503",
+          status: 503,
+        },
+        { status: 503 }
+      );
+    }
+
     // Diagnostic Simulation Hook: Critical Anomaly Alert
     const simulateCritical = req.headers.get("x-simulate-critical");
     if (simulateCritical === "true") {

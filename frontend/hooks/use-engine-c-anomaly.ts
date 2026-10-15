@@ -32,6 +32,9 @@ export function useEngineCAnomaly() {
 
   const queryKey = [ENGINE_C_QUERY_BASE_KEY, activeSubstationId, activeFeederId] as const;
 
+  // Step 4.4: Track last successful synchronization timestamp across polling cycles
+  const lastSyncRef = useRef<string | null>(null);
+
   // Step 2.1 & 2.2: TanStack Query with 30s polling and defensive select pipeline
   const query = useQuery<EngineCAnomalyResponse, Error & { status?: number }>({
     queryKey,
@@ -73,10 +76,43 @@ export function useEngineCAnomaly() {
     enabled: Boolean(activeFeederId),
     refetchInterval: 30_000, // Step 2.1: Exactly 30,000ms (30 seconds) polling cadence
     staleTime: 15_000, // Fresh for 15s
-    retry: 1,
+    // Step 4.4: Immediately halt aggressive retries upon HTTP 503 to prevent gateway saturation
+    retry: (failureCount, error: any) => {
+      if (error?.status === 503) {
+        console.warn("[Engine C Gateway] Received HTTP 503 (Python Engine C Offline). Halting retries.");
+        return false;
+      }
+      return failureCount < 1;
+    },
     refetchOnWindowFocus: true,
+    // Step 4.4: Cache retention during failure/503 states - maintain situational awareness
     placeholderData: (prev) => prev,
   });
+
+  // Update last successful sync whenever live data is received
+  if (query.data?.timestamp) {
+    lastSyncRef.current = query.data.timestamp;
+  }
+
+  // Format timestamp e.g. "2026-10-15 14:00:00 UTC"
+  const formatSyncTime = (isoString?: string | null) => {
+    const raw = isoString || (query.dataUpdatedAt ? new Date(query.dataUpdatedAt).toISOString() : null);
+    if (!raw) return null;
+    try {
+      const d = new Date(raw);
+      return d.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
+    } catch {
+      return raw;
+    }
+  };
+
+  const is503Degraded = Boolean(
+    query.isError && (query.error as any)?.status === 503
+  );
+
+  const degradedMessage = is503Degraded
+    ? (query.error as any)?.message || "SYSTEMIC DEGRADATION: PYTHON ENGINE C OFFLINE - GATEWAY HTTP 503"
+    : null;
 
   // Step 2.3: Event-Driven Cache Invalidation via Redis Stream SSE Listener
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -163,5 +199,8 @@ export function useEngineCAnomaly() {
     queryKey,
     invalidateAnomalyCache,
     dispatchMockAlert,
+    isDegraded: is503Degraded,
+    degradedMessage,
+    lastSuccessfulSync: formatSyncTime(lastSyncRef.current),
   };
 }

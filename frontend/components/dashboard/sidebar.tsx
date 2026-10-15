@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Activity,
   Zap,
+  Layers,
   Database,
   ChevronDown
 } from "lucide-react";
@@ -20,11 +21,12 @@ interface SidebarProps {
 }
 
 // Configuration for Navigation Links
-const MENU_ITEMS = [
+export const MENU_ITEMS = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard", roles: ["ADMIN", "MANAGER", "STAFF"] },
   { name: "Requests", icon: ClipboardList, path: "/dashboard/requests", roles: ["ADMIN", "MANAGER", "STAFF"] },
   { name: "Reliability (Engine A)", icon: Activity, path: "/dashboard/engine-a", roles: ["ADMIN", "MANAGER", "STAFF"] },
   { name: "Outage Risk (Engine B)", icon: Zap, path: "/dashboard/engine-b", roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { name: "Anomaly Detection (Engine C)", icon: Layers, path: "/dashboard/engine-c", roles: ["ADMIN", "MANAGER", "STAFF"] },
   { 
     name: "Data Ingestion", 
     icon: Database, 
@@ -83,7 +85,9 @@ export default function Sidebar({ role }: SidebarProps) {
             {allowedRoutes.map((item) => {
               const isActive = item.submenu 
                 ? pathname.startsWith(item.path)
-                : pathname === item.path || pathname.startsWith(`${item.path}/`);
+                : item.path === "/dashboard"
+                  ? pathname === "/dashboard"
+                  : pathname === item.path || pathname.startsWith(`${item.path}/`);
                 
               const isAccordionOpen = openAccordion === item.name;
 

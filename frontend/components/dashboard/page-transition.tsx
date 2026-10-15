@@ -14,7 +14,11 @@ export function PageTransition({ children, pageTitle }: PageTransitionProps) {
   // Dynamic layout title system
   const dynamicTitle =
     pageTitle ||
-    (pathname === "/dashboard/engine-b" || pathname.startsWith("/dashboard/engine-b")
+    (pathname === "/dashboard/engine-c" || pathname.startsWith("/dashboard/engine-c")
+      ? "Engine C: Anomaly Intelligence"
+      : pathname.includes("/dashboard/ingestion/engine-c")
+      ? "Engine C: Telemetry Ingestion"
+      : pathname === "/dashboard/engine-b" || pathname.startsWith("/dashboard/engine-b")
       ? "Engine B: Outage-Risk Intelligence"
       : pathname.includes("/dashboard/ingestion/engine-b")
       ? "Engine B: Telemetry Ingestion"

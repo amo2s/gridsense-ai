@@ -19,7 +19,6 @@ import {
   Gauge,
   Clock,
   RefreshCw,
-  FlaskConical,
   Radio
 } from "lucide-react";
 import { toast } from "sonner";
@@ -93,10 +92,7 @@ export default function EngineCForm() {
   /**
    * Core Network Dispatcher with 8-Second AbortController and HTTP 400/422 Translation
    */
-  const executeSubmission = async (
-    data: EngineCTelemetryWindow,
-    simulationHeader?: string
-  ) => {
+  const executeSubmission = async (data: EngineCTelemetryWindow) => {
     // FSM Guard: Transition allowed ONLY if not already in flight
     if (fsm.state === "Connected" || fsm.state === "Receiving Data") {
       console.warn("[FSM Guard] Network submission already in flight. Duplicate dispatch prevented.");
@@ -126,9 +122,6 @@ export default function EngineCForm() {
       const requestHeaders: Record<string, string> = {
         "Content-Type": "application/json",
       };
-      if (simulationHeader) {
-        requestHeaders["x-simulate-response"] = simulationHeader;
-      }
 
       const res = await fetch("/api/proxy/v1/anomaly/ingest", {
         method: "POST",
@@ -279,32 +272,8 @@ export default function EngineCForm() {
           </p>
         </div>
 
-        {/* Action Controls & Diagnostic Verification Triggers */}
+        {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Diagnostic Simulation: 422 Rejection */}
-          <button
-            type="button"
-            onClick={() => handleSubmit((data) => executeSubmission(data, "422"))()}
-            disabled={isFSMSubmitting}
-            title="Simulate upstream Pydantic v2 422 Unprocessable Entity rejection"
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-800 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 rounded-xl shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-50"
-          >
-            <FlaskConical className="w-3.5 h-3.5 text-rose-600" />
-            Test 422
-          </button>
-
-          {/* Diagnostic Simulation: 8s Timeout */}
-          <button
-            type="button"
-            onClick={() => handleSubmit((data) => executeSubmission(data, "timeout"))()}
-            disabled={isFSMSubmitting}
-            title="Simulate slow Go Gateway exceeding 8000ms AbortController budget"
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-amber-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 rounded-xl shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-50"
-          >
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
-            Test 8s Timeout
-          </button>
-
           <button
             type="button"
             onClick={() => {

@@ -1,6 +1,5 @@
 import React from "react";
 import EngineCForm from "@/components/ingestion/engine-c-form";
-import EngineCResilienceMonitor from "@/components/ingestion/engine-c-resilience-monitor";
 
 export const metadata = {
   title: "Engine C: Telemetry Ingestion | GridSense AI",
@@ -14,6 +13,8 @@ export const metadata = {
  * Route: /dashboard/ingestion/engine-c
  * Serves as the dedicated, decoupled command origin for manual telemetry overrides.
  * Assembles, validates, and stages sliding window telemetry for the Go API Gateway.
+ * Restructured layout spans the absolute full width to allocate maximum horizontal
+ * real estate for the 24-Hour Telemetry Matrix.
  */
 export default function EngineCIngestionPage() {
   return (
@@ -36,17 +37,9 @@ export default function EngineCIngestionPage() {
         </div>
       </header>
 
-      {/* Two-Column Responsive Liquid Glass Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-        {/* Primary Column (8 cols): Manual Override Telemetry Form */}
-        <div className="lg:col-span-8 bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 overflow-hidden p-6 lg:p-8">
-          <EngineCForm />
-        </div>
-
-        {/* Secondary Column (4 cols): Gateway Network Resilience Monitor */}
-        <div className="lg:col-span-4 sticky top-6">
-          <EngineCResilienceMonitor />
-        </div>
+      {/* Expanded Full-Width Primary Container for Manual Override Telemetry Form */}
+      <div className="w-full bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 overflow-hidden p-6 lg:p-8">
+        <EngineCForm />
       </div>
     </div>
   );

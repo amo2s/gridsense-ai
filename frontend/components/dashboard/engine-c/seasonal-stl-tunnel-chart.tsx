@@ -25,38 +25,75 @@ import {
   Sliders,
   CheckCircle2,
 } from "lucide-react";
-import { STLTunnelPoint } from "@/types/engine-c-anomaly";
 import { useTelemetryRenderMode, TelemetryRenderMode } from "@/hooks/use-telemetry-render-mode";
-
-export interface SeasonalSTLTunnelChartProps {
-  telemetry: STLTunnelPoint[];
-  isAnomaly?: boolean;
-  severity?: string;
-  activeFeederId?: string;
-  nominalValue?: number;
-}
 
 /**
  * ============================================================================
- * SEASONAL STL RESIDUAL TUNNEL CHART (BLUEPRINT STEP 3.2)
+ * GENERIC TEMPORAL HORIZON TUNNEL INTERFACES (BLUEPRINT STEP 4.1)
+ * ============================================================================
+ * Completely decoupled from specific Engine C schemas.
+ * Exposes a generic timeline dataset with statistical envelope bounds (±3σ)
+ * and excursion markers, ready for Engine C, Engine D, and beyond.
+ */
+export interface GenericTunnelPoint {
+  timestamp: string;
+  timeLabel: string;
+  observed: number;
+  baseline: number;
+  upper_bound: number;
+  lower_bound: number;
+  residual?: number;
+  is_excursion?: boolean;
+}
+
+export interface GenericTemporalTunnelProps {
+  dataPoints?: GenericTunnelPoint[];
+  title?: string;
+  subtitle?: string;
+  metricLabel?: string;
+  metricUnit?: string;
+  nominalValue?: number;
+  isAnomaly?: boolean;
+  severity?: string;
+  assetContext?: string;
+  className?: string;
+
+  // Backwards-compatible legacy props:
+  telemetry?: GenericTunnelPoint[];
+  activeFeederId?: string;
+}
+
+export type SeasonalSTLTunnelChartProps = GenericTemporalTunnelProps;
+
+/**
+ * ============================================================================
+ * GENERIC TEMPORAL HORIZON / SEASONAL STL RESIDUAL TUNNEL CHART
  * ============================================================================
  * Plots dynamic upper (+3σ) and lower (-3σ) confidence bounds around the
- * seasonal expectation baseline to visualize real-time diurnal drift.
+ * expectation baseline to visualize real-time residual drift.
  *
  * Implements:
  *  - Composed Recharts SVG structure for standard density
- *  - Dynamic HTML5 Canvas rendering fallback when telemetry density threatens DOM
+ *  - Dynamic HTML5 Canvas rendering fallback when point density threatens DOM
  *  - 60 FPS hardware-accelerated Canvas render loop
  *  - Strict Liquid Glass styling
  *  - fast-deep-equal React.memo render optimization (Step 3.5)
  */
 function SeasonalSTLTunnelChartComponent({
+  dataPoints,
   telemetry = [],
+  title,
+  subtitle,
+  metricLabel = "Observed Telemetry",
+  metricUnit = "kW",
   isAnomaly = false,
   severity = "LOW",
+  assetContext = "",
   activeFeederId = "",
   nominalValue = 520,
-}: SeasonalSTLTunnelChartProps) {
+  className = "",
+}: GenericTemporalTunnelProps) {
+  const points = (dataPoints && dataPoints.length > 0 ? dataPoints : telemetry) || [];
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Blueprint Step 3.2: Custom Hook for dynamic render mode arbitration (SVG vs Canvas)
@@ -68,17 +105,17 @@ function SeasonalSTLTunnelChartComponent({
     fps,
     setMode,
     threshold,
-  } = useTelemetryRenderMode(telemetry.length, { threshold: 96 });
+  } = useTelemetryRenderMode(points.length, { threshold: 96 });
 
   // Pre-calculate tunnel metrics for display
   const metrics = useMemo(() => {
-    if (!telemetry || telemetry.length === 0) {
+    if (!points || points.length === 0) {
       return {
         maxExcursion: 0,
         excursionCount: 0,
         avgBandWidth: 147,
-        latestObserved: 520,
-        latestBaseline: 520,
+        latestObserved: nominalValue,
+        latestBaseline: nominalValue,
         status: "Nominal",
       };
     }
@@ -87,43 +124,43 @@ function SeasonalSTLTunnelChartComponent({
     let excursionCount = 0;
     let totalBandWidth = 0;
 
-    telemetry.forEach((pt) => {
-      const exc = Math.abs(pt.residual);
+    points.forEach((pt) => {
+      const exc = Math.abs(pt.residual ?? (pt.observed - pt.baseline));
       if (exc > maxExcursion) maxExcursion = exc;
       if (pt.is_excursion) excursionCount++;
       totalBandWidth += pt.upper_bound - pt.lower_bound;
     });
 
-    const latest = telemetry[telemetry.length - 1];
+    const latest = points[points.length - 1];
     return {
       maxExcursion: Number(maxExcursion.toFixed(1)),
       excursionCount,
-      avgBandWidth: Number((totalBandWidth / telemetry.length).toFixed(1)),
-      latestObserved: latest?.observed ?? 520,
-      latestBaseline: latest?.baseline ?? 520,
+      avgBandWidth: Number((totalBandWidth / points.length).toFixed(1)),
+      latestObserved: latest?.observed ?? nominalValue,
+      latestBaseline: latest?.baseline ?? nominalValue,
       status: excursionCount > 0 ? "Excursion Detected" : "Within Envelope",
     };
-  }, [telemetry]);
+  }, [points, nominalValue]);
 
   // Transform telemetry points for Recharts ComposedChart
   const chartData = useMemo(() => {
-    return telemetry.map((pt) => ({
+    return points.map((pt) => ({
       time: pt.timeLabel,
       observed: pt.observed,
       baseline: pt.baseline,
       upper_bound: pt.upper_bound,
       lower_bound: pt.lower_bound,
       tunnelRange: [pt.lower_bound, pt.upper_bound] as [number, number],
-      residual: pt.residual,
+      residual: pt.residual ?? (pt.observed - pt.baseline),
       is_excursion: pt.is_excursion,
     }));
-  }, [telemetry]);
+  }, [points]);
 
   // ---------------------------------------------------------------------------
   // NATIVE HTML5 CANVAS RENDERING PIPELINE (60 FPS DOM INFLATION FALLBACK)
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!isCanvas || !canvasRef.current || telemetry.length === 0) return;
+    if (!isCanvas || !canvasRef.current || points.length === 0) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -153,7 +190,7 @@ function SeasonalSTLTunnelChartComponent({
       // Find min and max for scaling
       let minY = Infinity;
       let maxY = -Infinity;
-      telemetry.forEach((pt) => {
+      points.forEach((pt) => {
         if (pt.lower_bound < minY) minY = pt.lower_bound;
         if (pt.upper_bound > maxY) maxY = pt.upper_bound;
         if (pt.observed < minY) minY = pt.observed;
@@ -164,7 +201,7 @@ function SeasonalSTLTunnelChartComponent({
       maxY = Math.ceil(maxY + 20);
       const rangeY = maxY - minY || 1;
 
-      const getX = (idx: number) => padding.left + (idx / (telemetry.length - 1)) * plotWidth;
+      const getX = (idx: number) => padding.left + (idx / Math.max(1, points.length - 1)) * plotWidth;
       const getY = (val: number) => padding.top + plotHeight - ((val - minY) / rangeY) * plotHeight;
 
       // 1. Draw Grid Lines
@@ -184,13 +221,13 @@ function SeasonalSTLTunnelChartComponent({
         ctx.fillStyle = "#94a3b8";
         ctx.font = "10px monospace";
         ctx.textAlign = "right";
-        ctx.fillText(`${val.toFixed(0)}kW`, padding.left - 8, y + 3);
+        ctx.fillText(`${val.toFixed(0)}${metricUnit}`, padding.left - 8, y + 3);
       }
 
       // X-axis time labels (sample every 4 points)
       ctx.textAlign = "center";
-      telemetry.forEach((pt, idx) => {
-        if (idx % 4 === 0 || idx === telemetry.length - 1) {
+      points.forEach((pt, idx) => {
+        if (idx % 4 === 0 || idx === points.length - 1) {
           const x = getX(idx);
           ctx.fillStyle = "#94a3b8";
           ctx.font = "10px monospace";
@@ -198,17 +235,17 @@ function SeasonalSTLTunnelChartComponent({
         }
       });
 
-      // 2. Draw Shaded STL Confidence Tunnel Envelope (±3σ)
+      // 2. Draw Shaded Confidence Tunnel Envelope (±3σ)
       ctx.beginPath();
-      telemetry.forEach((pt, idx) => {
+      points.forEach((pt, idx) => {
         const x = getX(idx);
         const yUpper = getY(pt.upper_bound);
         if (idx === 0) ctx.moveTo(x, yUpper);
         else ctx.lineTo(x, yUpper);
       });
 
-      for (let i = telemetry.length - 1; i >= 0; i--) {
-        const pt = telemetry[i];
+      for (let i = points.length - 1; i >= 0; i--) {
+        const pt = points[i];
         const x = getX(i);
         const yLower = getY(pt.lower_bound);
         ctx.lineTo(x, yLower);
@@ -232,7 +269,7 @@ function SeasonalSTLTunnelChartComponent({
       ctx.setLineDash([3, 3]);
       ctx.lineWidth = 1;
       ctx.beginPath();
-      telemetry.forEach((pt, idx) => {
+      points.forEach((pt, idx) => {
         const x = getX(idx);
         const y = getY(pt.upper_bound);
         if (idx === 0) ctx.moveTo(x, y);
@@ -242,7 +279,7 @@ function SeasonalSTLTunnelChartComponent({
 
       // Lower bound dashed outline
       ctx.beginPath();
-      telemetry.forEach((pt, idx) => {
+      points.forEach((pt, idx) => {
         const x = getX(idx);
         const y = getY(pt.lower_bound);
         if (idx === 0) ctx.moveTo(x, y);
@@ -250,12 +287,12 @@ function SeasonalSTLTunnelChartComponent({
       });
       ctx.stroke();
 
-      // 3. Draw Seasonal Baseline Expectation (Dashed line)
+      // 3. Draw Baseline Expectation (Dashed line)
       ctx.strokeStyle = "#94a3b8";
       ctx.lineWidth = 1.5;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
-      telemetry.forEach((pt, idx) => {
+      points.forEach((pt, idx) => {
         const x = getX(idx);
         const y = getY(pt.baseline);
         if (idx === 0) ctx.moveTo(x, y);
@@ -270,7 +307,7 @@ function SeasonalSTLTunnelChartComponent({
       ctx.shadowColor = isAnomaly ? "rgba(244, 63, 94, 0.4)" : "rgba(16, 185, 129, 0.3)";
       ctx.shadowBlur = 8;
       ctx.beginPath();
-      telemetry.forEach((pt, idx) => {
+      points.forEach((pt, idx) => {
         const x = getX(idx);
         const y = getY(pt.observed);
         if (idx === 0) ctx.moveTo(x, y);
@@ -280,7 +317,7 @@ function SeasonalSTLTunnelChartComponent({
       ctx.shadowBlur = 0; // Reset shadow
 
       // 5. Draw Excursion Breach Markers
-      telemetry.forEach((pt, idx) => {
+      points.forEach((pt, idx) => {
         if (pt.is_excursion) {
           const x = getX(idx);
           const y = getY(pt.observed);
@@ -314,7 +351,7 @@ function SeasonalSTLTunnelChartComponent({
       window.removeEventListener("resize", handleResize);
       cancelAnimationFrame(animId);
     };
-  }, [isCanvas, telemetry, isAnomaly]);
+  }, [isCanvas, points, isAnomaly, metricUnit]);
 
   return (
     <div className="w-full rounded-3xl border border-white/50 bg-white/25 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/20 to-white/10 p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.1)]">

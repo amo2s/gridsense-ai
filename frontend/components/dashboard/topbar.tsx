@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { useUIStore } from "@/store/ui-store";
 import { useFeederStore } from "@/store/feeder-store";
+import { useAlertStore } from "@/store/alert-store";
+import { useGlobalAlertStream } from "@/hooks/use-global-alert-stream";
+import AlertDropdown from "@/components/dashboard/alert-dropdown";
 
 interface TopbarProps {
   email: string;
@@ -28,7 +31,11 @@ interface TopbarProps {
 export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   const pathname = usePathname();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const bellButtonRef = useRef<HTMLButtonElement>(null);
   
+  // Initialize persistent global Server-Sent Events (SSE) notification stream
+  useGlobalAlertStream();
+
   const [greeting, setGreeting] = useState("");
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -37,8 +44,9 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   const wsStatus = useUIStore((state) => state.wsStatus);
   const [isSynthetic, setIsSynthetic] = useState(false);
   
-  // Real-time alerts counter state
-  const [unreadAlertsCount, setUnreadAlertsCount] = useState(3);
+  // Real-time alerts state from global Zustand alert store (Step 4.2)
+  const unreadCriticalCount = useAlertStore((state) => state.unreadCriticalCount);
+  const totalUnreadCount = useAlertStore((state) => state.totalUnreadCount);
 
   // Active grid asset from Zustand global store
   const activeFeeder = useFeederStore((state) => state.activeFeeder);
@@ -231,50 +239,60 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
             )}
           </div>
 
-          {/* Intelligent Notification Hub */}
+          {/* Intelligent Notification Hub (Step 4.2) */}
           <div className="relative">
-            <button 
+            <button
+              ref={bellButtonRef}
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-              className="relative p-2 rounded-xl hover:bg-white/50 transition-colors border border-transparent hover:border-white/60 text-emerald-800"
+              className="relative p-2 rounded-xl hover:bg-white/50 transition-colors border border-transparent hover:border-white/60 text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+              aria-label={`Grid Alerts (${unreadCriticalCount} critical unread, ${totalUnreadCount} total)`}
+              aria-expanded={isNotificationsOpen}
             >
-              <Bell className="h-5 w-5" />
-              {unreadAlertsCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 border border-white flex items-center justify-center">
-                  <span className="text-[9px] font-bold text-white">{unreadAlertsCount}</span>
-                </span>
+              {/* Framer Motion Hardware-Accelerated Rhythmic Pulse Animation on Unread Critical Alerts */}
+              <motion.div
+                animate={
+                  unreadCriticalCount > 0
+                    ? {
+                        scale: [1, 1.22, 0.94, 1.15, 1],
+                        rotate: [0, -14, 14, -10, 10, 0],
+                        transition: {
+                          duration: 2.2,
+                          repeat: Infinity,
+                          repeatType: "loop",
+                          ease: "easeInOut",
+                        },
+                      }
+                    : { scale: 1, rotate: 0 }
+                }
+                className="flex items-center justify-center"
+              >
+                <Bell
+                  className={`h-5 w-5 transition-colors ${
+                    unreadCriticalCount > 0 ? "text-rose-600 drop-shadow-sm" : "text-emerald-800"
+                  }`}
+                />
+              </motion.div>
+
+              {/* Dynamic Absolutely Positioned Crimson Notification Badge */}
+              {unreadCriticalCount > 0 && (
+                <motion.span
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-rose-600 border border-white shadow-[0_0_8px_rgba(225,29,72,0.7)] flex items-center justify-center pointer-events-none"
+                >
+                  <span className="text-[9px] font-bold font-mono text-white leading-none">
+                    {unreadCriticalCount > 99 ? "99+" : unreadCriticalCount}
+                  </span>
+                </motion.span>
               )}
             </button>
 
-            {/* Liquid Glass Dropdown Panel - Notifications */}
-            <AnimatePresence>
-              {isNotificationsOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="absolute right-0 mt-3 w-80 liquid-panel overflow-hidden"
-                >
-                  <div className="p-4 border-b border-white/40 flex items-center justify-between bg-white/30">
-                    <h3 className="font-semibold text-emerald-900">Alerts</h3>
-                    <button className="text-xs font-medium text-emerald-600 hover:text-emerald-700">Mark all read</button>
-                  </div>
-                  
-                  <div className="max-h-80 overflow-y-auto p-2 bg-white/20">
-                    <div className="p-3 rounded-xl hover:bg-white/60 transition-colors flex gap-3 cursor-pointer">
-                      <div className="mt-0.5">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-emerald-900">Grid Monitoring Active</p>
-                        <p className="text-xs text-emerald-700/70 mt-0.5">Telemetry streams are connected.</p>
-                        <p className="text-[10px] text-emerald-600/50 mt-1">Just now</p>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* Liquid Glass Dropdown Panel - Live Redis Alerts Stream */}
+            <AlertDropdown
+              isOpen={isNotificationsOpen}
+              onClose={() => setIsNotificationsOpen(false)}
+              triggerRef={bellButtonRef}
+            />
           </div>
 
           {/* User Profile Dropdown */}

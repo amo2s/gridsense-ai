@@ -30,6 +30,7 @@ import TriLayerAnomalyMatrix from "@/components/dashboard/engine-c/tri-layer-ano
 import SeasonalSTLTunnelChart from "@/components/dashboard/engine-c/seasonal-stl-tunnel-chart";
 import SHAPDivergenceWaterfall from "@/components/dashboard/engine-c/shap-divergence-waterfall";
 import ChartErrorBoundary from "@/components/dashboard/engine-c/chart-error-boundary";
+import { transformAttributionsToDivergenceItems } from "@/utils/engine-c-feature-dictionary";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -170,6 +171,14 @@ export default function EngineCDashboardPage() {
   const lastFetchTime = dataUpdatedAt
     ? new Date(dataUpdatedAt).toLocaleTimeString()
     : "Syncing...";
+
+  // Blueprint Step 4.1: Humanization transformation at caller/hook layer before abstract visualizer
+  const divergenceItems = React.useMemo(() => {
+    return transformAttributionsToDivergenceItems(
+      data?.ranked_attributions ?? [],
+      Boolean(data?.is_anomaly)
+    );
+  }, [data?.ranked_attributions, data?.is_anomaly]);
 
   // State 0: Unified Empty State when Feeder Context is unselected
   if (!activeFeederId) {
@@ -508,7 +517,7 @@ export default function EngineCDashboardPage() {
           fallbackDescription="The Seasonal STL timeline chart encountered an SVG calculation exception. Statistical outlier monitoring and multivariate models remain live."
         >
           <SeasonalSTLTunnelChart
-            telemetry={data?.stl_telemetry ?? []}
+            dataPoints={data?.stl_telemetry ?? []}
             isAnomaly={Boolean(data?.is_anomaly)}
             severity={severity}
             activeFeederId={activeFeederId}
@@ -524,7 +533,7 @@ export default function EngineCDashboardPage() {
           fallbackDescription="The explainable AI divergence waterfall encountered a feature attribution rendering exception. Point-outlier and seasonal drift tracking remain live."
         >
           <SHAPDivergenceWaterfall
-            attributions={data?.ranked_attributions ?? []}
+            items={divergenceItems}
             isAnomaly={Boolean(data?.is_anomaly)}
             activeFeederId={activeFeederId}
             confidenceScore={data?.confidence_score ?? 0}

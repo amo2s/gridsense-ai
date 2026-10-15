@@ -906,4 +906,259 @@ Authored and executed `frontend/scripts/verify-phase4-part1.ts` via `npx tsx`:
 #### 27. Certification of Phase 4 Part 1 Execution
 Phase 4 Part 1 (System Resilience, Degraded State Handlers, and Global Navigation Integration) has been verified and certified. All error boundaries, 503 retry suppressions, cache retention protocols, and navigation links are operating in production compliance.
 
+---
+
+### Phase 4 - Part 2: Component Abstraction & SSE Alert Infrastructure
+
+#### 28. Operational Scope & Chronological Record
+- **Phase:** Phase 4 (System Resilience, Abstraction & Global Alert Stream Initiation)
+- **Step:** Part 2 (Blueprint Step 4.1: Component Abstraction & Step 2.3: Global SSE Alert Stream Architecture)
+- **Timestamp Initiated:** Thursday, October 15, 2026 — 14:15:00 UTC
+- **Timestamp Concluded:** Thursday, October 15, 2026 — 15:45:00 UTC
+- **Status:** **COMPLETE & CERTIFIED**
+- **Affected Core Modules:**
+  - [`frontend/components/dashboard/engine-c/shap-divergence-waterfall.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/engine-c/shap-divergence-waterfall.tsx)
+  - [`frontend/components/dashboard/engine-c/seasonal-stl-tunnel-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/engine-c/seasonal-stl-tunnel-chart.tsx)
+  - [`frontend/utils/engine-c-feature-dictionary.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/utils/engine-c-feature-dictionary.ts)
+  - [`frontend/app/api/proxy/v1/alerts/stream/route.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/api/proxy/v1/alerts/stream/route.ts)
+  - [`frontend/store/alert-store.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/store/alert-store.ts)
+  - [`frontend/hooks/use-global-alert-stream.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/hooks/use-global-alert-stream.ts)
+  - [`frontend/components/dashboard/alert-dropdown.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/alert-dropdown.tsx)
+  - [`frontend/components/dashboard/topbar.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/topbar.tsx)
+  - [`frontend/app/dashboard/engine-c/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-c/page.tsx)
+  - [`frontend/scripts/verify-phase4-part2.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/scripts/verify-phase4-part2.ts)
+
+---
+
+#### 29. Component Abstraction Architecture (Blueprint Step 4.1)
+
+##### 29.1. Decoupling Visualizers from Engine C Models and PyOD Schemas
+In Phase Three, visualization modules (`SHAPDivergenceWaterfall` and `SeasonalSTLTunnelChart`) were tightly coupled to Engine C data shapes and internal PyOD feature keys. In Phase 4 Part 2, both components were stripped of all hardcoded domain specifics:
+1. **Zero Domain Imports:** Completely removed all imports of `@/types/engine-c-anomaly` and `@/utils/engine-c-feature-dictionary` from `shap-divergence-waterfall.tsx` and `seasonal-stl-tunnel-chart.tsx`.
+2. **Generic Divergence Property Interface (`GenericDivergenceProps`):**
+   ```typescript
+   export interface GenericDivergenceItem {
+     label: string;
+     contributionValue: number;
+     baselineReference?: number;
+     isRiskEscalating: boolean;
+     unit?: string;
+     category?: string;
+     description?: string;
+     source?: string;
+   }
+
+   export interface GenericDivergenceProps {
+     items?: GenericDivergenceItem[];
+     title?: string;
+     subtitle?: string;
+     baselineReference?: number;
+     isAnomaly?: boolean;
+     confidenceScore?: number;
+     assetContext?: string;
+     className?: string;
+     attributions?: Array<{ feature: string; magnitude: number; source?: string }>;
+     activeFeederId?: string;
+   }
+   ```
+3. **Data-Fetching / Hook Layer Humanization Translation:**
+   The humanization translation dictionary was relocated strictly to the caller/adapter layer (`frontend/utils/engine-c-feature-dictionary.ts`). `transformAttributionsToDivergenceItems` transforms raw Engine C feature attributions before passing them to `<SHAPDivergenceWaterfall items={divergenceItems} />`.
+   *Reusability Guarantee:* When Engine D (Predictive Maintenance) or future microservices are implemented, they can import this exact same waterfall component, supply vibration, acoustic, or thermal tensors, and render immediately without component rewrites.
+4. **Generic Temporal Horizon Tunnel Interface (`GenericTemporalTunnelProps`):**
+   `SeasonalSTLTunnelChart` was refactored to consume `GenericTemporalTunnelProps` and `GenericTunnelPoint`:
+   ```typescript
+   export interface GenericTunnelPoint {
+     timestamp: string;
+     timeLabel: string;
+     observed: number;
+     baseline: number;
+     upper_bound: number;
+     lower_bound: number;
+     residual?: number;
+     is_excursion?: boolean;
+   }
+
+   export interface GenericTemporalTunnelProps {
+     dataPoints?: GenericTunnelPoint[];
+     title?: string;
+     subtitle?: string;
+     metricLabel?: string;
+     metricUnit?: string;
+     nominalValue?: number;
+     isAnomaly?: boolean;
+     severity?: string;
+     assetContext?: string;
+     className?: string;
+     telemetry?: GenericTunnelPoint[];
+     activeFeederId?: string;
+   }
+   ```
+   Dynamic metric units (e.g., `kW`, `V`, `Hz`, `degC`) and flexible metric labels are driven entirely by abstract props.
+
+---
+
+#### 30. Backend Alignment & SSE Stream Stabilization (`/api/proxy/v1/alerts/stream`)
+
+##### 30.1. Root Cause Analysis of 1000ms Disconnection / Rapid Polling Anomaly
+Diagnostic network inspection revealed that `/api/proxy/v1/alerts/stream` was terminating connections every 1000ms. In simulation mode and test paths, `controller.close()` was executed immediately after sending the initial chunk. Under standard browser `EventSource` specifications, an unprompted server close causes the browser to treat the connection as dropped and attempt auto-reconnect every 1000ms, creating a resource-intensive polling loop rather than a persistent stream.
+
+##### 30.2. Network Configuration & Header Implementation
+The route handler was re-engineered with strict streaming controls:
+1. **Next.js Dynamic Export:**
+   `export const dynamic = "force-dynamic";`
+   Bypasses Next.js route caching and forces fresh, dynamic execution per client request.
+2. **Explicit Non-Buffering HTTP Headers:**
+   ```typescript
+   const SSE_HEADERS: Record<string, string> = {
+     "Content-Type": "text/event-stream; charset=utf-8",
+     "Cache-Control": "no-cache, no-transform, no-store",
+     "Connection": "keep-alive",
+     "X-Accel-Buffering": "no",
+     "Content-Encoding": "none",
+   };
+   ```
+   - `Cache-Control: no-cache, no-transform, no-store`: Instructs intermediate proxies, CDN layers, and browser caches never to store or buffer chunks.
+   - `X-Accel-Buffering: no`: Informs reverse proxies (e.g., Nginx, Envoy) to stream output directly without chunk buffering.
+   - `Content-Encoding: none`: Disables Gzip/Brotli compression which could buffer small SSE chunks until a compression window fills.
+3. **Persistent 15-Second Heartbeat:**
+   Maintains a persistent interval pushing `: heartbeat ${timestamp}\n\n` comments every 15,000ms to keep upstream connections, TCP sockets, and NAT firewalls alive without triggering client events.
+4. **Subscriber Registry & Live Broadcast POST Support:**
+   Implemented an in-memory `Set<ReadableStreamDefaultController<Uint8Array>>` subscriber registry and an `export async function POST(req: NextRequest)` endpoint allowing simulated alerts or test events to be broadcast live to all active SSE subscribers.
+5. **Clean Connection Teardown:**
+   Listens to `req.signal.addEventListener("abort", ...)` to clear heartbeat timers and evict disconnected subscribers from memory without memory leaks.
+
+---
+
+#### 31. Global State Architecture (`alert-store.ts`) & Hook Integration (`useGlobalAlertStream`)
+
+##### 31.1. Zustand Global Alert Store (`frontend/store/alert-store.ts`)
+Created a persistent Zustand state store managing live alerts across all dashboard engines:
+- **`GridAlert` Interface:**
+  - `id: string`
+  - `feeder_id: string`
+  - `substation_id?: string | null`
+  - `severity: AlertSeverity | string`
+  - `is_critical: boolean`
+  - `message: string`
+  - `timestamp: string`
+  - `read: boolean`
+  - `acknowledged: boolean`
+- **Computed Counter State:**
+  - `unreadCriticalCount`: Integer count of unacknowledged and unread critical alerts (`(is_critical || severity === 'CRITICAL' || severity === 'HIGH') && !acknowledged && !read`).
+  - `totalUnreadCount`: Total unacknowledged alerts count.
+- **Actions:** `addAlert`, `acknowledgeAlert`, `acknowledgeAll`, `markAsRead`, `markAllAsRead`, `clearAlerts`.
+- **Persistence:** Bound via Zustand `persist` middleware to `localStorage` under `gridsense:alerts:v1`, maintaining unacknowledged alerts across page transitions.
+
+##### 31.2. React SSE Consumption Hook (`frontend/hooks/use-global-alert-stream.ts`)
+1. **Sustained Connection:** Establishes a single native `EventSource` connection to `/api/proxy/v1/alerts/stream`.
+2. **Dual-Channel Event Listener:** Handles both standard payload chunks (`es.onmessage`) and named events (`es.addEventListener("alert")`), reconciling differences between Go Gateway and Python SSE emitters.
+3. **Jittered Exponential Backoff Reconnection:**
+   On disconnection or network error, executes exponential backoff:
+   $$\text{delay} = \min(1000 \cdot 2^{\text{attempt}}, 30000) + \text{jitter}$$
+   Guarantees connection resilience without server thrashing.
+4. **Targeted Event-Driven Cache Invalidation (Blueprint Step 2.3):**
+   When an incoming alert has `is_critical === true`, the hook compares the alert's `feeder_id` against `useFeederStore.getState().activeFeederId` (using `normalizeIdentifier`):
+   ```typescript
+   if (isCritical && normalizedAlertFeeder === normalizedActiveFeeder) {
+     console.warn(`[SSE Cache Invalidation] Critical alert intercepted for active feeder ${normalizedActiveFeeder}. Bypassing 30s timer with immediate refetch.`);
+     queryClient.invalidateQueries({
+       queryKey: ["engine-c-anomalies", normalizedActiveFeeder],
+     });
+   }
+   ```
+   This triggers an immediate out-of-cycle network fetch, intentionally bypassing the 30-second polling cadence and instantly re-materializing PostgreSQL state for the operator.
+
+---
+
+#### 32. Global UI Shell Notification Module (`topbar.tsx` & `alert-dropdown.tsx`)
+
+##### 32.1. Topbar Bell Indicator & Framer Motion Pulse Animation
+Refactored the primary Topbar component ([`frontend/components/dashboard/topbar.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/topbar.tsx)):
+1. **Global Hook Mount:** Mounts `useGlobalAlertStream()` to maintain connection across all dashboard routes (Engine A, B, C, Ingestion).
+2. **Framer Motion Pulse Animation:**
+   When `unreadCriticalCount > 0`, applies hardware-accelerated looping pulse and wobble animation:
+   ```typescript
+   animate={
+     unreadCriticalCount > 0
+       ? {
+           scale: [1, 1.22, 0.94, 1.15, 1],
+           rotate: [0, -14, 14, -10, 10, 0],
+           transition: { duration: 2.2, repeat: Infinity, repeatType: "loop", ease: "easeInOut" },
+         }
+       : { scale: 1, rotate: 0 }
+   }
+   ```
+3. **Dynamic Crimson Notification Badge:**
+   Overlaid on the bell icon, displaying the exact integer count of unacknowledged critical alerts in a crimson circle (`bg-rose-600 border border-white shadow-[0_0_8px_rgba(225,29,72,0.7)]`).
+
+##### 32.2. Liquid Glass Alert Dropdown Component (`frontend/components/dashboard/alert-dropdown.tsx`)
+Constructed an accessible dropdown panel strictly adhering to the GridSense Liquid Glass aesthetic:
+- **Composite Glass Token:**
+  `bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40`
+- **Accessibility & Focus Management:**
+  Constructed with `role="dialog"`, `aria-label="Grid Alerts and Live Redis Stream Notifications"`, outside click dismissal, and `Escape` key capture returning focus to the trigger bell.
+- **Strict Color Polarity:**
+  - *Crimson (`border-rose-500/40`, `bg-rose-500/10`):* Critical threshold breaches (`CRITICAL`, `HIGH`).
+  - *Amber (`border-amber-500/40`, `bg-amber-500/10`):* Intermediate warnings (`MEDIUM`, `WARNING`).
+  - *Emerald (`border-emerald-500/40`, `bg-emerald-500/10`):* Stable state restorations (`NORMAL`, `LOW`, `RESTORED`).
+- **Telemetry Metadata:** Displays localized relative timestamps (`formatRelativeTime`), monospace `feeder_id` badge, human-readable alert message, and individual/bulk acknowledgment actions.
+
+---
+
+#### 33. Diagnostic Log: Operational Friction & Resolutions
+1. **TypeScript Interface Impedance Mismatches on Alert Ingestion:**
+   - *Friction:* `RedisAlertEvent` defined `substation_id: string | null | undefined`, whereas `GridAlert` expected `string | undefined`. Additionally, `is_critical` was optional on raw SSE payloads.
+   - *Resolution:* Updated `GridAlert.substation_id` to `string | null | undefined` and broadened `addAlert` input parameter constraints with sensible fallbacks (`isCritical` derived from severity, default alert message generated if absent), ensuring 100% type safety without unsafe casts.
+2. **Next.js Async Request Store Violation in Direct Node Invocations:**
+   - *Friction:* Direct invocation of route handlers in test scripts triggered `Error: 'cookies' was called outside a request scope`.
+   - *Resolution:* Updated `route.ts` to inspect `req.cookies?.get("auth_token")` first, wrapping `await cookies()` in a safe `try...catch` block. This guarantees rock-solid execution across edge workers, unit tests, and runtime request pipelines.
+3. **Double Stream Handshake Collision:**
+   - *Friction:* Go Gateway sends payload chunks as `data: {...}\n\n` without an `event: alert` line, while local simulations and some microservices send `event: alert\ndata: {...}\n\n`.
+   - *Resolution:* Registered dual handlers on the client EventSource: `es.onmessage` and `es.addEventListener("alert")`. Event processing logic deduplicates incoming alerts by `id` / `stream_id` in the Zustand store.
+
+---
+
+#### 34. Automated Verification Results (35 Checks)
+Authored and executed `frontend/scripts/verify-phase4-part2.ts` and `frontend/scripts/verify-sse-network.ts`:
+1. `✅ PASS [1]: SHAPDivergenceWaterfall has zero imports from Engine C types or dictionaries`
+2. `✅ PASS [2]: SHAPDivergenceWaterfall defines pure GenericDivergenceItem interface`
+3. `✅ PASS [3]: SHAPDivergenceWaterfall exposes generic GenericDivergenceProps interface`
+4. `✅ PASS [4]: SHAPDivergenceWaterfall contains zero hardcoded PyOD or Engine C feature keys`
+5. `✅ PASS [5]: SHAPDivergenceWaterfall is memoized using fast-deep-equal`
+6. `✅ PASS [6]: SeasonalSTLTunnelChart has zero imports from Engine C types`
+7. `✅ PASS [7]: SeasonalSTLTunnelChart defines generic GenericTunnelPoint statistical interface`
+8. `✅ PASS [8]: SeasonalSTLTunnelChart exposes generic GenericTemporalTunnelProps interface`
+9. `✅ PASS [9]: SeasonalSTLTunnelChart accepts generic metric units and labels`
+10. `✅ PASS [10]: engine-c-feature-dictionary exports transformAttributionsToDivergenceItems adapter`
+11. `✅ PASS [11]: page.tsx imports transformAttributionsToDivergenceItems at caller layer`
+12. `✅ PASS [12]: page.tsx passes generic items={divergenceItems} to SHAPDivergenceWaterfall`
+13. `✅ PASS [13]: page.tsx passes generic dataPoints to SeasonalSTLTunnelChart`
+14. `✅ PASS [14]: SSE route exports dynamic = 'force-dynamic' preventing Next.js route caching`
+15. `✅ PASS [15]: SSE route sets complete non-buffering, non-caching HTTP streaming headers`
+16. `✅ PASS [16]: SSE route eliminated premature controller.close() in simulation mode`
+17. `✅ PASS [17]: SSE route maintains persistent 15-second heartbeat loop to prevent connection drops`
+18. `✅ PASS [18]: SSE route cleanly tears down heartbeat and removes subscribers on client abort`
+19. `✅ PASS [19]: SSE route exposes POST handler for live alert broadcast and simulation`
+20. `✅ PASS [20]: alert-store defines comprehensive GridAlert interface`
+21. `✅ PASS [21]: alert-store exposes complete unread counter tracking and acknowledge methods`
+22. `✅ PASS [22]: alert-store implements persistent storage across dashboard route transitions`
+23. `✅ PASS [23]: useGlobalAlertStream hook is defined and exported`
+24. `✅ PASS [24]: useGlobalAlertStream connects to SSE proxy and listens to both onmessage and alert events`
+25. `✅ PASS [25]: useGlobalAlertStream implements exponential backoff reconnection strategy with jitter`
+26. `✅ PASS [26]: useGlobalAlertStream executes targeted TanStack Query cache invalidation for engine-c-anomalies`
+27. `✅ PASS [27]: Targeted invalidation strictly checks that incoming alert matches currently active feeder`
+28. `✅ PASS [28]: topbar.tsx mounts useGlobalAlertStream() for global dashboard coverage`
+29. `✅ PASS [29]: topbar.tsx reads live unreadCriticalCount from Zustand alert store`
+30. `✅ PASS [30]: topbar.tsx implements Framer Motion hardware-accelerated rhythmic pulse animation on Bell`
+31. `✅ PASS [31]: topbar.tsx renders dynamic crimson notification badge with exact integer count`
+32. `✅ PASS [32]: topbar.tsx integrates AlertDropdown component triggered by bell icon`
+33. `✅ PASS [33]: AlertDropdown strictly implements GridSense AI Liquid Glass aesthetic composite token`
+34. `✅ PASS [34]: AlertDropdown enforces strict color polarity (Crimson = Critical, Amber = Warning, Emerald = Stable/Restored)`
+35. `✅ PASS [35]: AlertDropdown displays humanized relative time, feeder_id, and single/bulk acknowledge actions`
+
+---
+
+#### 35. Final Blueprint Certification
+Phase 4 Part 2 has been completed in full compliance with the Engine C Frontend Architecture Blueprint. All components are strictly decoupled into reusable generic visualizers, the SSE alert pipeline sustains an uninterrupted streaming lifecycle without rapid re-polling, the global notification hub in the UI shell is active, and event-driven cache invalidation triggers instantaneous out-of-cycle updates.
+
 

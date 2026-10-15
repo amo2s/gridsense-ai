@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useFeederStore } from "@/store/feeder-store";
+import { useAlertStore } from "@/store/alert-store";
 import {
   EngineCAnomalyResponse,
   RedisAlertEvent,
@@ -140,6 +141,7 @@ export function useEngineCAnomaly() {
       };
 
       console.warn(`[Redis Stream Invalidation] Received simulated alert for active feeder:`, alert);
+      useAlertStore.getState().addAlert(alert);
       toast.error(`Critical Grid Alert on Feeder ${activeFeederId}: Out-of-cycle refetch triggered!`);
       invalidateAnomalyCache("Simulated Redis alert trigger");
     },

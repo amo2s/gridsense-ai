@@ -26,6 +26,10 @@ import { useFeederStore } from "@/store/feeder-store";
 import { useEngineCAnomaly } from "@/hooks/use-engine-c-anomaly";
 import { AnomalySeverity } from "@/types/engine-c-anomaly";
 
+import TriLayerAnomalyMatrix from "@/components/dashboard/engine-c/tri-layer-anomaly-matrix";
+import SeasonalSTLTunnelChart from "@/components/dashboard/engine-c/seasonal-stl-tunnel-chart";
+import SHAPDivergenceWaterfall from "@/components/dashboard/engine-c/shap-divergence-waterfall";
+
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
@@ -113,11 +117,17 @@ function getRiskStratification(score: number, severity: AnomalySeverity) {
 
 /**
  * ============================================================================
- * ENGINE C ANOMALY INTELLIGENCE DASHBOARD (PHASE 2: QUERY PATHWAY)
+ * ENGINE C ANOMALY INTELLIGENCE DASHBOARD (PHASE 2 & PHASE 3 QUERY PATHWAY)
  * ============================================================================
  * Read-only materialized operational view consuming data from the Go API Gateway
  * via TanStack Query polling at 30,000ms cadence, with event-driven Redis SSE cache
  * invalidation on critical emergency events.
+ *
+ * Phase 3 Architecture:
+ *  - Step 3.1: Tri-Layer Anomaly Matrix (MAD, STL, PyOD) with Framer Motion spring physics
+ *  - Step 3.2: Seasonal STL Residual Tunnel Chart with 60 FPS HTML5 Canvas fallback
+ *  - Step 3.3 & 3.4: Horizontal SHAP Divergence Waterfall with Electrical Engineering Dictionary
+ *  - Step 3.5: Strict deep-equality render optimization via fast-deep-equal
  */
 export default function EngineCDashboardPage() {
   const activeFeederId = useFeederStore((state) => state.activeFeederId);
@@ -317,7 +327,7 @@ export default function EngineCDashboardPage() {
       </AnimatePresence>
 
       {/* Primary KPI Grid (Step 2.4: Visual Risk Stratification) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* KPI 1: Visual Risk Stratification Aggregate Score */}
         <motion.div
           variants={cardItemVariants}
@@ -353,59 +363,7 @@ export default function EngineCDashboardPage() {
           </div>
         </motion.div>
 
-        {/* KPI 2: Multi-Layer Detection Status */}
-        <motion.div
-          variants={cardItemVariants}
-          className="rounded-3xl border border-white/60 bg-white/40 backdrop-blur-2xl p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.08)] flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase font-bold tracking-wider text-slate-500">
-              Detection Layers
-            </span>
-            <Layers className="w-4 h-4 text-slate-400" />
-          </div>
-
-          <div className="space-y-2.5 my-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-600">L1: Statistical MAD</span>
-              <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold ${
-                data?.layer_flags.layer1_stat
-                  ? "bg-rose-500/15 text-rose-700 border border-rose-500/30"
-                  : "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
-              }`}>
-                {data?.layer_flags.layer1_stat ? "TRIGGERED" : "NOMINAL"}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-600">L2: Seasonal STL</span>
-              <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold ${
-                data?.layer_flags.layer2_seas
-                  ? "bg-amber-500/15 text-amber-700 border border-amber-500/30"
-                  : "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
-              }`}>
-                {data?.layer_flags.layer2_seas ? "TRIGGERED" : "NOMINAL"}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-600">L3: Multivariate PyOD</span>
-              <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold ${
-                data?.layer_flags.layer3_multi
-                  ? "bg-rose-500/15 text-rose-700 border border-rose-500/30"
-                  : "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
-              }`}>
-                {data?.layer_flags.layer3_multi ? "TRIGGERED" : "NOMINAL"}
-              </span>
-            </div>
-          </div>
-
-          <p className="text-[11px] text-slate-500">
-            3-Tier Ensemble Isolation Forest Verification
-          </p>
-        </motion.div>
-
-        {/* KPI 3: Anomaly State & Classification */}
+        {/* KPI 2: Anomaly State & Classification */}
         <motion.div
           variants={cardItemVariants}
           className="rounded-3xl border border-white/60 bg-white/40 backdrop-blur-2xl p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.08)] flex flex-col justify-between"
@@ -435,11 +393,11 @@ export default function EngineCDashboardPage() {
 
           <div className="text-[11px] text-slate-500 flex items-center gap-1.5 font-mono">
             <Cpu className="w-3.5 h-3.5 text-slate-400" />
-            <span className="truncate">{data?.model_version || "engine_c_v2"}</span>
+            <span className="truncate">{data?.model_version || "engine_c_v2_isolation_forest"}</span>
           </div>
         </motion.div>
 
-        {/* KPI 4: Infrastructure SLA & Latency */}
+        {/* KPI 3: Infrastructure SLA & Latency */}
         <motion.div
           variants={cardItemVariants}
           className="rounded-3xl border border-white/60 bg-white/40 backdrop-blur-2xl p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.08)] flex flex-col justify-between"
@@ -470,113 +428,81 @@ export default function EngineCDashboardPage() {
         </motion.div>
       </div>
 
-      {/* Telemetry Feature Attributions & Reasons Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Ranked Attributions (8 Columns) */}
-        <motion.div
-          variants={cardItemVariants}
-          className="lg:col-span-8 rounded-3xl border border-white/60 bg-white/40 backdrop-blur-2xl p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.08)]"
-        >
-          <div className="flex items-center justify-between pb-4 border-b border-slate-200/60 mb-4">
-            <div className="flex items-center gap-2.5">
-              <Activity className="w-4 h-4 text-slate-600" />
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                Ranked Feature Attributions (SHAP & Deviation)
-              </h3>
-            </div>
-            <span className="text-[11px] font-mono text-slate-400">
-              Count: {data?.ranked_attributions?.length ?? 0}
-            </span>
+      {/* Blueprint Step 3.1: Tri-Layer Anomaly Detection Matrix */}
+      <motion.div variants={cardItemVariants}>
+        <TriLayerAnomalyMatrix
+          layerFlags={
+            data?.layer_flags ?? {
+              layer1_stat: false,
+              layer2_seas: false,
+              layer3_multi: false,
+            }
+          }
+          confidenceScore={data?.confidence_score ?? 0}
+          severity={severity}
+          riskScore={riskScore}
+          isAnomaly={Boolean(data?.is_anomaly)}
+          activeFeederId={activeFeederId}
+          inferenceLatencyMs={data?.inference_latency_ms ?? 0}
+        />
+      </motion.div>
+
+      {/* Blueprint Step 3.2: Seasonal STL Residual Tunnel Chart */}
+      <motion.div variants={cardItemVariants}>
+        <SeasonalSTLTunnelChart
+          telemetry={data?.stl_telemetry ?? []}
+          isAnomaly={Boolean(data?.is_anomaly)}
+          severity={severity}
+          activeFeederId={activeFeederId}
+        />
+      </motion.div>
+
+      {/* Blueprint Step 3.3 & 3.4: Horizontal SHAP Divergence Waterfall */}
+      <motion.div variants={cardItemVariants}>
+        <SHAPDivergenceWaterfall
+          attributions={data?.ranked_attributions ?? []}
+          isAnomaly={Boolean(data?.is_anomaly)}
+          activeFeederId={activeFeederId}
+          confidenceScore={data?.confidence_score ?? 0}
+        />
+      </motion.div>
+
+      {/* Deterministic Explanations Audit Trail Panel */}
+      <motion.div
+        variants={cardItemVariants}
+        className="rounded-3xl border border-white/60 bg-white/40 backdrop-blur-2xl p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.08)]"
+      >
+        <div className="flex items-center gap-2 pb-4 border-b border-slate-200/60 mb-4">
+          <Sparkles className="w-4 h-4 text-slate-600" />
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+            Deterministic Decision Explanations & Model Lineage
+          </h3>
+        </div>
+
+        {(!data?.reasons || data.reasons.length === 0) ? (
+          <div className="py-6 text-center text-slate-400 text-xs">
+            Operational baseline state: Zero threshold violations or physical boundary alerts flagged.
           </div>
-
-          {/* Step 2.2: Defensive rendering against null arrays */}
-          {(!data?.ranked_attributions || data.ranked_attributions.length === 0) ? (
-            <div className="py-12 text-center text-slate-400 text-xs">
-              No anomalous feature deviations currently detected for feeder{" "}
-              <span className="font-mono text-slate-600 font-medium">{activeFeederId}</span>.
-              All telemetry metrics conform to normal historical operating boundaries.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {data.ranked_attributions.map((attr, idx) => (
-                <div
-                  key={idx}
-                  className="p-3.5 rounded-2xl bg-white/60 border border-white/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center font-mono text-xs font-bold text-slate-500">
-                      {idx + 1}
-                    </span>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                          {attr.feature}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                          {attr.source}
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-slate-400">
-                        Normalized Contribution Index
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 self-end sm:self-auto">
-                    <div className="w-32 h-2 rounded-full bg-slate-200/80 overflow-hidden">
-                      <div
-                        className="h-full bg-rose-500 transition-all duration-300"
-                        style={{ width: `${Math.min(100, Math.max(10, attr.magnitude * 20))}%` }}
-                      />
-                    </div>
-                    <span className="text-xs font-mono font-bold text-slate-800 min-w-12 text-right">
-                      {attr.magnitude.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </motion.div>
-
-        {/* Deterministic Explanations / Reasons (4 Columns) */}
-        <motion.div
-          variants={cardItemVariants}
-          className="lg:col-span-4 rounded-3xl border border-white/60 bg-white/40 backdrop-blur-2xl p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.08)] flex flex-col justify-between"
-        >
-          <div>
-            <div className="flex items-center gap-2 pb-4 border-b border-slate-200/60 mb-4">
-              <Sparkles className="w-4 h-4 text-slate-600" />
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                Deterministic Explanations
-              </h3>
-            </div>
-
-            {/* Step 2.2: Defensive rendering against null arrays */}
-            {(!data?.reasons || data.reasons.length === 0) ? (
-              <div className="py-8 text-center text-slate-400 text-xs">
-                Database cold start / baseline state: Zero threshold violations flagged by Python engine.
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {data.reasons.map((reason, idx) => (
+              <div
+                key={idx}
+                className="p-3.5 rounded-2xl bg-white/60 border border-white/80 shadow-2xs text-xs text-slate-700 leading-relaxed flex items-start gap-2.5"
+              >
+                <span className="w-2 h-2 rounded-full bg-slate-400 mt-1.5 shrink-0" />
+                <span>{reason}</span>
               </div>
-            ) : (
-              <div className="space-y-2.5">
-                {data.reasons.map((reason, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-2xl bg-white/60 border border-white/80 shadow-2xs text-xs text-slate-700 leading-relaxed flex items-start gap-2.5"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0" />
-                    <span>{reason}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            ))}
           </div>
+        )}
 
-          <div className="mt-6 pt-4 border-t border-slate-200/50 text-[11px] text-slate-500 leading-normal">
-            Explanations are computed deterministically by the Python Engine C boundary layer without generative hallucinations.
-          </div>
-        </motion.div>
-      </div>
+        <div className="mt-4 pt-3 border-t border-slate-200/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-500 font-mono">
+          <span>Engine C Isolation Forest Lineage: {data?.model_version || "engine_c_v2"}</span>
+          <span>Zero Generative Hallucinations &bull; Purely Deterministic Mathematical Inference</span>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }
+

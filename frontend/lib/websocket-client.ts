@@ -1,12 +1,16 @@
 import { useUIStore } from '@/store/ui-store';
 import { QueryClient } from '@tanstack/react-query';
 import { AnomalyEvent } from '@/lib/graphql/generated';
+import { useAlertStore, GridAlert } from '@/store/alert-store';
+import { useFeederStore, normalizeIdentifier } from '@/store/feeder-store';
+import { toast } from 'sonner';
 
 let wsClient: WebSocket | null = null;
 let reconnectTimer: NodeJS.Timeout | null = null;
 let reconnectAttempts = 0;
 let isExplicitlyClosed = false;
 let isConnecting = false;
+let activeQueryClient: QueryClient | null = null;
 
 /**
  * Resolves the authenticated user's session token from document cookies.
@@ -96,6 +100,11 @@ export async function initializeWebSocketClient(
     console.log("[websocket-client] SSR execution detected. Halting initialization.");
     return null;
   }
+
+  if (queryClient) {
+    activeQueryClient = queryClient;
+  }
+  const qc = queryClient || activeQueryClient;
 
   if (wsClient && (wsClient.readyState === WebSocket.OPEN || wsClient.readyState === WebSocket.CONNECTING)) {
     return wsClient;
@@ -194,12 +203,68 @@ export async function initializeWebSocketClient(
 
         // Handle incoming GraphQL event payload
         if (msg.type === "next" && msg.payload?.data?.operationalEventStream) {
-          const anomalyEvent = msg.payload.data.operationalEventStream as AnomalyEvent;
-          if (anomalyEvent && queryClient) {
-            queryClient.setQueriesData<AnomalyEvent[]>({ queryKey: ["anomalyTimeline"] }, (oldData) => {
+          const rawEvent = msg.payload.data.operationalEventStream;
+          const anomalyEvent = rawEvent as AnomalyEvent;
+
+          // 1. TanStack Query cache update for anomalyTimeline
+          if (anomalyEvent && qc) {
+            qc.setQueriesData<AnomalyEvent[]>({ queryKey: ["anomalyTimeline"] }, (oldData) => {
               if (!oldData) return [anomalyEvent];
               return [anomalyEvent, ...oldData];
             });
+          }
+
+          // 2. Alert Dispatch Logic & Sonner Toast Notifications
+          const feederId = rawEvent.feeder_id || rawEvent.areaId || rawEvent.area_id || rawEvent.entity_id || "grid";
+          const isCritical =
+            Boolean(rawEvent.is_critical) ||
+            rawEvent.severity === "CRITICAL" ||
+            rawEvent.severity === "HIGH";
+
+          const alertItem: GridAlert = {
+            id: rawEvent.id || rawEvent.stream_id || rawEvent.event_id || `alert-${Date.now()}`,
+            feeder_id: feederId,
+            substation_id: rawEvent.substation_id || null,
+            severity: rawEvent.severity || (isCritical ? "CRITICAL" : "MEDIUM"),
+            is_critical: isCritical,
+            message:
+              rawEvent.message ||
+              rawEvent.description ||
+              `Grid threshold breach detected on Feeder ${feederId}`,
+            timestamp: rawEvent.timestamp || new Date().toISOString(),
+            read: false,
+            acknowledged: false,
+          };
+
+          // Dispatch event to Zustand alert store
+          useAlertStore.getState().addAlert(alertItem);
+
+          // Trigger Sonner toast based on severity
+          if (isCritical) {
+            toast.error(alertItem.message, {
+              description: `Originating Feeder: ${feederId} • Severity: ${alertItem.severity}`,
+              duration: 8000,
+            });
+          } else {
+            toast.warning(alertItem.message, {
+              description: `Originating Feeder: ${feederId}`,
+              duration: 5000,
+            });
+          }
+
+          // 3. Execute targeted TanStack Query cache invalidation for engine-c-anomalies
+          if (qc) {
+            qc.invalidateQueries({ queryKey: ["engine-c-anomalies"] });
+            const normalizedAlertFeeder = normalizeIdentifier(feederId);
+            const normalizedActiveFeeder = normalizeIdentifier(useFeederStore.getState().activeFeederId);
+            if (normalizedAlertFeeder && normalizedActiveFeeder && normalizedAlertFeeder === normalizedActiveFeeder) {
+              qc.invalidateQueries({
+                queryKey: ["engine-c-anomalies", normalizedActiveFeeder],
+              });
+              qc.invalidateQueries({
+                queryKey: ["engine-c-anomalies", useFeederStore.getState().activeFeederId],
+              });
+            }
           }
         }
       } catch (parseErr) {
@@ -229,7 +294,7 @@ export async function initializeWebSocketClient(
 
       if (reconnectTimer) clearTimeout(reconnectTimer);
       reconnectTimer = setTimeout(() => {
-        initializeWebSocketClient(resolvedToken, queryClient);
+        initializeWebSocketClient(resolvedToken, qc || activeQueryClient || undefined);
       }, delay);
     };
 

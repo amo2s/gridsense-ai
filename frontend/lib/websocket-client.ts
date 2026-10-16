@@ -1,9 +1,22 @@
-import { createClient, Client } from 'graphql-ws';
 import { useUIStore } from '@/store/ui-store';
 import { QueryClient } from '@tanstack/react-query';
 import { AnomalyEvent } from '@/lib/graphql/generated';
 
-let wsClient: Client | null = null;
+let wsClient: WebSocket | null = null;
+let reconnectTimer: NodeJS.Timeout | null = null;
+let reconnectAttempts = 0;
+let isExplicitlyClosed = false;
+
+/**
+ * Resolves the authenticated user's session token from document cookies.
+ */
+function getCookieToken(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const match1 = document.cookie.match(/(?:^|;\s*)gridsense_session=([^;]+)/);
+  const match2 = document.cookie.match(/(?:^|;\s*)auth_token=([^;]+)/);
+  const raw = (match1 ? match1[1] : null) || (match2 ? match2[1] : null);
+  return raw ? decodeURIComponent(raw) : undefined;
+}
 
 /**
  * Robust string replacement utility to convert HTTP/HTTPS protocols to native WebSocket protocols.
@@ -23,7 +36,7 @@ export function convertHttpToWsProtocol(url: string): string {
  * COMPLETELY BYPASSES Next.js port 3000 proxies and rewrites (/api/ws-proxy) which drop or mangle
  * the Upgrade: websocket and Connection: upgrade headers, resolving the 1006 abnormal closure and 404 errors.
  */
-export const getWebSocketUrl = (token?: string): string => {
+export function getWebSocketUrl(token?: string): string {
   if (typeof window === "undefined") {
     return ""; // SSR safety
   }
@@ -54,90 +67,123 @@ export const getWebSocketUrl = (token?: string): string => {
     return `${targetEndpoint}?token=${encodeURIComponent(token)}`;
   }
   return targetEndpoint;
-};
+}
 
-export const initializeWebSocket = (token: string | undefined, queryClient: QueryClient) => {
-  if (wsClient) return wsClient;
+export const initializeWebSocket = (initialToken: string | undefined, queryClient: QueryClient) => {
+  if (typeof window === "undefined") return null;
 
-  let currentToken = token;
-  if (!currentToken && typeof window !== "undefined") {
-    const match1 = document.cookie.match(new RegExp('(^| )gridsense_session=([^;]+)'));
-    const match2 = document.cookie.match(new RegExp('(^| )auth_token=([^;]+)'));
-    const cookieToken = (match1 ? match1[2] : null) || (match2 ? match2[2] : null);
-    if (cookieToken) {
-      currentToken = decodeURIComponent(cookieToken);
-    }
+  if (wsClient && (wsClient.readyState === WebSocket.OPEN || wsClient.readyState === WebSocket.CONNECTING)) {
+    return wsClient;
   }
 
-  const wsUrl = getWebSocketUrl(currentToken);
-  
-  console.log("[websocket-client] Initiating direct native WebSocket connection to:", wsUrl);
+  isExplicitlyClosed = false;
 
-  wsClient = createClient({
-    url: wsUrl,
-    connectionParams: async () => {
-      let activeToken = currentToken;
-      if (typeof window !== "undefined") {
-        const match1 = document.cookie.match(new RegExp('(^| )gridsense_session=([^;]+)'));
-        const match2 = document.cookie.match(new RegExp('(^| )auth_token=([^;]+)'));
-        const cookieToken = (match1 ? match1[2] : null) || (match2 ? match2[2] : null);
-        if (cookieToken) {
-          activeToken = decodeURIComponent(cookieToken);
-        }
-      }
-      return {
-        Authorization: activeToken ? `Bearer ${activeToken}` : "",
+  const connect = () => {
+    if (isExplicitlyClosed) return;
+
+    const token = initialToken || getCookieToken();
+    const directUrl = getWebSocketUrl(token);
+
+    console.log("[websocket-client] Initiating direct native WebSocket connection with subprotocol graphql-transport-ws to:", directUrl);
+
+    try {
+      useUIStore.getState().setWsStatus('Reconnecting');
+
+      // Instantiated with the exact GraphQL subprotocol: new WebSocket(directUrl, 'graphql-transport-ws')
+      const ws = new WebSocket(directUrl, 'graphql-transport-ws');
+      wsClient = ws;
+
+      ws.onopen = () => {
+        reconnectAttempts = 0;
+        console.log("[websocket-client] WebSocket opened successfully on target. Sending connection_init frame...");
+
+        // Sends the exact connection_init payload required by the Go backend's InitFunc:
+        // {"type": "connection_init", "payload": {"Authorization": "Bearer <TOKEN>"}}
+        const initPayload = {
+          type: "connection_init",
+          payload: {
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        };
+        ws.send(JSON.stringify(initPayload));
       };
-    },
-    on: {
-      connected: () => {
-        console.log("[websocket-client] WebSocket successfully connected directly to Go backend.");
-        useUIStore.getState().setWsStatus('Connected');
-      },
-      connecting: () => {
-        useUIStore.getState().setWsStatus('Reconnecting');
-      },
-      closed: () => {
-        useUIStore.getState().setWsStatus('Offline');
-      },
-      error: (err) => {
-        console.error("[websocket-client] WebSocket connection error on target:", wsUrl, err);
-        useUIStore.getState().setWsStatus('Offline');
-      },
-    }
-  });
 
-  // Subscribe explicitly to the operationalEventStream
-  wsClient.subscribe(
-    {
-      query: `
-        subscription {
-          operationalEventStream {
-            id
-            areaId
-            eventType
-            severity
-            timestamp
-            description
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+
+          if (msg.type === "connection_ack") {
+            console.log("[websocket-client] Received connection_ack from Go backend. Subscribing to operationalEventStream...");
+            useUIStore.getState().setWsStatus('Connected');
+
+            // Dispatch GraphQL subscription for operational events
+            const subscribeFrame = {
+              id: "1",
+              type: "subscribe",
+              payload: {
+                query: `
+                  subscription {
+                    operationalEventStream {
+                      id
+                      areaId
+                      eventType
+                      severity
+                      timestamp
+                      description
+                    }
+                  }
+                `,
+              },
+            };
+            ws.send(JSON.stringify(subscribeFrame));
+            return;
           }
+
+          if (msg.type === "ping") {
+            ws.send(JSON.stringify({ type: "pong" }));
+            return;
+          }
+
+          // Handle incoming GraphQL event payload
+          if (msg.type === "next" && msg.payload?.data?.operationalEventStream) {
+            const anomalyEvent = msg.payload.data.operationalEventStream as AnomalyEvent;
+            if (anomalyEvent) {
+              queryClient.setQueriesData<AnomalyEvent[]>({ queryKey: ['anomalyTimeline'] }, (oldData) => {
+                if (!oldData) return [anomalyEvent];
+                return [anomalyEvent, ...oldData];
+              });
+            }
+          }
+        } catch (parseErr) {
+          console.error("[websocket-client] Failed to parse message frame:", parseErr);
         }
-      `,
-    },
-    {
-      next: (data) => {
-        const event = data.data?.operationalEventStream as AnomalyEvent;
-        if (event) {
-          // Directly mutate the TanStack Query cache without global refetch
-          queryClient.setQueriesData<AnomalyEvent[]>({ queryKey: ['anomalyTimeline'] }, (oldData) => {
-            if (!oldData) return [event];
-            return [event, ...oldData];
-          });
+      };
+
+      ws.onerror = (err) => {
+        console.error("[websocket-client] WebSocket connection error on target:", directUrl, err);
+        useUIStore.getState().setWsStatus('Offline');
+      };
+
+      ws.onclose = (event) => {
+        useUIStore.getState().setWsStatus('Offline');
+        console.warn(`[websocket-client] WebSocket connection closed (code: ${event.code}, reason: "${event.reason || 'None'}").`);
+
+        if (!isExplicitlyClosed) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000) + Math.random() * 300;
+          reconnectAttempts++;
+          console.log(`[websocket-client] Reconnecting in ${Math.round(delay)}ms (attempt #${reconnectAttempts})...`);
+          
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(connect, delay);
         }
-      },
-      error: (err) => console.error("WebSocket subscription error", err),
-      complete: () => console.log("WebSocket subscription complete"),
+      };
+    } catch (err) {
+      console.error("[websocket-client] Failed to create WebSocket connection:", err);
+      useUIStore.getState().setWsStatus('Offline');
     }
-  );
+  };
+
+  connect();
 
   return wsClient;
 };

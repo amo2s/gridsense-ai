@@ -215,13 +215,15 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
             className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm cursor-pointer select-none"
             title="Double-click to toggle data mode"
           >
-            {isSynthetic ? (
+            {isSynthetic || wsStatus === "Simulated" ? (
               <>
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
                 </span>
-                <span className="text-xs font-semibold text-cyan-800">Synthetic Data</span>
+                <span className="text-xs font-semibold text-cyan-800">
+                  {wsStatus === "Simulated" ? "Simulated Stream" : "Synthetic Data"}
+                </span>
               </>
             ) : wsStatus === "Connected" ? (
               <>

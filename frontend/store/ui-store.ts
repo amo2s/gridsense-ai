@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { useFeederStore } from './feeder-store';
 
 export type TimeRange = '24h' | '7d' | '30d';
-export type WsStatus = 'Connected' | 'Reconnecting' | 'Offline';
+export type WsStatus = 'Connected' | 'Reconnecting' | 'Offline' | 'Simulated';
 export type DataStreamStatus = 'REAL' | 'SYNTHETIC' | 'DEGRADED';
 
 interface UIState {

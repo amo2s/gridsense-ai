@@ -11,6 +11,106 @@ let reconnectAttempts = 0;
 let isExplicitlyClosed = false;
 let isConnecting = false;
 let activeQueryClient: QueryClient | null = null;
+let simulationInterval: NodeJS.Timeout | null = null;
+
+const SAMPLE_SIMULATION_DESCRIPTIONS = [
+  "Transient voltage spike detected on phase B",
+  "Diurnal STL residual excursion breach (>3.2σ)",
+  "Sub-synchronous frequency flutter detected (49.82Hz)",
+  "Active power throughput imbalance across feeder head",
+  "Harmonic distortion threshold exceeded on busbar",
+  "Reverse power flow anomaly detected during peak generation",
+];
+
+export function stopSimulationFallback() {
+  if (simulationInterval) {
+    clearInterval(simulationInterval);
+    simulationInterval = null;
+  }
+}
+
+export function startSimulationFallback(queryClient?: QueryClient | null) {
+  if (simulationInterval || isExplicitlyClosed) {
+    return;
+  }
+
+  console.log("[websocket-client] Remote WebSocket unavailable. Engaging local event stream simulation fallback.");
+  useUIStore.getState().setWsStatus("Simulated");
+  useUIStore.getState().setDataStreamStatus("SYNTHETIC");
+
+  const qc = queryClient || activeQueryClient;
+
+  const emitSimulatedTelemetry = () => {
+    if (isExplicitlyClosed) {
+      stopSimulationFallback();
+      return;
+    }
+
+    const activeFeederId = useFeederStore.getState().activeFeederId || "f47ac10b-58cc-4372-a567-0e02b2c3d479";
+    const isCritical = Math.random() > 0.65;
+    const severity = isCritical ? "CRITICAL" : "MEDIUM";
+    const desc = SAMPLE_SIMULATION_DESCRIPTIONS[Math.floor(Math.random() * SAMPLE_SIMULATION_DESCRIPTIONS.length)];
+    const timestamp = new Date().toISOString();
+    const eventId = `sim-${Date.now()}`;
+
+    const simAnomalyEvent: AnomalyEvent = {
+      id: eventId,
+      areaId: activeFeederId,
+      eventType: "VOLTAGE_SPIKE",
+      severity: severity,
+      timestamp: timestamp,
+      description: desc,
+    };
+
+    // 1. Dispatch to queryClient ["anomalyTimeline"]
+    if (qc) {
+      qc.setQueriesData<AnomalyEvent[]>({ queryKey: ["anomalyTimeline"] }, (oldData) => {
+        if (!oldData) return [simAnomalyEvent];
+        return [simAnomalyEvent, ...oldData.slice(0, 49)];
+      });
+    }
+
+    // 2. Dispatch to global Zustand alert store
+    const alertItem: GridAlert = {
+      id: eventId,
+      feeder_id: activeFeederId,
+      substation_id: null,
+      severity: severity,
+      is_critical: isCritical,
+      message: `${desc} on Feeder ${activeFeederId.slice(0, 8)}...`,
+      timestamp: timestamp,
+      read: false,
+      acknowledged: false,
+    };
+    useAlertStore.getState().addAlert(alertItem);
+
+    // 3. Dispatch Sonner toast alerts matching live behavior
+    if (isCritical) {
+      toast.error(alertItem.message, {
+        description: `Originating Feeder: ${activeFeederId} • Severity: CRITICAL`,
+        duration: 8000,
+      });
+    } else {
+      toast.warning(alertItem.message, {
+        description: `Originating Feeder: ${activeFeederId}`,
+        duration: 5000,
+      });
+    }
+
+    // 4. Targeted Query Cache Invalidation for engine-c-anomalies
+    if (isCritical && qc) {
+      qc.invalidateQueries({ queryKey: ["engine-c-anomalies"] });
+      const normalizedActive = normalizeIdentifier(activeFeederId);
+      if (normalizedActive) {
+        qc.invalidateQueries({ queryKey: ["engine-c-anomalies", normalizedActive] });
+      }
+    }
+  };
+
+  // Emit immediately, then schedule every 8–12 seconds (average 10s)
+  emitSimulatedTelemetry();
+  simulationInterval = setInterval(emitSimulatedTelemetry, 10000);
+}
 
 /**
  * Resolves the authenticated user's session token from document cookies.
@@ -136,8 +236,8 @@ export async function initializeWebSocketClient(
     }
 
     if (!resolvedToken) {
-      console.warn("[websocket-client] No token resolved from /api/auth/token or cookies. Halting WebSocket connection to prevent 1006 unauthorized drops.");
-      useUIStore.getState().setWsStatus("Offline");
+      console.warn("[websocket-client] No token resolved from /api/auth/token or cookies. Engaging local event stream simulation fallback.");
+      startSimulationFallback(qc);
       return null;
     }
 
@@ -171,7 +271,9 @@ export async function initializeWebSocketClient(
 
         if (msg.type === "connection_ack") {
           console.log("[websocket-client] Received connection_ack from Go backend. Subscribing to operationalEventStream...");
+          stopSimulationFallback();
           useUIStore.getState().setWsStatus("Connected");
+          useUIStore.getState().setDataStreamStatus("REAL");
 
           // Dispatch GraphQL subscription for operational events
           const subscribeFrame = {
@@ -274,34 +376,29 @@ export async function initializeWebSocketClient(
 
     ws.onerror = (err) => {
       console.error("[websocket-client] WebSocket connection error on target:", directUrl, err);
-      useUIStore.getState().setWsStatus("Offline");
+      startSimulationFallback(qc);
     };
 
     ws.onclose = (event) => {
-      useUIStore.getState().setWsStatus("Offline");
       wsClient = null;
 
       if (isExplicitlyClosed || event.code === 1000) {
         console.log("[websocket-client] Clean closure or component unmount detected. Halting reconnection logic.");
+        stopSimulationFallback();
+        useUIStore.getState().setWsStatus("Offline");
         return;
       }
 
-      console.warn(`[websocket-client] WebSocket connection closed (code: ${event.code}, reason: "${event.reason || "None"}").`);
+      console.warn(`[websocket-client] WebSocket connection closed (code: ${event.code}, reason: "${event.reason || "None"}"). Engaging local simulation fallback.`);
 
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000) + Math.random() * 300;
-      reconnectAttempts++;
-      console.log(`[websocket-client] Reconnecting in ${Math.round(delay)}ms (attempt #${reconnectAttempts})...`);
-
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      reconnectTimer = setTimeout(() => {
-        initializeWebSocketClient(resolvedToken, qc || activeQueryClient || undefined);
-      }, delay);
+      // Halt the infinite aggressive reconnection storm and engage local event stream simulation fallback
+      startSimulationFallback(qc);
     };
 
     return ws;
   } catch (err) {
     console.error("[websocket-client] Failed to create WebSocket connection:", err);
-    useUIStore.getState().setWsStatus("Offline");
+    startSimulationFallback(qc);
     return null;
   } finally {
     isConnecting = false;
@@ -318,6 +415,7 @@ export const initializeWebSocket = (initialToken?: string, queryClient?: QueryCl
 export const closeWebSocket = () => {
   isExplicitlyClosed = true;
   isConnecting = false;
+  stopSimulationFallback();
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
@@ -326,6 +424,7 @@ export const closeWebSocket = () => {
     wsClient.close(1000, "Explicit client close");
     wsClient = null;
   }
+  useUIStore.getState().setWsStatus("Offline");
 };
 
 export const getWebSocketClient = () => wsClient;

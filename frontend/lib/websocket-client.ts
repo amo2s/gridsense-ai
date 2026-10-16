@@ -92,7 +92,10 @@ export async function initializeWebSocketClient(
   initialToken?: string,
   queryClient?: QueryClient
 ): Promise<WebSocket | null> {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined") {
+    console.log("[websocket-client] SSR execution detected. Halting initialization.");
+    return null;
+  }
 
   if (wsClient && (wsClient.readyState === WebSocket.OPEN || wsClient.readyState === WebSocket.CONNECTING)) {
     return wsClient;

@@ -117,6 +117,7 @@ func main() {
 
 	// 6. Routing & Middleware
 	router := chi.NewRouter()
+	router.Use(enableCORS())
 
 	// Unprotected endpoint for orchestration (Kubernetes/Docker health checks)
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -172,4 +173,58 @@ func main() {
 	}
 
 	log.Println("Graceful shutdown complete.")
+}
+
+func enableCORS() func(http.Handler) http.Handler {
+	allowedOrigins := []string{
+		"http://localhost:3000",
+		"http://127.0.0.1:3000",
+		"https://gridsense-ai.vercel.app",
+		"https://sliverboy-heal-her-backend.hf.space",
+		"*",
+	}
+
+	allowedHeaders := []string{
+		"Accept",
+		"Content-Type",
+		"Content-Length",
+		"Accept-Encoding",
+		"Authorization",
+		"Upgrade",
+		"Connection",
+		"Sec-WebSocket-Key",
+		"Sec-WebSocket-Version",
+		"Sec-WebSocket-Protocol",
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			isAllowed := false
+
+			for _, o := range allowedOrigins {
+				if o == "*" || o == origin {
+					isAllowed = true
+					break
+				}
+			}
+
+			if isAllowed && origin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			} else {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			}
+
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+			w.Header().Set("Access-Control-Allow-Headers", strings.Join(allowedHeaders, ", "))
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

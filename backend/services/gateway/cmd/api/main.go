@@ -366,10 +366,47 @@ func requireEnv(name string) string {
 }
 
 func enableCORS(next http.Handler) http.Handler {
+	allowedOrigins := []string{
+		"http://localhost:3000",
+		"http://127.0.0.1:3000",
+		"https://gridsense-ai.vercel.app",
+		"https://sliverboy-heal-her-backend.hf.space",
+		"*",
+	}
+
+	allowedHeaders := []string{
+		"Accept",
+		"Content-Type",
+		"Content-Length",
+		"Accept-Encoding",
+		"Authorization",
+		"Upgrade",
+		"Connection",
+		"Sec-WebSocket-Key",
+		"Sec-WebSocket-Version",
+		"Sec-WebSocket-Protocol",
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
+		origin := r.Header.Get("Origin")
+		isAllowed := false
+
+		for _, o := range allowedOrigins {
+			if o == "*" || o == origin {
+				isAllowed = true
+				break
+			}
+		}
+
+		if isAllowed && origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		w.Header().Set("Access-Control-Allow-Headers", strings.Join(allowedHeaders, ", "))
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)

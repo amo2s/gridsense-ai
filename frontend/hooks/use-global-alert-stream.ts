@@ -208,8 +208,12 @@ export function useGlobalAlertStream() {
   );
 
   const connect = useCallback(async () => {
+    if (typeof window === "undefined") {
+      console.log("[GlobalAlertStream] SSR execution detected. Halting initialization.");
+      return;
+    }
+
     if (
-      typeof window === "undefined" ||
       isUnmountedRef.current ||
       wsRef.current ||
       isConnectingRef.current

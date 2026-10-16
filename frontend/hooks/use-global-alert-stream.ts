@@ -6,30 +6,67 @@ import { toast } from "sonner";
 import { useAlertStore, GridAlert } from "@/store/alert-store";
 import { useFeederStore, normalizeIdentifier } from "@/store/feeder-store";
 
-const SSE_URL = "/api/proxy/v1/alerts/stream";
 const INITIAL_RETRY_DELAY_MS = 1000;
 const MAX_RETRY_DELAY_MS = 30000;
 
 /**
+ * Resolves the authenticated user's session token from document cookies.
+ */
+function getSessionToken(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const match1 = document.cookie.match(/(?:^|;\s*)auth_token=([^;]+)/);
+  const match2 = document.cookie.match(/(?:^|;\s*)gridsense_session=([^;]+)/);
+  const raw = (match1 ? match1[1] : null) || (match2 ? match2[1] : null);
+  return raw ? decodeURIComponent(raw) : undefined;
+}
+
+/**
+ * Dynamically constructs the native WebSocket endpoint URL targeting the Go Gateway / BFF.
+ * Bypasses intermediate SSE proxies to eliminate 1000ms polling/disconnect loops.
+ */
+function getWebSocketUrl(token?: string): string {
+  if (typeof window === "undefined") return "";
+
+  // Priority 1: Explicit environment variable configuration
+  const explicitWs = process.env.NEXT_PUBLIC_WS_URL;
+  if (explicitWs) {
+    if (token && !explicitWs.includes("token=")) {
+      const delimiter = explicitWs.includes("?") ? "&" : "?";
+      return `${explicitWs}${delimiter}token=${encodeURIComponent(token)}`;
+    }
+    return explicitWs;
+  }
+
+  // Priority 2: Next.js dev server WebSocket proxy rewrite to backend /query
+  const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const baseUrl = `${wsProtocol}//${window.location.host}/api/ws-proxy`;
+  if (token) {
+    return `${baseUrl}?token=${encodeURIComponent(token)}`;
+  }
+  return baseUrl;
+}
+
+/**
  * ============================================================================
- * GLOBAL ALERT STREAM & EVENT-DRIVEN CACHE INVALIDATION HOOK (STEP 2.3 & 4.2)
+ * GLOBAL WEBSOCKET ALERT STREAM & CACHE INVALIDATION HOOK (PHASE 3)
  * ============================================================================
- * Establishes a persistent, resilient Server-Sent Events (SSE) connection to the
- * Redis alerts stream via the Next.js API proxy route.
+ * Replaces the failing Server-Sent Events (SSE) proxy architecture with a direct,
+ * production-grade native WebSocket client.
  *
- * Responsibilities:
- *  1. Sustains a single long-lived EventSource connection with jittered exponential backoff.
- *  2. Listens to both native `onmessage` and custom `event: alert` streams.
- *  3. Dispatches incoming alerts to the global Zustand `alert-store`.
- *  4. Intercepts critical alerts matching the currently active feeder and triggers an
- *     immediate out-of-cycle TanStack Query cache invalidation, bypassing the 30s timer.
+ * Operational Mechanics:
+ *  1. Direct WebSocket connection with subprotocol negotiation & auth query parameter injection.
+ *  2. Jittered exponential backoff reconnection physics (1s, 2s, 4s... capped at 30s).
+ *  3. Bidirectional schema parsing supporting both GraphQL-WS event frames and direct JSON alerts.
+ *  4. Instantaneous TanStack Query cache invalidation for active feeder upon critical alert.
+ *  5. Strict lifecycle management with explicit ws.close() on unmount to prevent ghost sockets.
  */
 export function useGlobalAlertStream() {
   const queryClient = useQueryClient();
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const retryAttemptRef = useRef<number>(0);
   const isConnectingRef = useRef<boolean>(false);
+  const isUnmountedRef = useRef<boolean>(false);
 
   // Read state accessors
   const activeFeederId = useFeederStore((state) => state.activeFeederId);
@@ -40,49 +77,80 @@ export function useGlobalAlertStream() {
       try {
         const payload = typeof rawPayload === "string" ? JSON.parse(rawPayload) : rawPayload;
 
-        // Ignore handshake pings or heartbeats
-        if (payload?.status === "connected" || !payload?.feeder_id) {
+        // Skip handshake, connection_ack, and keep-alive ping messages
+        if (
+          !payload ||
+          payload.type === "connection_ack" ||
+          payload.type === "ka" ||
+          payload.type === "ping" ||
+          payload.status === "connected"
+        ) {
           return;
         }
 
-        const normalizedAlertFeeder = normalizeIdentifier(payload.feeder_id);
+        // Handle GraphQL-WS next frame format: { type: "next", payload: { data: { operationalEventStream: ... } } }
+        let alertData: any = payload;
+        if (payload.type === "next" && payload.payload?.data?.operationalEventStream) {
+          alertData = payload.payload.data.operationalEventStream;
+        } else if (payload.data?.operationalEventStream) {
+          alertData = payload.data.operationalEventStream;
+        }
+
+        const feederId = alertData.feeder_id || alertData.areaId || alertData.area_id || alertData.entity_id;
+        if (!feederId) {
+          return;
+        }
+
+        const normalizedAlertFeeder = normalizeIdentifier(feederId);
         const normalizedActiveFeeder = normalizeIdentifier(useFeederStore.getState().activeFeederId);
 
         const isCritical =
-          Boolean(payload.is_critical) ||
-          payload.severity === "CRITICAL" ||
-          payload.severity === "HIGH";
+          Boolean(alertData.is_critical) ||
+          alertData.severity === "CRITICAL" ||
+          alertData.severity === "HIGH";
 
-        // Dispatch to global Zustand alert store
-        addAlert({
-          id: payload.id || payload.stream_id || `alert-${Date.now()}`,
-          feeder_id: payload.feeder_id,
-          substation_id: payload.substation_id,
-          severity: payload.severity || (isCritical ? "CRITICAL" : "MEDIUM"),
+        const alertItem: GridAlert = {
+          id: alertData.id || alertData.stream_id || alertData.event_id || `alert-${Date.now()}`,
+          feeder_id: feederId,
+          substation_id: alertData.substation_id || null,
+          severity: alertData.severity || (isCritical ? "CRITICAL" : "MEDIUM"),
           is_critical: isCritical,
-          message: payload.message || `Grid threshold breach detected on Feeder ${payload.feeder_id}`,
-          timestamp: payload.timestamp || new Date().toISOString(),
-        });
+          message:
+            alertData.message ||
+            alertData.description ||
+            `Grid threshold breach detected on Feeder ${feederId}`,
+          timestamp: alertData.timestamp || new Date().toISOString(),
+          read: false,
+          acknowledged: false,
+        };
 
-        // Trigger Sonner toast notification
+        // Dispatch to global Zustand alert store to trigger Topbar bell notification
+        addAlert(alertItem);
+
+        // Visual notification via Sonner toast
         if (isCritical) {
-          toast.error(payload.message || `Critical anomaly detected on Feeder ${payload.feeder_id}`, {
-            description: `Originating Feeder: ${payload.feeder_id} • Severity: ${payload.severity || "CRITICAL"}`,
+          toast.error(alertItem.message, {
+            description: `Originating Feeder: ${feederId} • Severity: ${alertItem.severity}`,
             duration: 8000,
           });
         } else {
-          toast.warning(payload.message || `Grid alert on Feeder ${payload.feeder_id}`, {
+          toast.warning(alertItem.message, {
             duration: 5000,
           });
         }
 
-        // Blueprint Step 2.3: Targeted Event-Driven TanStack Query Cache Invalidation
-        if (isCritical && normalizedAlertFeeder && normalizedActiveFeeder && normalizedAlertFeeder === normalizedActiveFeeder) {
+        // Targeted Event-Driven TanStack Query Cache Invalidation (Step 3.3)
+        if (
+          isCritical &&
+          normalizedAlertFeeder &&
+          normalizedActiveFeeder &&
+          normalizedAlertFeeder === normalizedActiveFeeder
+        ) {
           console.warn(
-            `[SSE Cache Invalidation] Critical alert intercepted for active feeder ${normalizedActiveFeeder}. Bypassing 30s timer with immediate refetch.`
+            `[WebSocket Cache Invalidation] Critical alert intercepted for active feeder ${normalizedActiveFeeder}. Invalidating Engine C queries out-of-cycle.`
           );
 
-          // Invalidate base query key, hierarchical context key, and exact feeder key
+          // Invalidate base key, context key, and exact key
           queryClient.invalidateQueries({
             queryKey: ["engine-c-anomalies"],
           });
@@ -94,54 +162,103 @@ export function useGlobalAlertStream() {
           });
         }
       } catch (err) {
-        console.error("[useGlobalAlertStream] Failed to parse SSE alert event payload:", err);
+        console.error("[GlobalAlertStream] Failed to parse WebSocket alert message:", err);
       }
     },
     [addAlert, queryClient]
   );
 
   const connect = useCallback(() => {
-    if (typeof window === "undefined" || eventSourceRef.current || isConnectingRef.current) {
+    if (
+      typeof window === "undefined" ||
+      isUnmountedRef.current ||
+      wsRef.current ||
+      isConnectingRef.current
+    ) {
       return;
     }
 
     isConnectingRef.current = true;
+    const token = getSessionToken();
+    const wsUrl = getWebSocketUrl(token);
 
     try {
-      const es = new EventSource(SSE_URL);
-      eventSourceRef.current = es;
+      console.log("[GlobalAlertStream] Initiating native WebSocket connection to:", wsUrl);
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
-      es.onopen = () => {
+      ws.onopen = () => {
         isConnectingRef.current = false;
-        retryAttemptRef.current = 0;
-        console.log("[GlobalAlertStream] Sustained SSE connection established to /api/proxy/v1/alerts/stream");
+        retryAttemptRef.current = 0; // Reset exponential backoff counter upon connection
+        console.log("[GlobalAlertStream] Native WebSocket connection successfully established to:", wsUrl);
+
+        // Send connection_init payload with JWT authorization for GraphQL-WS protocols
+        try {
+          ws.send(
+            JSON.stringify({
+              type: "connection_init",
+              payload: {
+                Authorization: token ? `Bearer ${token}` : "",
+              },
+            })
+          );
+        } catch (sendErr) {
+          console.warn("[GlobalAlertStream] Failed to send connection_init frame:", sendErr);
+        }
       };
 
-      // Handler for default message events (data: {...})
-      es.onmessage = (event) => {
-        processIncomingAlert(event.data);
+      ws.onmessage = (event: MessageEvent) => {
+        try {
+          const message = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+
+          // If server acknowledged connection, subscribe to the operationalEventStream
+          if (message?.type === "connection_ack") {
+            console.log("[GlobalAlertStream] Server connection acknowledged. Subscribing to operationalEventStream...");
+            ws.send(
+              JSON.stringify({
+                id: "gridsense-alert-sub",
+                type: "subscribe",
+                payload: {
+                  query: `
+                    subscription {
+                      operationalEventStream {
+                        id
+                        areaId
+                        eventType
+                        severity
+                        timestamp
+                        description
+                      }
+                    }
+                  `,
+                },
+              })
+            );
+            return;
+          }
+
+          // Process the incoming alert payload
+          processIncomingAlert(message);
+        } catch {
+          processIncomingAlert(event.data);
+        }
       };
 
-      // Handler for named 'alert' events (event: alert\ndata: {...})
-      es.addEventListener("alert", (event: MessageEvent) => {
-        processIncomingAlert(event.data);
-      });
-
-      // Handler for ping handshakes
-      es.addEventListener("ping", () => {
-        // Connection health validated
-      });
-
-      es.onerror = (err) => {
+      ws.onerror = (err) => {
         isConnectingRef.current = false;
-        console.warn("[GlobalAlertStream] SSE connection interrupted. Initiating exponential backoff reconnect...", err);
+        console.warn("[GlobalAlertStream] WebSocket encounter error event:", err);
+      };
 
-        if (es.readyState === EventSource.CLOSED) {
-          es.close();
-          eventSourceRef.current = null;
+      ws.onclose = (event: CloseEvent) => {
+        isConnectingRef.current = false;
+        wsRef.current = null;
+
+        if (isUnmountedRef.current) {
+          return;
         }
 
-        // Exponential backoff with jitter
+        // Jittered exponential backoff algorithm:
+        // delay = min(INITIAL_RETRY_DELAY_MS * 2^attempt, MAX_RETRY_DELAY_MS) + jitter
         const attempt = retryAttemptRef.current;
         retryAttemptRef.current += 1;
 
@@ -152,37 +269,48 @@ export function useGlobalAlertStream() {
         const jitter = Math.floor(Math.random() * (baseDelay * 0.25));
         const delay = baseDelay + jitter;
 
+        console.warn(
+          `[GlobalAlertStream] WebSocket connection closed (code: ${event.code}). Scheduling reconnection in ${delay}ms (attempt #${attempt + 1})...`
+        );
+
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
         }
 
         reconnectTimeoutRef.current = setTimeout(() => {
-          if (!eventSourceRef.current) {
+          if (!isUnmountedRef.current) {
             connect();
           }
         }, delay);
       };
-    } catch (e) {
+    } catch (err) {
       isConnectingRef.current = false;
-      console.error("[GlobalAlertStream] Failed to initialize EventSource:", e);
+      console.error("[GlobalAlertStream] Failed to construct WebSocket instance:", err);
     }
   }, [processIncomingAlert]);
 
   useEffect(() => {
+    isUnmountedRef.current = false;
     connect();
 
+    // Strict cleanup function to prevent memory leaks and ghost sockets during hot reloading
     return () => {
+      isUnmountedRef.current = true;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
+      if (wsRef.current) {
+        console.log("[GlobalAlertStream] Closing active WebSocket on component teardown.");
+        try {
+          wsRef.current.close(1000, "Client unmount");
+        } catch {}
+        wsRef.current = null;
       }
     };
   }, [connect]);
 
-  // Helper to programmatically broadcast or simulate an alert
+  // Programmatic simulation helper allowing tests and operator drills without external dependencies
   const simulateCriticalAlert = useCallback(
     async (feederId?: string, customMessage?: string) => {
       const target = feederId || activeFeederId || "f47ac10b-58cc-4372-a567-0e02b2c3d479";
@@ -195,19 +323,8 @@ export function useGlobalAlertStream() {
         timestamp: new Date().toISOString(),
       };
 
-      // Dispatch locally
+      // Dispatch directly through the incoming pipeline
       processIncomingAlert(payload);
-
-      // Attempt broadcast to proxy
-      try {
-        await fetch(SSE_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } catch (err) {
-        // Local dispatch already processed
-      }
     },
     [activeFeederId, processIncomingAlert]
   );

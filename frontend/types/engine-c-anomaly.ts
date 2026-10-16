@@ -12,6 +12,23 @@
 
 export type AnomalySeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
+export interface EngineCTelemetryReadingPayload {
+  feeder_id: string;
+  timestamp: string;
+  voltage: number;
+  load: number;
+  frequency: number;
+  availability: number;
+}
+
+export interface EngineCAnomalyRequestPayload {
+  feeder_id: string;
+  time_horizon: number;
+  resolution?: string;
+  confidence_threshold?: number;
+  readings?: EngineCTelemetryReadingPayload[];
+}
+
 export interface AttributionFactor {
   feature: string;
   magnitude: number;

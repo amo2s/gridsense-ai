@@ -1,83 +1,93 @@
 /**
- * Runtime network verification for SSE Proxy Route
+ * ============================================================================
+ * RUNTIME NETWORK VERIFICATION: SSE TEARDOWN & WEBSOCKET MIGRATION
+ * ============================================================================
+ * Programmatically validates:
+ *  1. Verification that the SSE route is completely deleted and returns 404 / non-existent.
+ *  2. Verification that Next.js WebSocket proxy connects, opens, and exchanges frames.
+ *  3. Verification that TanStack Query anomaly payload receives HTTP 200 without 422.
  */
-import { NextRequest } from "next/server";
-import { GET, POST } from "../app/api/proxy/v1/alerts/stream/route";
+import fs from "fs";
+import path from "path";
+import { SignJWT } from "jose";
 
-async function testSSERoute() {
-  console.log("Testing SSE route handler directly in node runtime...");
+async function verifyMigration() {
+  console.log("\n=================================================================");
+  console.log(" GRIDSENSE AI - SSE TEARDOWN & WEBSOCKET MIGRATION VERIFIER");
+  console.log("=================================================================\n");
 
-  // 1. Test GET handshake
-  const req = new NextRequest("http://localhost:3000/api/proxy/v1/alerts/stream");
-  const res = await GET(req);
-
-  console.log("Status:", res.status);
-  console.log("Content-Type:", res.headers.get("content-type"));
-  console.log("Cache-Control:", res.headers.get("cache-control"));
-  console.log("Connection:", res.headers.get("connection"));
-
-  if (res.headers.get("content-type")?.includes("text/event-stream")) {
-    console.log("✓ Correct SSE Content-Type header");
+  // 1. Verify SSE Route Teardown
+  const sseRoutePath = path.resolve(__dirname, "../app/api/proxy/v1/alerts/stream/route.ts");
+  const sseExists = fs.existsSync(sseRoutePath);
+  if (!sseExists) {
+    console.log("✓ PASS: SSE Proxy Route (/api/proxy/v1/alerts/stream) has been completely deleted.");
   } else {
-    throw new Error("Invalid Content-Type header");
+    throw new Error("FAIL: SSE route still exists on filesystem.");
   }
 
-  if (res.headers.get("cache-control")?.includes("no-cache")) {
-    console.log("✓ Correct Cache-Control header");
+  // 2. Verify Anomaly Query Route returns HTTP 200 (HTTP 422 resolved)
+  const secret = new TextEncoder().encode("580fdc70362125da13c50165612f3f39b14c0faea9b9a29aa3cf2f347c11f175");
+  const token = await new SignJWT({ sub: "user-verifier", role: "Admin", status: "Approved" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setExpirationTime("24h")
+    .sign(secret);
+
+  const payload = {
+    feeder_id: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    time_horizon: 24,
+    resolution: "1h",
+    confidence_threshold: 0.8,
+  };
+
+  const anomalyRes = await fetch(
+    "http://localhost:3000/api/proxy/v1/anomaly/detect?feeder_id=f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  console.log(`Query Pathway Response Status: HTTP ${anomalyRes.status}`);
+  if (anomalyRes.status === 200) {
+    console.log("✓ PASS: Query Pathway returned HTTP 200 OK (HTTP 422 Unprocessable Entity completely resolved).");
   } else {
-    throw new Error("Invalid Cache-Control header");
+    throw new Error(`FAIL: Expected HTTP 200 from anomaly detect, received ${anomalyRes.status}`);
   }
 
-  // Read initial chunk from stream
-  const reader = res.body?.getReader();
-  if (!reader) throw new Error("No body reader on SSE response");
+  // 3. Verify Native WebSocket Connectivity
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket("ws://localhost:3000/api/ws-proxy");
+    const timer = setTimeout(() => {
+      ws.close();
+      reject(new Error("WebSocket handshake timed out after 5000ms"));
+    }, 5000);
 
-  const chunk = await reader.read();
-  const text = new TextDecoder().decode(chunk.value);
-  console.log("Handshake chunk received:\n", text);
+    ws.onopen = () => {
+      clearTimeout(timer);
+      console.log("✓ PASS: Native WebSocket connection opened successfully on ws://localhost:3000/api/ws-proxy.");
+      ws.send(JSON.stringify({ type: "connection_init", payload: { Authorization: `Bearer ${token}` } }));
+    };
 
-  if (text.includes(": connected to gridsense:alerts:stream")) {
-    console.log("✓ Initial connection handshake confirmed");
-  } else {
-    throw new Error("Missing initial connection handshake");
-  }
+    ws.onmessage = (event) => {
+      console.log("✓ PASS: WebSocket frame received:", typeof event.data === "string" ? event.data.slice(0, 100) : "binary");
+      ws.close(1000, "Verification complete");
+      resolve();
+    };
 
-  // 2. Test POST broadcast
-  const postReq = new NextRequest("http://localhost:3000/api/proxy/v1/alerts/stream", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      feeder_id: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-      severity: "CRITICAL",
-      message: "Test simulated critical alert",
-    }),
+    ws.onerror = (err: any) => {
+      clearTimeout(timer);
+      reject(new Error(`WebSocket error: ${err?.message || "Unknown socket error"}`));
+    };
   });
 
-  const postRes = await POST(postReq);
-  const postJson = await postRes.json();
-  console.log("POST broadcast response:", postJson);
-
-  if (postJson.success && postJson.broadcastedTo >= 1) {
-    console.log("✓ POST broadcast delivered to active subscriber");
-  } else {
-    console.log("Broadcast success (active subscribers:", postJson.broadcastedTo, ")");
-  }
-
-  // Read broadcast chunk from open stream
-  const broadcastChunk = await reader.read();
-  const broadcastText = new TextDecoder().decode(broadcastChunk.value);
-  console.log("Broadcasted chunk received on stream:\n", broadcastText);
-
-  if (broadcastText.includes("Test simulated critical alert")) {
-    console.log("✓ Alert received on open SSE stream without disconnect");
-  }
-
-  // Cancel reader
-  await reader.cancel();
-  console.log("\n>>> SSE Network Verification Complete: 100% Operational <<<\n");
+  console.log("\n>>> SSE Teardown & WebSocket Migration Verified: 100% Operational <<<\n");
 }
 
-testSSERoute().catch((e) => {
-  console.error("SSE Test failed:", e);
+verifyMigration().catch((err) => {
+  console.error("Migration Verification Failed:", err);
   process.exit(1);
 });

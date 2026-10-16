@@ -366,16 +366,16 @@ async function runMasterAudit() {
     "SHAPDivergenceWaterfall and SeasonalSTLTunnelChart consume abstract generic interfaces."
   );
 
-  // 5.2 Topbar Global Alert Stream Connected via SSE
-  const isSSEConnected =
+  // 5.2 Topbar Global Alert Stream Connected via Native WebSocket (Migrated from SSE)
+  const isWSConnected =
     topbarCode.includes("useGlobalAlertStream();") &&
-    globalAlertHookCode.includes("new EventSource(SSE_URL)") &&
-    globalAlertHookCode.includes("/api/proxy/v1/alerts/stream");
+    globalAlertHookCode.includes("new WebSocket(wsUrl)") &&
+    globalAlertHookCode.includes("INITIAL_RETRY_DELAY_MS");
   recordCheck(
     "Phase 4",
-    "Topbar Global Alert Stream via Server-Sent Events (SSE)",
-    isSSEConnected,
-    "Mounted in Topbar; maintains persistent SSE connection with jittered exponential backoff."
+    "Topbar Global Alert Stream via Native WebSocket",
+    isWSConnected,
+    "Mounted in Topbar; maintains persistent native WebSocket connection with jittered exponential backoff."
   );
 
   // 5.3 x-simulate-503 Degraded State Fallback & Retry Suppression

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { initializeWebSocket } from "@/lib/websocket-client";
+import { initializeWebSocketClient, closeWebSocket } from "@/lib/websocket-client";
 
 export default function QueryProvider({
   token,
@@ -22,11 +22,25 @@ export default function QueryProvider({
   }));
 
   useEffect(() => {
-    // Isolate WebSocket connection logic from standard HTTP rendering
-    const wsClient = initializeWebSocket(token, queryClient);
-    
+    let isMounted = true;
+
+    // Isolate WebSocket connection logic from standard HTTP rendering with strict async token fetching
+    const init = async () => {
+      try {
+        const client = await initializeWebSocketClient(token, queryClient);
+        if (!isMounted && client) {
+          client.close(1000, "Component unmounted during initialization");
+        }
+      } catch (err) {
+        console.error("[QueryProvider] Failed to initialize WebSocket client:", err);
+      }
+    };
+
+    init();
+
     return () => {
-      // We don't necessarily dispose it strictly here if it's singleton, but we could
+      isMounted = false;
+      closeWebSocket();
     };
   }, [token, queryClient]);
 

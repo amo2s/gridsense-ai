@@ -48,8 +48,11 @@ async function testWebSocketBackoffPhysics() {
   let forcedCloseDetected = false;
   let scheduledReconnectDelay = 0;
 
+  const { getWebSocketUrl } = await import("../hooks/use-global-alert-stream");
+  const directWsUrl = getWebSocketUrl();
+
   await new Promise<void>((resolve, reject) => {
-    const ws = new WebSocket("ws://localhost:3000/api/ws-proxy");
+    const ws = new WebSocket(directWsUrl);
     let attempt = 0;
 
     ws.onopen = () => {

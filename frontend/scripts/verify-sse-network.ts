@@ -58,17 +58,21 @@ async function verifyMigration() {
     throw new Error(`FAIL: Expected HTTP 200 from anomaly detect, received ${anomalyRes.status}`);
   }
 
-  // 3. Verify Native WebSocket Connectivity
+  // 3. Verify Direct Backend WebSocket Connectivity (Bypassing Next.js proxy)
+  const { getWebSocketUrl } = await import("../hooks/use-global-alert-stream");
+  const directWsUrl = getWebSocketUrl(token);
+  console.log("Direct WebSocket URL:", directWsUrl);
+
   await new Promise<void>((resolve, reject) => {
-    const ws = new WebSocket("ws://localhost:3000/api/ws-proxy");
+    const ws = new WebSocket(directWsUrl);
     const timer = setTimeout(() => {
       ws.close();
-      reject(new Error("WebSocket handshake timed out after 5000ms"));
-    }, 5000);
+      reject(new Error("WebSocket handshake timed out after 6000ms"));
+    }, 6000);
 
     ws.onopen = () => {
       clearTimeout(timer);
-      console.log("✓ PASS: Native WebSocket connection opened successfully on ws://localhost:3000/api/ws-proxy.");
+      console.log(`✓ PASS: Direct backend WebSocket connection opened successfully on ${directWsUrl.split("?")[0]}.`);
       ws.send(JSON.stringify({ type: "connection_init", payload: { Authorization: `Bearer ${token}` } }));
     };
 

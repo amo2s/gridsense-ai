@@ -21,11 +21,24 @@ function getSessionToken(): string | undefined {
 }
 
 /**
- * Dynamically constructs the native WebSocket endpoint URL targeting the Go Gateway / BFF.
- * Bypasses intermediate SSE proxies to eliminate 1000ms polling/disconnect loops.
+ * Robust string replacement utility to convert HTTP/HTTPS protocols to native WebSocket protocols.
+ *  - http:// -> ws://
+ *  - https:// -> wss://
  */
-function getWebSocketUrl(token?: string): string {
-  if (typeof window === "undefined") return "";
+export function convertHttpToWsProtocol(url: string): string {
+  if (!url) return "";
+  return url
+    .trim()
+    .replace(/^http:\/\//i, "ws://")
+    .replace(/^https:\/\//i, "wss://");
+}
+
+/**
+ * Dynamically constructs the direct native WebSocket endpoint URL targeting the Go backend / BFF directly.
+ * COMPLETELY BYPASSES Next.js port 3000 proxies and rewrites (/api/ws-proxy) which drop or mangle
+ * the Upgrade: websocket and Connection: upgrade headers, resolving the 1006 abnormal closure.
+ */
+export function getWebSocketUrl(token?: string): string {
 
   // Priority 1: Explicit environment variable configuration
   const explicitWs = process.env.NEXT_PUBLIC_WS_URL;
@@ -37,13 +50,22 @@ function getWebSocketUrl(token?: string): string {
     return explicitWs;
   }
 
-  // Priority 2: Next.js dev server WebSocket proxy rewrite to backend /query
-  const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const baseUrl = `${wsProtocol}//${window.location.host}/api/ws-proxy`;
+  // Priority 2: Direct backend URL extracted from environment variables
+  const rawBackendUrl =
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_API_URL ||
+    process.env.NEXT_PUBLIC_GATEWAY_URL ||
+    process.env.BACKEND_API_URL ||
+    "https://sliverboy-heal-her-backend.hf.space";
+
+  // Robust protocol conversion: http:// -> ws://, https:// -> wss://
+  const wsBaseUrl = convertHttpToWsProtocol(rawBackendUrl).replace(/\/+$/, "");
+  const targetEndpoint = `${wsBaseUrl}/query`;
+
   if (token) {
-    return `${baseUrl}?token=${encodeURIComponent(token)}`;
+    return `${targetEndpoint}?token=${encodeURIComponent(token)}`;
   }
-  return baseUrl;
+  return targetEndpoint;
 }
 
 /**

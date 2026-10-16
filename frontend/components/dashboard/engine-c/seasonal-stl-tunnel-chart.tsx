@@ -529,7 +529,11 @@ function SeasonalSTLTunnelChartComponent({
                 unit="kW"
               />
 
+              {/* Custom Tooltip (Section 8.1 Native Recharts Tooltip Physics) */}
               <Tooltip
+                allowEscapeViewBox={{ x: false, y: true }}
+                offset={20}
+                wrapperStyle={{ zIndex: 100 }}
                 content={({ active, payload, label }) => {
                   if (!active || !payload || !payload.length) return null;
                   const data = payload[0]?.payload;

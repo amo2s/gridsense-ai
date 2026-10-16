@@ -82,7 +82,10 @@ export function useGlobalAlertStream() {
             `[SSE Cache Invalidation] Critical alert intercepted for active feeder ${normalizedActiveFeeder}. Bypassing 30s timer with immediate refetch.`
           );
 
-          // Invalidate both exact feeder key and generalized anomaly queries
+          // Invalidate base query key, hierarchical context key, and exact feeder key
+          queryClient.invalidateQueries({
+            queryKey: ["engine-c-anomalies"],
+          });
           queryClient.invalidateQueries({
             queryKey: ["engine-c-anomalies", normalizedActiveFeeder],
           });

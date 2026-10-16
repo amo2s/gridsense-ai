@@ -234,9 +234,12 @@ function SHAPDivergenceWaterfallComponent({
                 }}
               />
 
-              {/* Custom Tooltip */}
+              {/* Custom Tooltip (Section 8.1 Native Recharts Tooltip Physics) */}
               <Tooltip
                 cursor={{ fill: "rgba(241, 245, 249, 0.5)" }}
+                allowEscapeViewBox={{ x: false, y: true }}
+                offset={20}
+                wrapperStyle={{ zIndex: 100 }}
                 content={({ active, payload }) => {
                   if (!active || !payload || !payload.length) return null;
                   const item = payload[0].payload as GenericDivergenceItem;

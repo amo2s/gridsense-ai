@@ -1315,6 +1315,7 @@ The Engine C Frontend implementation is hereby declared **100% compliant** with 
 - **Status:** **COMPLETE, VERIFIED & OFFICIALLY SEALED**
 - **Affected Core Modules:**
   - [`frontend/hooks/use-global-alert-stream.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/hooks/use-global-alert-stream.ts)
+  - [`frontend/lib/websocket-client.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/lib/websocket-client.ts)
   - [`frontend/.env.local`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/.env.local)
   - [`frontend/scripts/verify-sse-network.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/scripts/verify-sse-network.ts)
   - [`frontend/scripts/verify-websocket-backoff.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/scripts/verify-websocket-backoff.ts)

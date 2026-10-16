@@ -62,14 +62,13 @@ export function convertHttpToWsProtocol(url: string): string {
  * the Upgrade: websocket and Connection: upgrade headers, resolving the 1006 abnormal closure.
  */
 export function getWebSocketUrl(token?: string): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
 
   // Priority 1: Explicit environment variable configuration
   const explicitWs = process.env.NEXT_PUBLIC_WS_URL;
   if (explicitWs) {
-    if (token && !explicitWs.includes("token=")) {
-      const delimiter = explicitWs.includes("?") ? "&" : "?";
-      return `${explicitWs}${delimiter}token=${encodeURIComponent(token)}`;
-    }
     return explicitWs;
   }
 
@@ -83,12 +82,7 @@ export function getWebSocketUrl(token?: string): string {
 
   // Robust protocol conversion: http:// -> ws://, https:// -> wss://
   const wsBaseUrl = convertHttpToWsProtocol(rawBackendUrl).replace(/\/+$/, "");
-  const targetEndpoint = `${wsBaseUrl}/query`;
-
-  if (token) {
-    return `${targetEndpoint}?token=${encodeURIComponent(token)}`;
-  }
-  return targetEndpoint;
+  return `${wsBaseUrl}/query`;
 }
 
 /**
@@ -236,7 +230,7 @@ export function useGlobalAlertStream() {
 
     try {
       console.log("[GlobalAlertStream] Initiating native WebSocket connection to:", wsUrl);
-      const ws = new WebSocket(wsUrl);
+      const ws = new WebSocket(wsUrl, "graphql-transport-ws");
       wsRef.current = ws;
 
       ws.onopen = () => {

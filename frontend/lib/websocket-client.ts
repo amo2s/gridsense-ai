@@ -68,10 +68,6 @@ export function getWebSocketUrl(token?: string): string {
   // Priority 1: Explicit environment variable configuration
   const explicitWs = process.env.NEXT_PUBLIC_WS_URL;
   if (explicitWs) {
-    if (token && !explicitWs.includes("token=")) {
-      const delimiter = explicitWs.includes("?") ? "&" : "?";
-      return `${explicitWs}${delimiter}token=${encodeURIComponent(token)}`;
-    }
     return explicitWs;
   }
 
@@ -85,12 +81,7 @@ export function getWebSocketUrl(token?: string): string {
 
   // Robust protocol conversion: http:// -> ws://, https:// -> wss://
   const wsBaseUrl = convertHttpToWsProtocol(rawBackendUrl).replace(/\/+$/, "");
-  const targetEndpoint = `${wsBaseUrl}/query`;
-
-  if (token) {
-    return `${targetEndpoint}?token=${encodeURIComponent(token)}`;
-  }
-  return targetEndpoint;
+  return `${wsBaseUrl}/query`;
 }
 
 /**

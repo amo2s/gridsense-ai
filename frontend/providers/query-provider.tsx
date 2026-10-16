@@ -27,12 +27,13 @@ export default function QueryProvider({
     // Isolate WebSocket connection logic from standard HTTP rendering with strict async token fetching
     const init = async () => {
       try {
+        if (!isMounted) return;
         const client = await initializeWebSocketClient(token, queryClient);
         if (!isMounted && client) {
-          client.close(1000, "Component unmounted during initialization");
+          closeWebSocket();
         }
       } catch (err) {
-        console.error("[QueryProvider] Failed to initialize WebSocket client:", err);
+        console.warn("[QueryProvider] Notice during WebSocket initialization:", err);
       }
     };
 

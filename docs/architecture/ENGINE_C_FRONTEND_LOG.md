@@ -1873,3 +1873,43 @@ When remote reverse proxies, Hugging Face Spaces, or external networks undergo t
 #### 48.4. Verification & Validation Metrics
 - **TypeScript Type Safety:** `pnpm exec tsc --noEmit` executed with **0 errors** (exit code `0`).
 - **Telemetry Continuity:** Dashboards maintain fluid, responsive telemetry visualization without infinite network error loops.
+
+---
+
+### 49. React Strict Mode WebSocket Abort & Terminal Error Overlay Resolution
+
+#### 49.1. Operational Scope & Incident Record
+- **Directive:** Resolution of `[browser] [websocket-client] WebSocket connection error on target` Next.js 15 Terminal Error Traces
+- **Date Executed:** Friday, October 16, 2026
+- **Lead Agent:** Autonomous Enterprise Frontend Engineering Agent (GridSense AI Infrastructure)
+- **Status:** **COMPLETE, VERIFIED & SYNCHRONIZED**
+- **Affected Core Modules:**
+  - [`frontend/lib/websocket-client.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/lib/websocket-client.ts) *(Token Fetch Unmount Guard, Non-Intrusive Warning Logging)*
+  - [`frontend/providers/query-provider.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/providers/query-provider.tsx) *(Mounted Lifecycle Guarding)*
+
+#### 49.2. Root Cause Analysis: Strict Mode Abort During Asynchronous Token Resolution
+In Next.js 15 with React Strict Mode enabled (`pnpm dev`), components execute a double-mount lifecycle (mount -> unmount -> remount) during local development:
+1. **Asynchronous Race Condition:** When [`QueryProvider`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/providers/query-provider.tsx) initially mounts, `init()` begins an asynchronous HTTP fetch to `/api/auth/token`.
+2. **Premature Cleanup:** React Strict Mode immediately triggers component cleanup, calling `closeWebSocket()` and setting `isExplicitlyClosed = true`.
+3. **W3C WebSocket Spec Abort Behavior:** When the asynchronous token fetch completed, `initializeWebSocketClient` proceeded to construct `new WebSocket(...)`. Because `closeWebSocket()` was called while the socket was in the `CONNECTING` state, the browser specification mandates firing an `error` event (`[object Event]`) followed by a `1006` closure.
+4. **Next.js Error Overlay Trigger:** The `ws.onerror` handler executed `console.error(...)`. Next.js 15 intercepts all browser `console.error` calls and renders a red compilation/runtime error overlay in the user's terminal and viewport.
+
+#### 49.3. Architectural Implementation
+1. **Strict Lifecycle Interception ([`websocket-client.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/lib/websocket-client.ts)):**
+   - Injected an immediate unmount guard after the asynchronous `/api/auth/token` fetch:
+     ```typescript
+     if (isExplicitlyClosed) {
+       console.log("[websocket-client] Component unmounted during token fetch. Halting initialization.");
+       return null;
+     }
+     ```
+   - In `ws.onopen`, verified `if (isExplicitlyClosed)` before sending initialization frames.
+2. **Graceful Warning Telemetry ([`websocket-client.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/lib/websocket-client.ts)):**
+   - Guarded `ws.onerror` with `if (isExplicitlyClosed) return;` to ignore unmount closures.
+   - Replaced intrusive `console.error` with graceful `console.warn` when live remote endpoints are unreachable, preventing Next.js 15 from generating red error stack traces while maintaining transparent logging.
+3. **QueryProvider Lifecycle Hardening ([`query-provider.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/providers/query-provider.tsx)):**
+   - Added `if (!isMounted) return;` at the entry of the async initializer to prevent executing initialization after unmount.
+
+#### 49.4. Verification & Validation Metrics
+- **TypeScript Type Safety:** `pnpm exec tsc --noEmit` verified with **0 errors** (exit code `0`).
+- **Dev Terminal Cleanliness:** Eliminated the red error stack trace; Next.js dev server runs without uncaught browser error traps.

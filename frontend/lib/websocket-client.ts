@@ -235,6 +235,11 @@ export async function initializeWebSocketClient(
       resolvedToken = getCookieToken();
     }
 
+    if (isExplicitlyClosed) {
+      console.log("[websocket-client] Component unmounted during token fetch. Halting initialization.");
+      return null;
+    }
+
     if (!resolvedToken) {
       console.warn("[websocket-client] No token resolved from /api/auth/token or cookies. Engaging local event stream simulation fallback.");
       startSimulationFallback(qc);
@@ -251,6 +256,12 @@ export async function initializeWebSocketClient(
     wsClient = ws;
 
     ws.onopen = () => {
+      if (isExplicitlyClosed) {
+        try {
+          ws.close(1000, "Unmounted before open");
+        } catch {}
+        return;
+      }
       reconnectAttempts = 0;
       console.log("[websocket-client] WebSocket opened successfully on target. Sending connection_init frame...");
 
@@ -370,12 +381,15 @@ export async function initializeWebSocketClient(
           }
         }
       } catch (parseErr) {
-        console.error("[websocket-client] Failed to parse message frame:", parseErr);
+        console.warn("[websocket-client] Failed to parse message frame:", parseErr);
       }
     };
 
     ws.onerror = (err) => {
-      console.error("[websocket-client] WebSocket connection error on target:", directUrl, err);
+      if (isExplicitlyClosed) {
+        return;
+      }
+      console.warn("[websocket-client] Live WebSocket connection not reachable on target:", directUrl, "- activating simulation fallback.");
       startSimulationFallback(qc);
     };
 
@@ -397,8 +411,10 @@ export async function initializeWebSocketClient(
 
     return ws;
   } catch (err) {
-    console.error("[websocket-client] Failed to create WebSocket connection:", err);
-    startSimulationFallback(qc);
+    if (!isExplicitlyClosed) {
+      console.warn("[websocket-client] Failed to create WebSocket connection, engaging local simulation fallback:", err);
+      startSimulationFallback(qc);
+    }
     return null;
   } finally {
     isConnecting = false;

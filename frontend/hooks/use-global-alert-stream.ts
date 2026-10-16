@@ -21,6 +21,29 @@ function getSessionToken(): string | undefined {
 }
 
 /**
+ * Asynchronously retrieves the authentication JWT token via the server-side HttpOnly bridge (/api/auth/token).
+ * Falls back to document cookies if available.
+ */
+async function fetchAuthToken(): Promise<string | undefined> {
+  if (typeof window === "undefined") return undefined;
+
+  try {
+    const res = await fetch("/api/auth/token", { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.token) {
+        return data.token;
+      }
+    }
+  } catch (err) {
+    console.warn("[GlobalAlertStream] Failed to fetch token from bridge route:", err);
+  }
+
+  return getSessionToken();
+}
+
+
+/**
  * Robust string replacement utility to convert HTTP/HTTPS protocols to native WebSocket protocols.
  *  - http:// -> ws://
  *  - https:// -> wss://
@@ -190,7 +213,7 @@ export function useGlobalAlertStream() {
     [addAlert, queryClient]
   );
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (
       typeof window === "undefined" ||
       isUnmountedRef.current ||
@@ -201,7 +224,14 @@ export function useGlobalAlertStream() {
     }
 
     isConnectingRef.current = true;
-    const token = getSessionToken();
+    const token = await fetchAuthToken();
+
+    // Guard against unmount while awaiting token fetch
+    if (isUnmountedRef.current) {
+      isConnectingRef.current = false;
+      return;
+    }
+
     const wsUrl = getWebSocketUrl(token);
 
     try {

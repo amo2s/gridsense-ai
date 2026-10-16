@@ -19,6 +19,30 @@ function getCookieToken(): string | undefined {
 }
 
 /**
+ * Asynchronously retrieves the authentication JWT token via the server-side HttpOnly bridge (/api/auth/token).
+ * Falls back to document cookies if available.
+ */
+async function fetchAuthToken(initialToken?: string): Promise<string | undefined> {
+  if (initialToken) return initialToken;
+  if (typeof window === "undefined") return undefined;
+
+  try {
+    const res = await fetch("/api/auth/token", { cache: "no-store" });
+    if (res.ok) {
+      const { token } = await res.json();
+      if (token) {
+        return token;
+      }
+    }
+  } catch (err) {
+    console.warn("[websocket-client] Failed to fetch token from bridge route:", err);
+  }
+
+  return getCookieToken();
+}
+
+
+/**
  * Robust string replacement utility to convert HTTP/HTTPS protocols to native WebSocket protocols.
  *  - http:// -> ws://
  *  - https:// -> wss://
@@ -78,10 +102,12 @@ export const initializeWebSocket = (initialToken: string | undefined, queryClien
 
   isExplicitlyClosed = false;
 
-  const connect = () => {
+  const connect = async () => {
     if (isExplicitlyClosed) return;
 
-    const token = initialToken || getCookieToken();
+    const token = await fetchAuthToken(initialToken);
+    if (isExplicitlyClosed) return;
+
     const directUrl = getWebSocketUrl(token);
 
     console.log("[websocket-client] Initiating direct native WebSocket connection with subprotocol graphql-transport-ws to:", directUrl);

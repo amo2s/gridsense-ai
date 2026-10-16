@@ -192,16 +192,20 @@ export const initializeWebSocket = (initialToken: string | undefined, queryClien
 
       ws.onclose = (event) => {
         useUIStore.getState().setWsStatus('Offline');
+
+        if (isExplicitlyClosed || event.code === 1000) {
+          console.log("[websocket-client] Clean closure or component unmount detected. Halting reconnection logic.");
+          return;
+        }
+
         console.warn(`[websocket-client] WebSocket connection closed (code: ${event.code}, reason: "${event.reason || 'None'}").`);
 
-        if (!isExplicitlyClosed) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000) + Math.random() * 300;
-          reconnectAttempts++;
-          console.log(`[websocket-client] Reconnecting in ${Math.round(delay)}ms (attempt #${reconnectAttempts})...`);
-          
-          if (reconnectTimer) clearTimeout(reconnectTimer);
-          reconnectTimer = setTimeout(connect, delay);
-        }
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000) + Math.random() * 300;
+        reconnectAttempts++;
+        console.log(`[websocket-client] Reconnecting in ${Math.round(delay)}ms (attempt #${reconnectAttempts})...`);
+        
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(connect, delay);
       };
     } catch (err) {
       console.error("[websocket-client] Failed to create WebSocket connection:", err);

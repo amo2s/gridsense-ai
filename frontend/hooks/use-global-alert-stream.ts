@@ -305,7 +305,8 @@ export function useGlobalAlertStream() {
         isConnectingRef.current = false;
         wsRef.current = null;
 
-        if (isUnmountedRef.current) {
+        if (isUnmountedRef.current || event.code === 1000) {
+          console.log("[GlobalAlertStream] Clean closure or component unmount detected. Halting reconnection logic.");
           return;
         }
 

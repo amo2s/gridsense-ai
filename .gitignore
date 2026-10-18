@@ -1,9 +1,9 @@
-@"
 node_modules/
 .next/
 .env*
 !.env.example
 *.exe
 *.log
-"@ | Out-File -FilePath .gitignore -Encoding utf8
 generate_token.py
+/test-query.js
+payload.json

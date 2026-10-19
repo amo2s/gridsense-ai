@@ -30,7 +30,6 @@ export const MENU_ITEMS = [
   { 
     name: "Data Ingestion", 
     icon: Database, 
-    path: "/dashboard/ingestion", 
     roles: ["ADMIN", "MANAGER", "STAFF"],
     submenu: [
       { name: "Engine A", path: "/dashboard/ingestion/engine-a" },
@@ -84,20 +83,23 @@ export default function Sidebar({ role }: SidebarProps) {
           <nav className="flex flex-col gap-2.5 mt-2 overflow-y-auto">
             {allowedRoutes.map((item) => {
               const isActive = item.submenu 
-                ? pathname.startsWith(item.path)
+                ? item.submenu.some((sub) => pathname === sub.path || pathname.startsWith(`${sub.path}/`))
                 : item.path === "/dashboard"
                   ? pathname === "/dashboard"
-                  : pathname === item.path || pathname.startsWith(`${item.path}/`);
+                  : Boolean(item.path && (pathname === item.path || pathname.startsWith(`${item.path}/`)));
                 
               const isAccordionOpen = openAccordion === item.name;
 
               return (
                 <div key={item.name}>
                   {item.submenu ? (
-                    // Accordion Parent
-                    <div 
+                    // Accordion Parent - Semantic Button Trigger
+                    <button 
+                      type="button"
                       onClick={() => setOpenAccordion(isAccordionOpen ? null : item.name)}
-                      className="cursor-pointer relative block"
+                      className="w-full text-left cursor-pointer relative block bg-transparent border-0 p-0 focus:outline-none"
+                      aria-expanded={isAccordionOpen}
+                      aria-label={`Toggle ${item.name} menu`}
                     >
                       <div
                         className={`relative z-10 group flex items-center justify-between rounded-xl px-3 py-3 transition-colors duration-300 border ${
@@ -134,7 +136,7 @@ export default function Sidebar({ role }: SidebarProps) {
                           </motion.div>
                         )}
                       </div>
-                    </div>
+                    </button>
                   ) : (
                     // Normal Link
                     <Link href={item.path} className="relative block">

@@ -2121,3 +2121,71 @@ Because Recharts operates within an SVG canvas and injects portal/DOM overlays, 
 #### 53.5. Verification & Version Control Summary
 - **Static Analysis Check:** `pnpm exec tsc --noEmit` executed with **0 errors** (exit code `0`).
 - **Git Commit:** Recorded with conventional commit prefix `feat(engine-c):`.
+
+---
+
+### Phase 6: Ingestion Pipeline UX Overhaul & Structural Sanitization
+
+#### 54.1. Operational Scope & Chronological Record
+- **Phase:** Phase 6 (Ingestion Pipeline UX Overhaul & Structural Sanitization)
+- **Timestamp Initiated:** Monday, October 19, 2026 — 12:57:00 UTC
+- **Timestamp Concluded:** Monday, October 19, 2026 — 13:08:00 UTC
+- **Status:** **COMPLETE & CERTIFIED**
+- **Affected Core Modules:**
+  - Sidebar Navigation: [`frontend/components/dashboard/sidebar.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/sidebar.tsx)
+  - Engine C Ingestion Page: [`frontend/app/dashboard/ingestion/engine-c/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/ingestion/engine-c/page.tsx)
+  - Engine C Ingestion Form: [`frontend/components/ingestion/engine-c-form.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/engine-c-form.tsx)
+  - Rejection Inspector: [`frontend/components/ingestion/rejection-inspector-panel.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/rejection-inspector-panel.tsx)
+  - Engine B Ingestion Page: [`frontend/app/dashboard/ingestion/engine-b/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/ingestion/engine-b/page.tsx)
+  - Engine B Ingestion Form: [`frontend/components/ingestion/engine-b-form.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/engine-b-form.tsx)
+  - Engine A Ingestion Page: [`frontend/app/dashboard/ingestion/engine-a/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/ingestion/engine-a/page.tsx)
+  - Engine A Ingestion Form: [`frontend/components/ingestion/engine-a-form.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/engine-a-form.tsx)
+  - Potemkin Artifact: `frontend/components/ingestion/network-resilience-monitor.tsx` (**PERMANENTLY EXCISED**)
+
+#### 54.2. Next.js Router Decoupling & 404 Mitigation (Sidebar Accordion)
+- **Root Cause Analysis:** The "Data Ingestion" node in `MENU_ITEMS` was historically configured with `path: "/dashboard/ingestion"`. Because no index view (`frontend/app/dashboard/ingestion/page.tsx`) existed, expanding the navigation accordion inadvertently pushed a non-existent route to the Next.js router history, resulting in unhandled 404 views.
+- **Architectural Rectification:**
+  - Decoupled accordion toggle logic from routing by removing the `path` property from the parent Data Ingestion item in `MENU_ITEMS`.
+  - Refactored the parent node wrapper in `frontend/components/dashboard/sidebar.tsx` from a Next.js `<Link>` component to a semantic, accessible HTML `<button type="button">` with `aria-expanded` and an interactive toggle handler.
+  - Updated the active indicator logic: `isActive = item.submenu ? item.submenu.some((sub) => pathname === sub.path || pathname.startsWith(`${sub.path}/`)) : ...`.
+  - This guarantees that expanding and collapsing the accordion remains a strictly client-side interactive operation that never mutates the browser's URL or triggers router failures.
+
+#### 54.3. Eradication of Synthetic Potemkin Village (`NetworkResilienceMonitor`)
+- **Teardown Execution:** `frontend/components/ingestion/network-resilience-monitor.tsx` was permanently deleted from the codebase.
+- **Rationale:** The component was a 126-line mockup containing hardcoded diagnostic values ("Circuit Breaker: CLOSED", "Gateway Latency: 12ms Optimal", "Target Node: Go Gateway Port 8002/8080", "Target Engine: ONNX v2", "Protocol: HTTP/2"). Exposing simulated operational metrics created a deceptive sense of system state without backing live data.
+- **Layout Flattening:** With `NetworkResilienceMonitor` excised, the 12-column grid (`lg:col-span-8` / `lg:col-span-4`) in `frontend/app/dashboard/ingestion/engine-b/page.tsx` was collapsed into an expanded, full-width Liquid Glass container (`rounded-3xl`, `backdrop-blur-2xl`, dual-layer specular inset shadows) identical to the Engine C layout topology.
+
+#### 54.4. System-Wide Enforcement of Canonical `<Button>` Component
+Across all three ingestion pipelines (`EngineAForm`, `EngineBForm`, `EngineCForm`) and `RejectionInspectorPanel`, all ad-hoc HTML `<button>` tags with unstandardized inline styling were replaced with the canonical `@/components/ui/button` component:
+- **Engine C (`engine-c-form.tsx`):**
+  - Primary Submit: Migrated from `bg-slate-900` to `<Button size="default" type="submit" variant="default" disabled={!isWindowComplete || isFSMSubmitting} isLoading={isFSMSubmitting}>`.
+  - Row Creation: Migrated to `<Button size="sm" type="button" variant="outline">`.
+  - Gateway Timeout Retry: Standardized with `<Button size="sm" type="button" variant="danger">`.
+- **Engine B (`engine-b-form.tsx`):**
+  - Diurnal Baseline Generation: Standardized with `<Button size="sm" type="button" variant="secondary">`.
+  - Add Hour: Standardized with `<Button size="sm" type="button" variant="outline">`.
+  - Staging Purge: Standardized with `<Button size="sm" type="button" variant="danger">`.
+  - Primary Submit: Standardized with `<Button size="default" type="submit" variant="default" isLoading={status === "SUBMITTING"}>`.
+- **Engine A (`engine-a-form.tsx`):**
+  - Form Dispatch: Dropped custom pill-shaped `rounded-full` styling in favor of `<Button size="default" type="submit" variant="default" isLoading={isSubmitting}>`.
+- **Rejection Inspector (`rejection-inspector-panel.tsx`):**
+  - Dismiss Action: `<Button size="sm" type="button" variant="outline">`.
+  - Retry Transmission: `<Button size="sm" type="button" variant="danger" isLoading={isRetrying}>`.
+
+#### 54.5. Aggressive Purging of Diagnostic Bloat & Backend Topologies
+1. **Purge of Developer Badges:**
+   - Eradicated pulsing amber `<span ...>COMMAND PATHWAY</span>` pills from `engine-c/page.tsx` and `engine-b/page.tsx`.
+   - Purged redundant local asset pills (`Feeder: {activeFeederId}`, `Substation: {activeSubstationId}`) from `engine-c-form.tsx`, establishing the global Topbar as the single source of truth for asset hierarchy.
+   - Purged runtime FSM debug badges (`FSM: {fsm.state}`), retry counters (`Retries: {fsm.retryCount}`), and alarmist networking labels (`CONNECTION SEVERED`).
+2. **Elimination of Internal Backend Route Expositions:**
+   - Deleted literal proxy route strings (`Boundary: POST /api/proxy/v1/anomaly/ingest`) and in-flight FSM debug markers from the submission footers.
+   - Deleted microservice topology strings (`Target: FastAPI (Engine C Anomaly Service)`) from `RejectionInspectorPanel`.
+   - Deleted raw backend JSON evaluations (`Evaluated Feeder: ... Risk Score: ... Model: ...`) from `engine-b-form.tsx`, substituting clean, executive operational confirmation banners.
+3. **Copywriting Sanitization & Academic Text Deletion:**
+   - Replaced textbook explanations of CQRS command origins, AbortController budgets, and Pydantic firewall internals with succinct, action-oriented operator guidance.
+   - Replaced legacy empty-state placeholder narratives with clean instructions.
+   - Sanitized color tokens: replaced generic `red-*` and `gray-*` tokens with canonical `rose-*` and `slate-*` design system variables.
+
+#### 54.6. Static Verification & Certification
+- **Compiler Health Check:** Executed `pnpm exec tsc --noEmit` across the entire Next.js codebase. Result: **Exit Code 0 (0 compilation errors)**.
+- **Git Commit:** Recorded with conventional commit prefix `refactor(ingestion):`.

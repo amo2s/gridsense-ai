@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, Plus, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 
 const ingestionSchema = z.object({
   cycle_timestamp: z.string().min(1, "Timestamp is required"),
@@ -158,7 +159,7 @@ export default function EngineAForm() {
       {/* Root Details */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <label className="block text-xs uppercase tracking-widest text-gray-500 font-semibold">
+          <label className="block text-xs uppercase tracking-widest text-slate-500 font-semibold">
             Cycle Timestamp
           </label>
           <input
@@ -167,7 +168,7 @@ export default function EngineAForm() {
             className="w-full bg-white/50 border-transparent shadow-inner rounded-xl px-4 py-3 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all duration-300"
           />
           {errors.cycle_timestamp && (
-            <p className="text-red-500 text-xs mt-1">{errors.cycle_timestamp.message}</p>
+            <p className="text-rose-500 text-xs mt-1">{errors.cycle_timestamp.message}</p>
           )}
         </div>
       </div>
@@ -179,7 +180,7 @@ export default function EngineAForm() {
         <h3 className="text-sm font-semibold text-slate-800 mb-4 tracking-wide">ASSET METADATA</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <label className="block text-xs uppercase tracking-widest text-gray-500 font-semibold">
+            <label className="block text-xs uppercase tracking-widest text-slate-500 font-semibold">
               Feeder ID
             </label>
             <input
@@ -189,11 +190,11 @@ export default function EngineAForm() {
               className="w-full bg-white/50 border-transparent shadow-inner rounded-xl px-4 py-3 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all duration-300"
             />
             {errors.asset?.feeder_id && (
-              <p className="text-red-500 text-xs mt-1">{errors.asset.feeder_id.message}</p>
+              <p className="text-rose-500 text-xs mt-1">{errors.asset.feeder_id.message}</p>
             )}
           </div>
           <div className="space-y-2">
-            <label className="block text-xs uppercase tracking-widest text-gray-500 font-semibold">
+            <label className="block text-xs uppercase tracking-widest text-slate-500 font-semibold">
               Voltage Class
             </label>
             <input
@@ -203,11 +204,11 @@ export default function EngineAForm() {
               className="w-full bg-white/50 border-transparent shadow-inner rounded-xl px-4 py-3 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all duration-300"
             />
             {errors.asset?.voltage_class && (
-              <p className="text-red-500 text-xs mt-1">{errors.asset.voltage_class.message}</p>
+              <p className="text-rose-500 text-xs mt-1">{errors.asset.voltage_class.message}</p>
             )}
           </div>
           <div className="space-y-2">
-            <label className="block text-xs uppercase tracking-widest text-gray-500 font-semibold">
+            <label className="block text-xs uppercase tracking-widest text-slate-500 font-semibold">
               Capacity (MW)
             </label>
             <input
@@ -218,7 +219,7 @@ export default function EngineAForm() {
               className="w-full bg-white/50 border-transparent shadow-inner rounded-xl px-4 py-3 text-sm text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all duration-300"
             />
             {errors.asset?.capacity_mw && (
-              <p className="text-red-500 text-xs mt-1">{errors.asset.capacity_mw.message}</p>
+              <p className="text-rose-500 text-xs mt-1">{errors.asset.capacity_mw.message}</p>
             )}
           </div>
         </div>
@@ -233,7 +234,7 @@ export default function EngineAForm() {
         </div>
         
         {errors.interruptions?.root && (
-          <p className="text-red-500 text-sm mb-4 bg-red-50 p-3 rounded-lg">{errors.interruptions.root.message}</p>
+          <p className="text-rose-700 text-xs mb-4 bg-rose-500/10 border border-rose-500/30 p-3 rounded-xl">{errors.interruptions.root.message}</p>
         )}
 
         <div className="space-y-3 mb-4">
@@ -308,23 +309,15 @@ export default function EngineAForm() {
       </div>
 
       <div className="pt-4 flex justify-end">
-        <button
+        <Button
+          size="default"
           type="submit"
+          variant="default"
           disabled={isSubmitting}
-          className="relative overflow-hidden group bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-8 py-3 rounded-full transition-all duration-300 disabled:opacity-80 disabled:cursor-not-allowed shadow-[0_4px_14px_rgba(16,185,129,0.4)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.5)]"
+          isLoading={isSubmitting}
         >
-          {isSubmitting ? (
-            <span className="flex items-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Dispatching...
-            </span>
-          ) : (
-            <span className="relative z-10 flex items-center gap-2">
-              Dispatch Payload
-            </span>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-        </button>
+          <span>Dispatch Payload</span>
+        </Button>
       </div>
 
       <AnimatePresence>
@@ -333,7 +326,7 @@ export default function EngineAForm() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="mt-6 p-6 rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm shadow-sm flex items-center justify-between"
+            className="mt-6 p-6 rounded-2xl border border-white/60 bg-white/40 backdrop-blur-xl shadow-xs flex items-center justify-between"
           >
             <div>
               <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Results Summary</h4>
@@ -343,11 +336,11 @@ export default function EngineAForm() {
               </div>
             </div>
             <div className="text-right">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider
-                ${results.risk_band === 'STABLE' ? 'bg-emerald-100 text-emerald-800' :
-                  results.risk_band === 'VULNERABLE' ? 'bg-amber-100 text-amber-800' :
-                  'bg-red-100 text-red-800'}`}
-              >
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider ${
+                results.risk_band === 'STABLE' ? 'bg-emerald-500/10 text-emerald-800 border border-emerald-500/30' :
+                results.risk_band === 'VULNERABLE' ? 'bg-amber-500/10 text-amber-800 border border-amber-500/30' :
+                'bg-rose-500/10 text-rose-800 border border-rose-500/30'
+              }`}>
                 {results.risk_band}
               </span>
               <p className="text-xs text-slate-500 mt-2 font-medium">Trajectory: {results.trajectory}</p>

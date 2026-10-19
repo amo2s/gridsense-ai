@@ -27,7 +27,7 @@ function runVerification() {
     "Engine C route must be accessible to ADMIN, MANAGER, and STAFF"
   );
 
-  const ingestionMenu = MENU_ITEMS.find((item) => item.path === "/dashboard/ingestion");
+  const ingestionMenu = MENU_ITEMS.find((item) => item.name === "Data Ingestion");
   assert(Boolean(ingestionMenu?.submenu), "Data Ingestion must contain submenu");
   const engineCIngestion = ingestionMenu?.submenu?.find((s) => s.path === "/dashboard/ingestion/engine-c");
   assert(Boolean(engineCIngestion), "Ingestion submenu must contain /dashboard/ingestion/engine-c");

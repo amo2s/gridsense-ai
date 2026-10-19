@@ -7,12 +7,10 @@ import {
   RefreshCw, 
   X, 
   HelpCircle, 
-  ShieldAlert, 
-  Cpu, 
-  FileWarning, 
-  ArrowRight
+  FileWarning
 } from "lucide-react";
 import { ParsedRejection } from "@/hooks/use-engine-c-fsm";
+import { Button } from "@/components/ui/button";
 
 interface RejectionInspectorPanelProps {
   rejection: ParsedRejection;
@@ -21,22 +19,12 @@ interface RejectionInspectorPanelProps {
   isRetrying?: boolean;
 }
 
-/**
- * ============================================================================
- * REJECTION INSPECTOR PANEL (PHASE 1, STEP 1.4)
- * ============================================================================
- * Dedicated Liquid Glass diagnostic space mapping upstream Pydantic v2
- * HTTP 400 and 422 boundary rejections to human-readable operator actions.
- * Enforces strict color polarity (Rose/Crimson semantic tokens) in light mode.
- */
 export default function RejectionInspectorPanel({
   rejection,
   onRetry,
   onDismiss,
   isRetrying = false,
 }: RejectionInspectorPanelProps) {
-  const is422 = rejection.statusCode === 422;
-
   return (
     <AnimatePresence>
       <motion.div
@@ -55,15 +43,15 @@ export default function RejectionInspectorPanel({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold tracking-tight text-rose-950">
-                  Upstream Boundary Rejection
+                  Telemetry Validation Trapped
                 </h3>
                 {/* Status Code Badge */}
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-rose-500/15 text-rose-800 border border-rose-500/35">
-                  HTTP {rejection.statusCode} {rejection.statusText}
+                  HTTP {rejection.statusCode}
                 </span>
               </div>
               <p className="text-xs text-rose-800/80 mt-0.5">
-                Python Pydantic v2 Ingress Firewall Intercepted Malformed Telemetry
+                Telemetry boundary validation intercepted non-compliant operational values.
               </p>
             </div>
           </div>
@@ -88,7 +76,7 @@ export default function RejectionInspectorPanel({
           <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-rose-50/60 text-[11px] font-bold text-rose-900/80 uppercase tracking-wider border-b border-rose-200/50">
             <span className="col-span-2">Location</span>
             <span className="col-span-2">Feature</span>
-            <span className="col-span-5">Pydantic Rule Violation</span>
+            <span className="col-span-5">Validation Rule Violation</span>
             <span className="col-span-3 text-right">Received Input</span>
           </div>
 
@@ -116,18 +104,15 @@ export default function RejectionInspectorPanel({
                 {/* Violation Message */}
                 <div className="col-span-5 text-slate-700 font-medium leading-relaxed pr-2">
                   <p>{issue.message}</p>
-                  {issue.ruleCode && (
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      Type: {issue.ruleCode}
-                    </span>
-                  )}
                 </div>
 
                 {/* Received Input */}
                 <div className="col-span-3 text-right font-mono text-[11px] text-rose-800 font-semibold truncate">
                   {issue.receivedValue !== undefined ? (
-                    typeof issue.receivedValue === "object" ? (
-                      JSON.stringify(issue.receivedValue)
+                    typeof issue.receivedValue === "object" && issue.receivedValue !== null ? (
+                      Array.isArray(issue.receivedValue)
+                        ? `[${issue.receivedValue.length} items]`
+                        : Object.keys(issue.receivedValue).join(", ") || "Object"
                     ) : (
                       String(issue.receivedValue)
                     )
@@ -144,46 +129,36 @@ export default function RejectionInspectorPanel({
         <div className="p-4 rounded-2xl bg-white/60 border border-white/80 shadow-2xs flex items-start gap-3">
           <HelpCircle className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
           <div className="text-xs text-slate-600 leading-relaxed">
-            <span className="font-semibold text-slate-800">Operator Remediation Action: </span>
-            {is422 ? (
-              <span>
-                Inspect the highlighted matrix rows indicated above. Ensure all voltage readings remain strictly between 
-                <span className="font-mono font-semibold text-slate-700"> 0.0V and 500.0V</span>, load and frequency are non-negative, and timestamps form an uninterrupted ascending chronological timeline without future leakage.
-              </span>
-            ) : (
-              <span>
-                Verify that the feeder context identifier and authorization token match the boundary contract enforced by the Go API Gateway.
-              </span>
-            )}
+            <span className="font-semibold text-slate-800">Operator Remediation: </span>
+            <span>
+              Please review and adjust the highlighted telemetry values above to ensure all voltage, load, and timestamp inputs fall within valid operational boundaries.
+            </span>
           </div>
         </div>
 
-        {/* Action Controls & Idempotent Retry */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
-            <Cpu className="w-3.5 h-3.5 text-slate-400" />
-            <span>Target: FastAPI (Engine C Anomaly Service)</span>
-          </div>
-
+        {/* Action Controls & Retry */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-3 pt-2">
           <div className="flex items-center gap-2.5">
-            <button
+            <Button
               type="button"
+              size="sm"
+              variant="outline"
               onClick={onDismiss}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white/70 hover:bg-white border border-white/90 shadow-2xs transition-all cursor-pointer"
             >
               Dismiss
-            </button>
+            </Button>
 
-            {/* Idempotent Retry Button */}
-            <button
+            <Button
               type="button"
+              size="sm"
+              variant="danger"
               onClick={onRetry}
               disabled={isRetrying}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
+              isLoading={isRetrying}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRetrying ? "animate-spin" : ""}`} />
-              <span>Retry Transmission (Idempotent)</span>
-            </button>
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry Transmission</span>
+            </Button>
           </div>
         </div>
       </motion.div>

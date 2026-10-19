@@ -25,6 +25,7 @@ import {
   TelemetryReading,
   EgressPredictionResponse,
 } from "@/types/engine-b-ingestion";
+import { Button } from "@/components/ui/button";
 
 type FormStateFSM = "IDLE" | "SUBMITTING" | "ERROR" | "SUCCESS";
 
@@ -231,78 +232,75 @@ export default function EngineBForm() {
   return (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
-      {/* Top Asset & Ingestion Header */}
+      {/* Staging Header & Action Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200/60">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs uppercase font-bold tracking-widest text-slate-400">
-              Synchronized Target Feeder
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {activeFeederId}
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Zero-re-render feeder binding via Phase 0 Global State Store
+          <h3 className="text-base font-semibold text-slate-900">
+            24-Hour Telemetry Staging
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Assemble and stage diurnal operational series for outage risk evaluation
           </p>
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-3">
-          <button
+        <div className="flex items-center gap-2">
+          <Button
             type="button"
+            size="sm"
+            variant="secondary"
             onClick={handleGenerateBaseline}
             disabled={status === "SUBMITTING"}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-emerald-800 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 rounded-xl backdrop-blur-md shadow-sm transition-all duration-200 disabled:opacity-50 cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            Generate 24h Baseline
-          </button>
+            <Sparkles className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+            <span>Generate 24h Baseline</span>
+          </Button>
 
-          <button
+          <Button
             type="button"
+            size="sm"
+            variant="outline"
             onClick={handleAddHour}
             disabled={status === "SUBMITTING"}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white/60 hover:bg-white/80 border border-white/80 rounded-xl backdrop-blur-md shadow-sm transition-all duration-200 disabled:opacity-50 cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5 text-slate-600" />
-            Add Hour
-          </button>
+            <Plus className="w-3.5 h-3.5 mr-1 text-slate-600" />
+            <span>Add Hour</span>
+          </Button>
 
           {readingsCount > 0 && (
-            <button
+            <Button
               type="button"
+              size="sm"
+              variant="danger"
               onClick={() => replace([])}
               disabled={status === "SUBMITTING"}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-red-700 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl backdrop-blur-md shadow-sm transition-all duration-200 disabled:opacity-50 cursor-pointer"
             >
-              <Trash2 className="w-3.5 h-3.5 text-red-500" />
-              Clear
-            </button>
+              <Trash2 className="w-3.5 h-3.5 mr-1" />
+              <span>Clear</span>
+            </Button>
           )}
         </div>
       </div>
 
-      {/* Crimson Alert Banner for ERROR state */}
+      {/* Alert Banner for ERROR state */}
       <AnimatePresence>
         {status === "ERROR" && errorMessage && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/30 backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]"
+            className="flex items-start gap-3 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]"
           >
-            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
             <div className="flex-1 text-xs">
-              <p className="font-semibold text-red-800">Telemetry Ingestion Rejected</p>
-              <p className="text-red-700/90 mt-0.5 leading-relaxed">{errorMessage}</p>
+              <p className="font-semibold text-rose-800">Telemetry Ingestion Rejected</p>
+              <p className="text-rose-700/90 mt-0.5 leading-relaxed">{errorMessage}</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Emerald Success Banner for SUCCESS state */}
+      {/* Success Banner for SUCCESS state */}
       <AnimatePresence>
         {status === "SUCCESS" && egressResult && (
           <motion.div
@@ -312,15 +310,12 @@ export default function EngineBForm() {
             className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]"
           >
             <CheckCircle2 className="w-6 h-6 text-emerald-500 shrink-0 animate-pulse mt-0.5" />
-            <div className="flex-1 text-xs space-y-1">
+            <div className="flex-1 text-xs">
               <p className="font-semibold text-emerald-900">
-                Payload Ingested & Processed Successfully
+                Payload Ingested &amp; Processed Successfully
               </p>
-              <p className="text-emerald-800">
-                Evaluated Feeder: <span className="font-mono font-bold">{egressResult.feeder_id}</span> | 
-                Risk Score: <span className="font-bold">{egressResult.risk_score}</span> | 
-                Risk Level: <span className="font-bold">{egressResult.risk_level}</span> | 
-                Model: <span className="font-mono">{egressResult.model_version}</span>
+              <p className="text-emerald-800 mt-0.5">
+                Operational series validated and persisted. Outage-risk prediction model executed.
               </p>
             </div>
           </motion.div>
@@ -360,8 +355,7 @@ export default function EngineBForm() {
           <Database className="w-10 h-10 text-slate-400 mx-auto mb-3 opacity-60" />
           <p className="text-sm font-medium text-slate-700">No telemetry readings queued</p>
           <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            Click &ldquo;Generate 24h Baseline&rdquo; above to automatically assemble a diurnal 24-hour
-            operational series, or manually add hourly rows.
+            Click &ldquo;Generate 24h Baseline&rdquo; to stage a 24-hour diurnal operational series, or manually add hourly rows.
           </p>
         </div>
       ) : (
@@ -398,11 +392,11 @@ export default function EngineBForm() {
                         disabled={status === "SUBMITTING"}
                         {...register(`readings.${index}.timestamp`)}
                         className={`w-full bg-white/40 border ${
-                          rowErrors?.timestamp ? "border-red-400 ring-1 ring-red-400" : "border-white/60"
+                          rowErrors?.timestamp ? "border-rose-400 ring-1 ring-rose-400" : "border-white/60"
                         } focus:ring-2 focus:ring-emerald-500/50 focus:bg-white/80 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-mono transition-all disabled:opacity-50`}
                       />
                       {rowErrors?.timestamp && (
-                        <p className="text-[10px] text-red-500 mt-0.5 leading-tight">
+                        <p className="text-[10px] text-rose-500 mt-0.5 leading-tight">
                           {rowErrors.timestamp.message}
                         </p>
                       )}
@@ -417,12 +411,12 @@ export default function EngineBForm() {
                           disabled={status === "SUBMITTING"}
                           {...register(`readings.${index}.voltage`, { valueAsNumber: true })}
                           className={`w-full bg-white/40 border ${
-                            rowErrors?.voltage ? "border-red-400 ring-1 ring-red-400" : "border-white/60"
+                            rowErrors?.voltage ? "border-rose-400 ring-1 ring-rose-400" : "border-white/60"
                           } focus:ring-2 focus:ring-emerald-500/50 focus:bg-white/80 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 transition-all disabled:opacity-50`}
                         />
                       </div>
                       {rowErrors?.voltage && (
-                        <p className="text-[10px] text-red-500 mt-0.5 leading-tight">
+                        <p className="text-[10px] text-rose-500 mt-0.5 leading-tight">
                           {rowErrors.voltage.message}
                         </p>
                       )}
@@ -437,12 +431,12 @@ export default function EngineBForm() {
                           disabled={status === "SUBMITTING"}
                           {...register(`readings.${index}.load`, { valueAsNumber: true })}
                           className={`w-full bg-white/40 border ${
-                            rowErrors?.load ? "border-red-400 ring-1 ring-red-400" : "border-white/60"
+                            rowErrors?.load ? "border-rose-400 ring-1 ring-rose-400" : "border-white/60"
                           } focus:ring-2 focus:ring-emerald-500/50 focus:bg-white/80 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 transition-all disabled:opacity-50`}
                         />
                       </div>
                       {rowErrors?.load && (
-                        <p className="text-[10px] text-red-500 mt-0.5 leading-tight">
+                        <p className="text-[10px] text-rose-500 mt-0.5 leading-tight">
                           {rowErrors.load.message}
                         </p>
                       )}
@@ -457,11 +451,11 @@ export default function EngineBForm() {
                         disabled={status === "SUBMITTING"}
                         {...register(`readings.${index}.fault_count_recent`, { valueAsNumber: true })}
                         className={`w-full bg-white/40 border ${
-                          rowErrors?.fault_count_recent ? "border-red-400 ring-1 ring-red-400" : "border-white/60"
+                          rowErrors?.fault_count_recent ? "border-rose-400 ring-1 ring-rose-400" : "border-white/60"
                         } focus:ring-2 focus:ring-emerald-500/50 focus:bg-white/80 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 text-center transition-all disabled:opacity-50`}
                       />
                       {rowErrors?.fault_count_recent && (
-                        <p className="text-[10px] text-red-500 mt-0.5 leading-tight">
+                        <p className="text-[10px] text-rose-500 mt-0.5 leading-tight">
                           {rowErrors.fault_count_recent.message}
                         </p>
                       )}
@@ -473,7 +467,7 @@ export default function EngineBForm() {
                         type="button"
                         onClick={() => remove(index)}
                         disabled={status === "SUBMITTING"}
-                        className="p-1 text-slate-400 hover:text-red-500 transition-colors disabled:opacity-30 cursor-pointer"
+                        className="p-1 text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-30 cursor-pointer"
                         title="Remove Reading"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -487,30 +481,26 @@ export default function EngineBForm() {
         </div>
       )}
 
-      {/* Form Submission Pathway */}
+      {/* Form Submission */}
       <div className="pt-2 flex items-center justify-between">
-        <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
-          <Zap className="w-3.5 h-3.5 text-amber-500" />
-          Payload enforces strict Pydantic v2 boundaries before Go Gateway ingress.
-        </p>
-
-        <button
-          type="submit"
-          disabled={status === "SUBMITTING" || readingsCount < 24}
-          className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-xl shadow-md shadow-emerald-600/20 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-        >
-          {status === "SUBMITTING" ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin text-white" />
-              <span>Transmitting Payload...</span>
-            </>
+        <div className="text-xs text-slate-500">
+          {isReadingsValid ? (
+            <span className="text-emerald-700 font-medium">Sliding window ready for dispatch (24 readings staged)</span>
           ) : (
-            <>
-              <Send className="w-4 h-4" />
-              <span>Submit Telemetry Payload</span>
-            </>
+            <span className="text-amber-600 font-medium">Minimum 24 hourly readings required ({readingsCount}/24)</span>
           )}
-        </button>
+        </div>
+
+        <Button
+          size="default"
+          type="submit"
+          variant="default"
+          disabled={status === "SUBMITTING" || readingsCount < 24}
+          isLoading={status === "SUBMITTING"}
+        >
+          <Send className="w-4 h-4 mr-1.5" />
+          <span>Submit Telemetry Payload</span>
+        </Button>
       </div>
     </form>
   );

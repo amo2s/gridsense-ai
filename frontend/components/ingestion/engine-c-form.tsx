@@ -19,7 +19,8 @@ import {
   Gauge,
   Clock,
   RefreshCw,
-  Radio
+  Radio,
+  Wand2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useFeederStore } from "@/store/feeder-store";
@@ -33,6 +34,7 @@ import {
 } from "@/hooks/use-engine-c-fsm";
 import RejectionInspectorPanel from "@/components/ingestion/rejection-inspector-panel";
 import { Button } from "@/components/ui/button";
+import { generateDiurnalBaseline } from "@/lib/telemetry-generator";
 
 const GATEWAY_TIMEOUT_MS = 8000;
 
@@ -81,6 +83,16 @@ export default function EngineCForm() {
     control,
     name: "readings",
   });
+
+  /**
+   * Dual-Step Pipeline: Stages a presentation-grade 24-hour diurnal baseline
+   * directly into the React Hook Form state via replace().
+   */
+  const handleStageBaseline = () => {
+    const syntheticData = generateDiurnalBaseline();
+    replace(syntheticData);
+    toast.success("Mathematical baseline staged successfully (24 hours).");
+  };
 
   // Keep feeder_id and substation_id synchronized with global store without triggering full form re-renders
   useEffect(() => {
@@ -232,6 +244,18 @@ export default function EngineCForm() {
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
+          <Button 
+            type="button" 
+            variant="secondary" 
+            size="sm" 
+            onClick={handleStageBaseline}
+            disabled={isFSMSubmitting}
+            className="flex items-center gap-2"
+          >
+            <Wand2 className="h-4 w-4 text-emerald-600" />
+            <span className="font-semibold text-emerald-800">Stage 24h Baseline</span>
+          </Button>
+
           <Button
             type="button"
             size="sm"
@@ -384,6 +408,8 @@ export default function EngineCForm() {
         {fields.length === 0 ? (
           <div className="py-12 text-center text-slate-400 text-xs">
             No telemetry readings staged. Click{" "}
+            <span className="font-semibold text-slate-700">"Stage 24h Baseline"</span>{" "}
+            or{" "}
             <span className="font-semibold text-slate-700">"Add Row"</span>{" "}
             above to enter hourly operational telemetry.
           </div>

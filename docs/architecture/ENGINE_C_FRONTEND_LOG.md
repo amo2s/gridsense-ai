@@ -2189,3 +2189,51 @@ Across all three ingestion pipelines (`EngineAForm`, `EngineBForm`, `EngineCForm
 #### 54.6. Static Verification & Certification
 - **Compiler Health Check:** Executed `pnpm exec tsc --noEmit` across the entire Next.js codebase. Result: **Exit Code 0 (0 compilation errors)**.
 - **Git Commit:** Recorded with conventional commit prefix `refactor(ingestion):`.
+
+---
+
+### Phase 7: Mathematical Baseline Injection & Diurnal Curve Synthesis
+
+#### 55.1. Operational Scope & Chronological Record
+- **Phase:** Phase 7 (Mathematical Baseline Injection & Diurnal Curve Synthesis)
+- **Exact Timestamp:** Monday, October 19, 2026, 1:14 PM WAT (Africa/Lagos)
+- **Status:** **COMPLETE & CERTIFIED**
+- **Affected Core Modules:**
+  - Telemetry Generator Utility: [`frontend/lib/telemetry-generator.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/lib/telemetry-generator.ts)
+  - Engine C Ingestion Form: [`frontend/components/ingestion/engine-c-form.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/engine-c-form.tsx)
+
+#### 55.2. Mathematical Diurnal Modeling & Environmental Micro-Fluctuations
+To eliminate manual data entry of 24 distinct hourly telemetry records during demonstrations, testing, and operational staging, a pure mathematical generation module was implemented in [`frontend/lib/telemetry-generator.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/lib/telemetry-generator.ts).
+
+Rather than generating arbitrary pseudo-random values, the utility simulates physical electrical grid behavior using a time-shifted trigonometric cosine wave anchored to an 18:00 (6:00 PM) peak operational load:
+- **Mathematical Constants:**
+  - Nominal Voltage: $230.0$ V
+  - Nominal Frequency: $50.0$ Hz
+  - Base Active Load: $350.0$ kW
+  - Peak Amplitude: $250.0$ kW
+  - Peak Hour Offset: $18.0$ (18:00 UTC)
+- **Physical Equation:**
+  $$Load(t) = Base + Amplitude \cdot \cos\left((t - Offset) \cdot \frac{\pi}{12}\right)$$
+  Yielding a nominal diurnal curve ranging from $100.0$ kW at trough (06:00) to $600.0$ kW at peak demand (18:00).
+- **Stochastic Environmental Noise Injection:**
+  Realistic telemetry micro-fluctuations are superimposed onto the deterministic curves within strict physical bounds:
+  - Voltage Noise: $\pm 1.5$ V ($228.5 \to 231.5$ V)
+  - Frequency Noise: $\pm 0.04$ Hz ($49.96 \to 50.04$ Hz)
+  - Active Load Noise: $\pm 15.0$ kW ($85.0 \to 615.0$ kW)
+  - Operational Availability: Fixed to nominal $1.0$ (100%)
+
+#### 55.3. Dual-Step Pipeline Architecture & CQRS Operator Autonomy
+The implementation adheres strictly to a Dual-Step Pipeline pattern:
+1. **Local React State Staging Only:** The injection utility acts exclusively on local frontend React Hook Form state, populating the `readings` field array. It does not invoke any backend network calls or contact the Go API Gateway during synthesis.
+2. **Explicit Operator Authorization:** The operator retains complete autonomy to visually inspect the 24 synthesized rows in the interactive table, review individual metric values, and deliberately click the primary "Submit Ingestion" button to transmit the payload to PostgreSQL. This fulfills the CQRS design pattern by cleanly separating client-side command preparation from network command execution.
+
+#### 55.4. Component Integration & useFieldArray `replace` Method
+In [`frontend/components/ingestion/engine-c-form.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/engine-c-form.tsx):
+- **Secondary Action Button:** Injected a `<Button type="button" variant="secondary" size="sm" onClick={handleStageBaseline}>` with a `<Wand2 className="h-4 w-4 text-emerald-600" />` icon in the action bar directly adjacent to "Add Row".
+- **Visual Hierarchy:** Preserves established design system hierarchy where the primary submit button is `variant="default"`, stage baseline is `variant="secondary"`, and row additions remain `variant="outline"`.
+- **`replace` vs. `append` Invariant:** The handler explicitly invokes `replace(syntheticData)` from React Hook Form's `useFieldArray`. This ensures that triggering the staging utility completely overwrites the array with exactly 24 rows rather than appending (which would result in 48, 72, or 96 rows, instantly violating the Zod schema's 24-step sliding window requirement).
+- **DOM Reconciliation & Key Stability:** Confirmed that the table mapping loop leverages `key={field.id}` provided by `useFieldArray` rather than array indices, preventing DOM reconciliation errors, input focus loss, and unnecessary re-renders when the array is replaced.
+
+#### 55.5. Static Analysis & Verification
+- **TypeScript Compiler Check:** Executed `pnpm exec tsc --noEmit` across the entire codebase. Verified with **Exit Code 0 (Zero errors)**.
+

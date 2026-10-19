@@ -2309,4 +2309,52 @@ mux.Handle("/api/v1/anomaly/ingest", enableCORS(authProtectedAnomalyIngest))
 - **Go Gateway Compilation:** Executed `go build -v ./...` across all packages (`gateway`, `gateway/handlers`, `gateway/internal/grpc`, `gateway/cmd/api`). Verified with **Exit Code 0 (Zero errors)**.
 - **Frontend TypeScript Verification:** Executed `pnpm exec tsc --noEmit`. Verified with **Exit Code 0 (Zero errors)**.
 
+---
+
+### Phase 9: PostgreSQL Constraint Migration
+
+#### 57.1. Operational Scope & Chronological Record
+- **Phase:** Phase 9 (PostgreSQL Constraint Migration)
+- **Exact Timestamp:** Monday, October 19, 2026, 2:08 PM WAT (Africa/Lagos) / 2026-10-19T14:08:32+01:00
+- **Status:** **COMPLETE & CERTIFIED**
+- **Affected Core Modules:**
+  - SQL Migration DDL: [`backend/database/supabase/migrations/20261019140000_add_power_readings_unique_constraint.sql`](file:///c:/users/hp/Desktop/gridsense-ai/backend/database/supabase/migrations/20261019140000_add_power_readings_unique_constraint.sql)
+  - Target Schema: PostgreSQL `power_readings` table
+
+#### 57.2. Root Cause Analysis: SQLSTATE 42P10
+During the end-to-end baseline telemetry ingestion test following Phase 8 CQRS alignment, dispatching synthesized diurnal curves from the Next.js frontend to the Go API Gateway endpoint `/api/v1/anomaly/ingest` triggered an active database exception:
+- **Error Code:** `SQLSTATE 42P10` (`invalid_column_reference` / `ON CONFLICT specification`)
+- **Engine Message:** `"there is no unique or exclusion constraint matching the ON CONFLICT specification"`
+- **Ingestion Query:**
+  ```sql
+  INSERT INTO power_readings (feeder_id, timestamp, voltage, load, frequency, availability)
+  VALUES ($1, $2, $3, $4, $5, $6)
+  ON CONFLICT (feeder_id, timestamp) 
+  DO UPDATE SET
+      voltage = EXCLUDED.voltage,
+      load = EXCLUDED.load,
+      frequency = EXCLUDED.frequency,
+      availability = EXCLUDED.availability;
+  ```
+- **Architectural Fault:** The `IngestEngineCTelemetry` handler employs an idempotent UPSERT pattern to safely write diurnal baseline batches without causing duplicate time-series records. Under PostgreSQL's transactional engine, `ON CONFLICT (feeder_id, timestamp)` requires either a matching unique constraint or a unique index spanning `(feeder_id, timestamp)`. Because the target `power_readings` table lacked this composite constraint, PostgreSQL rejected the batch ingestion transaction and aborted the connection.
+
+#### 57.3. Schema Migration Creation
+To enforce temporal uniqueness and satisfy PostgreSQL's UPSERT contract, a new sequentially ordered migration file was generated in the Supabase migrations directory:
+- **Migration File:** [`backend/database/supabase/migrations/20261019140000_add_power_readings_unique_constraint.sql`](file:///c:/users/hp/Desktop/gridsense-ai/backend/database/supabase/migrations/20261019140000_add_power_readings_unique_constraint.sql)
+- **Applied DDL Mutation:**
+  ```sql
+  -- Phase 9: Enforce temporal uniqueness for Engine C CQRS ingestion
+  -- Adds a composite unique constraint to safely support ON CONFLICT UPSERT operations.
+
+  ALTER TABLE power_readings
+  ADD CONSTRAINT power_readings_feeder_timestamp_key UNIQUE (feeder_id, timestamp);
+  ```
+
+#### 57.4. Architectural Significance & Parity
+- **Idempotent Telemetry Batching:** With `power_readings_feeder_timestamp_key` enforced, the Go Gateway can execute idempotent re-ingestions of baseline and streaming telemetry. Existing records with identical timestamps for a given feeder will update in-place rather than duplicating or aborting transactions.
+- **Time-Series Integrity:** Guarantees that time-series queries (e.g., 24-step sliding window scans for Seasonal STL anomaly decomposition) never encounter conflicting telemetry points for the same feeder at the same epoch.
+- **ORM & Type System Compatibility:** Verified that adding this constraint introduces no breaking alterations to Go structs (`EngineCIngestionReading`, `TelemetryReading`) or frontend Zod validation schemas.
+- **Deployment Parity:** Ready for seamless execution across Hugging Face Spaces backend instances and production Supabase environments.
+
+
 

@@ -2062,3 +2062,62 @@ To ensure data visualizers render with premium liquid glass aesthetics when anom
 #### 52.5. Verification & Version Control Summary
 - **Static Analysis Compilation:** `pnpm exec tsc --noEmit` verified with **0 errors** (exit code `0`).
 - **Git Tracking:** All modified assets staged and committed using the conventional prefix `style(engine-c):`.
+
+---
+
+### Phase 5: Recharts Diagnostic Purge and Time-Series Control Refinement
+
+#### 53.1. Operational Scope & Chronological Record
+- **Directive:** Eradication of Rendering Engine Diagnostic Toggles, Operational Time Horizon Control Injection, and Liquid Glass Recharts Polish
+- **Exact Timestamp:** Monday, October 19, 2026, 11:38 AM WAT (Africa/Lagos)
+- **Lead Agent:** Autonomous Enterprise Frontend Engineering Agent (GridSense AI Infrastructure)
+- **Status:** **COMPLETE, VERIFIED & SYNCHRONIZED**
+- **Specific Files Modified:**
+  - [`frontend/components/dashboard/engine-c/seasonal-stl-tunnel-chart.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/engine-c/seasonal-stl-tunnel-chart.tsx) *(Excised Auto/SVG/Canvas toggle controls and diagnostic badges; implemented 1H/12H/24H/7D Time Horizon segmented controls; applied liquid glass Tooltip, horizontal CartesianGrid, and softened axis borders)*
+  - [`frontend/components/dashboard/engine-c/shap-divergence-waterfall.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/engine-c/shap-divergence-waterfall.tsx) *(Harmonized Recharts Tooltip contentStyle with matching liquid glass and typography tokens)*
+
+#### 53.2. Eradication of Developer Rendering Toggles
+During rapid prototyping and telemetry tensor benchmarking, manual rendering pipeline toggles (`Auto`, `SVG`, `Canvas`) and an active runtime status badge (`Recharts SVG` / `Canvas 2D (60 FPS)`) were embedded in the Seasonal STL Residual Tunnel Chart header. 
+
+While instrumental in verifying the automatic hardware-accelerated Canvas fallback when telemetry points exceed the threshold ($\ge 96$), exposing raw rendering engine mechanics provides zero operational utility to grid operators and introduces cognitive clutter. In Phase 5, all manual rendering mode toggles and diagnostic status badges were permanently eradicated from the React tree, while the underlying automated performance thresholding was preserved cleanly behind the scenes.
+
+#### 53.3. Introduction of Operational Time Horizon Segmented Controls
+To replace the excised developer tooling with domain-relevant operational controls, a cohesive Time Horizon segmented control was injected in the exact spatial header location:
+- **Control Layout:** Enclosed in a glass pill container:
+  ```tsx
+  <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md border border-white/20 p-1 rounded-xl shadow-inner">
+  ```
+- **Interval Options:** Standard grid telemetry horizons (`1H`, `12H`, `24H`, and `7D`).
+- **Interactive State Styling:**
+  - *Active Horizon (Default: `24H`):* `bg-white shadow-sm text-emerald-800 font-semibold px-3 py-1.5 rounded-lg text-xs transition-all`
+  - *Inactive Horizons:* `text-slate-500 hover:text-emerald-700 hover:bg-white/50 font-medium px-3 py-1.5 rounded-lg text-xs transition-all`
+- **State Architecture:** Managed via local state (`const [timeHorizon, setTimeHorizon] = useState("24H")`), providing immediate tactile and visual feedback.
+
+#### 53.4. Recharts Liquid Glass Tooltip and Axis Polish
+Because Recharts operates within an SVG canvas and injects portal/DOM overlays, standard Tailwind CSS utility classes cannot reliably pierce the chart's internal tooltip hierarchy. To eliminate default opaque white rectangular boxes and achieve true liquid glass depth, extensive inline CSS properties were passed directly via the Recharts `contentStyle` prop:
+
+```tsx
+<Tooltip 
+  contentStyle={{ 
+    backgroundColor: 'rgba(255, 255, 255, 0.65)', 
+    backdropFilter: 'blur(16px)', 
+    WebkitBackdropFilter: 'blur(16px)',
+    borderRadius: '16px', 
+    border: '1px solid rgba(255, 255, 255, 0.8)',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255,255,255,0.9)',
+    color: '#0f172a',
+    padding: '12px 16px'
+  }}
+  itemStyle={{ color: '#047857', fontWeight: 600, fontSize: '13px' }}
+  labelStyle={{ color: '#64748b', fontWeight: 500, fontSize: '12px', marginBottom: '8px', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '4px' }}
+  cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }} 
+/>
+```
+
+- **Backdrop Blur Translucency:** Passing `backdropFilter: 'blur(16px)'` and `WebkitBackdropFilter: 'blur(16px)'` alongside `rgba(255, 255, 255, 0.65)` enables the underlying telemetry curves and confidence tunnel to remain subtly visible beneath the tooltip.
+- **CartesianGrid Optimization:** Formatted with `strokeDasharray="4 4"`, `stroke="rgba(148, 163, 184, 0.25)"`, and `vertical={false}` to eliminate vertical clutter while preserving horizontal power thresholds.
+- **Axis Softening:** Removed heavy outer borders via `axisLine={false}` and `tickLine={false}`, applying soft typography with `tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 500 }}`.
+
+#### 53.5. Verification & Version Control Summary
+- **Static Analysis Check:** `pnpm exec tsc --noEmit` executed with **0 errors** (exit code `0`).
+- **Git Commit:** Recorded with conventional commit prefix `feat(engine-c):`.

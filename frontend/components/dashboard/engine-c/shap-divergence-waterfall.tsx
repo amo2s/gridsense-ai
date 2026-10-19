@@ -242,14 +242,17 @@ function SHAPDivergenceWaterfallComponent({
               {/* Liquid Glass Recharts Tooltip */}
               <Tooltip
                 contentStyle={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.4)', 
+                  backgroundColor: 'rgba(255, 255, 255, 0.65)', 
                   backdropFilter: 'blur(16px)', 
+                  WebkitBackdropFilter: 'blur(16px)',
                   borderRadius: '16px', 
-                  border: '1px solid rgba(255, 255, 255, 0.5)',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                  color: '#334155'
+                  border: '1px solid rgba(255, 255, 255, 0.8)',
+                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255,255,255,0.9)',
+                  color: '#0f172a',
+                  padding: '12px 16px'
                 }}
-                itemStyle={{ color: '#0f172a', fontWeight: 500 }}
+                itemStyle={{ color: '#047857', fontWeight: 600, fontSize: '13px' }}
+                labelStyle={{ color: '#64748b', fontWeight: 500, fontSize: '12px', marginBottom: '8px', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '4px' }}
                 cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }}
                 allowEscapeViewBox={{ x: false, y: true }}
                 offset={20}

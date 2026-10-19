@@ -14,19 +14,8 @@ import {
   ReferenceLine,
   CartesianGrid,
 } from "recharts";
-import {
-  Activity,
-  Calendar,
-  Layers,
-  Cpu,
-  TrendingUp,
-  AlertTriangle,
-  Zap,
-  Gauge,
-  Sliders,
-  CheckCircle2,
-} from "lucide-react";
-import { useTelemetryRenderMode, TelemetryRenderMode } from "@/hooks/use-telemetry-render-mode";
+import { Calendar } from "lucide-react";
+import { useTelemetryRenderMode } from "@/hooks/use-telemetry-render-mode";
 
 /**
  * ============================================================================
@@ -99,14 +88,12 @@ function SeasonalSTLTunnelChartComponent({
 
   // Blueprint Step 3.2: Custom Hook for dynamic render mode arbitration (SVG vs Canvas)
   const {
-    renderMode,
-    mode,
     isCanvas,
-    isFallbackActive,
     fps,
-    setMode,
-    threshold,
   } = useTelemetryRenderMode(points.length, { threshold: 96 });
+
+  // Operational Time Horizon Segmented Control State (1H, 12H, 24H, 7D)
+  const [timeHorizon, setTimeHorizon] = useState("24H");
 
   // Pre-calculate tunnel metrics for display
   const metrics = useMemo(() => {
@@ -380,51 +367,22 @@ function SeasonalSTLTunnelChartComponent({
           </p>
         </div>
 
-        {/* Rendering Pipeline & Performance Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Pipeline Switcher Badge */}
-          <div className="flex items-center rounded-xl bg-white/60 border border-white/80 p-0.5 text-xs font-mono shadow-2xs">
+        {/* Operational Time Horizon Segmented Control */}
+        <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md border border-white/20 p-1 rounded-xl shadow-inner">
+          {["1H", "12H", "24H", "7D"].map((horizon) => (
             <button
+              key={horizon}
               type="button"
-              onClick={() => setMode("auto")}
-              className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                mode === "auto" ? "bg-slate-900 text-white font-bold" : "text-slate-500 hover:text-slate-800"
-              }`}
-              title="Automatically select Canvas when telemetry points exceed threshold"
+              onClick={() => setTimeHorizon(horizon)}
+              className={
+                timeHorizon === horizon
+                  ? "bg-white shadow-sm text-emerald-800 font-semibold px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer"
+                  : "text-slate-500 hover:text-emerald-700 hover:bg-white/50 font-medium px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer"
+              }
             >
-              Auto
+              {horizon}
             </button>
-            <button
-              type="button"
-              onClick={() => setMode("svg")}
-              className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                mode === "svg" ? "bg-slate-900 text-white font-bold" : "text-slate-500 hover:text-slate-800"
-              }`}
-              title="Force Recharts SVG ComposedChart rendering"
-            >
-              SVG
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("canvas")}
-              className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                mode === "canvas" ? "bg-slate-900 text-white font-bold" : "text-slate-500 hover:text-slate-800"
-              }`}
-              title="Force HTML5 Canvas 60 FPS hardware accelerated rendering"
-            >
-              Canvas
-            </button>
-          </div>
-
-          {/* Active Mode Status Badge */}
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono border shadow-2xs ${
-            isCanvas
-              ? "bg-purple-500/10 text-purple-800 border-purple-500/30 font-semibold"
-              : "bg-blue-500/10 text-blue-800 border-blue-500/30"
-          }`}>
-            <Cpu className="w-3.5 h-3.5" />
-            <span>{isCanvas ? `Canvas 2D (${fps} FPS)` : "Recharts SVG"}</span>
-          </span>
+          ))}
         </div>
       </div>
 
@@ -516,74 +474,37 @@ function SeasonalSTLTunnelChartComponent({
                 </linearGradient>
               </defs>
 
-              <CartesianGrid stroke="rgba(203, 213, 225, 0.3)" strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="4 4" stroke="rgba(148, 163, 184, 0.25)" vertical={false} />
 
               <XAxis
                 dataKey="time"
-                tick={{ fontSize: 12, fill: "#64748b", fontFamily: "monospace" }}
+                tick={{ fill: "#94a3b8", fontSize: 11, fontWeight: 500, fontFamily: "monospace" }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 domain={["auto", "auto"]}
-                tick={{ fontSize: 12, fill: "#64748b", fontFamily: "monospace" }}
+                tick={{ fill: "#94a3b8", fontSize: 11, fontWeight: 500, fontFamily: "monospace" }}
                 axisLine={false}
                 tickLine={false}
                 unit="kW"
               />
 
               {/* Liquid Glass Recharts Tooltip */}
-              <Tooltip
+              <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.4)', 
+                  backgroundColor: 'rgba(255, 255, 255, 0.65)', 
                   backdropFilter: 'blur(16px)', 
+                  WebkitBackdropFilter: 'blur(16px)',
                   borderRadius: '16px', 
-                  border: '1px solid rgba(255, 255, 255, 0.5)',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                  color: '#334155'
+                  border: '1px solid rgba(255, 255, 255, 0.8)',
+                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255,255,255,0.9)',
+                  color: '#0f172a',
+                  padding: '12px 16px'
                 }}
-                itemStyle={{ color: '#0f172a', fontWeight: 500 }}
-                cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }}
-                allowEscapeViewBox={{ x: false, y: true }}
-                offset={20}
-                wrapperStyle={{ zIndex: 100 }}
-                content={({ active, payload, label }) => {
-                  if (!active || !payload || !payload.length) return null;
-                  const data = payload[0]?.payload;
-                  if (!data) return null;
-
-                  return (
-                    <div className="rounded-2xl border border-white/50 bg-white/40 backdrop-blur-xl p-3.5 shadow-xl text-xs font-mono space-y-1.5">
-                      <div className="font-bold text-slate-800 border-b border-slate-200/60 pb-1 mb-1">
-                        Timeline Step: {label}
-                      </div>
-                      <div className="flex items-center justify-between gap-4 text-slate-600">
-                        <span>Observed Power:</span>
-                        <span className={`font-bold ${data.is_excursion ? "text-rose-600" : "text-emerald-700"}`}>
-                          {data.observed} kW
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-4 text-slate-600">
-                        <span>STL Expectation:</span>
-                        <span className="font-semibold text-slate-800">{data.baseline} kW</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-4 text-blue-700">
-                        <span>+3&sigma; Upper Bound:</span>
-                        <span>{data.upper_bound} kW</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-4 text-blue-700">
-                        <span>-3&sigma; Lower Bound:</span>
-                        <span>{data.lower_bound} kW</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-4 text-slate-500 border-t border-slate-200/60 pt-1">
-                        <span>Residual Excursion:</span>
-                        <span className={Math.abs(data.residual) > 50 ? "text-rose-600 font-bold" : "text-slate-700"}>
-                          {data.residual > 0 ? `+${data.residual}` : data.residual} kW
-                        </span>
-                      </div>
-                    </div>
-                  );
-                }}
+                itemStyle={{ color: '#047857', fontWeight: 600, fontSize: '13px' }}
+                labelStyle={{ color: '#64748b', fontWeight: 500, fontSize: '12px', marginBottom: '8px', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '4px' }}
+                cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }} 
               />
 
               <Legend

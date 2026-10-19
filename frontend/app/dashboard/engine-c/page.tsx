@@ -13,15 +13,14 @@ import {
   Clock,
   Cpu,
   Database,
-  Flame,
   Layers,
-  Radio,
   RefreshCw,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
   Zap,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useFeederStore } from "@/store/feeder-store";
 import { useEngineCAnomaly } from "@/hooks/use-engine-c-anomaly";
 import { AnomalySeverity } from "@/types/engine-c-anomaly";
@@ -59,7 +58,7 @@ const cardItemVariants: Variants = {
 
 /**
  * ============================================================================
- * VISUAL RISK STRATIFICATION MATRIX (PHASE 2, STEP 2.4)
+ * VISUAL RISK STRATIFICATION MATRIX
  * ============================================================================
  * Maps aggregate risk score [0 - 100] to dynamic styling matrices:
  *  - Score > 66 (CRITICAL): Crimson text, crimson Liquid Glass alarm background, strobe/pulse.
@@ -76,7 +75,7 @@ function getRiskStratification(score: number, severity: AnomalySeverity) {
       bgClass: "bg-gradient-to-br from-rose-500/15 via-white/50 to-white/20",
       borderClass: "border-rose-500/35",
       badgeClass: "bg-rose-500/15 text-rose-800 border-rose-500/35",
-      glowShadow: "shadow-[0_0_35px_rgba(244,63,94,0.22)] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)]",
+      glowShadow: "shadow-[0_0_35px_rgba(244,63,94,0.22)]",
       pulseClass: "animate-pulse",
       barColor: "bg-rose-500",
       icon: AlertOctagon,
@@ -93,7 +92,7 @@ function getRiskStratification(score: number, severity: AnomalySeverity) {
       bgClass: "bg-gradient-to-br from-amber-500/15 via-white/50 to-white/20",
       borderClass: "border-amber-500/35",
       badgeClass: "bg-amber-500/15 text-amber-800 border-amber-500/35",
-      glowShadow: "shadow-[0_0_25px_rgba(245,158,11,0.18)] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)]",
+      glowShadow: "shadow-[0_0_25px_rgba(245,158,11,0.18)]",
       pulseClass: "",
       barColor: "bg-amber-500",
       icon: AlertTriangle,
@@ -107,9 +106,9 @@ function getRiskStratification(score: number, severity: AnomalySeverity) {
     textClass: "text-emerald-700",
     accentText: "text-emerald-800",
     bgClass: "bg-gradient-to-br from-emerald-500/10 via-white/50 to-white/20",
-    borderClass: "border-emerald-500/30",
-    badgeClass: "bg-emerald-500/15 text-emerald-800 border-emerald-500/30",
-    glowShadow: "shadow-[0_0_20px_rgba(16,185,129,0.12)] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)]",
+    borderClass: "border-emerald-500/20",
+    badgeClass: "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20",
+    glowShadow: "shadow-[0_0_20px_rgba(16,185,129,0.12)]",
     pulseClass: "",
     barColor: "bg-emerald-500",
     icon: CheckCircle2,
@@ -119,17 +118,16 @@ function getRiskStratification(score: number, severity: AnomalySeverity) {
 
 /**
  * ============================================================================
- * ENGINE C ANOMALY INTELLIGENCE DASHBOARD (PHASE 2 & PHASE 3 QUERY PATHWAY)
+ * ENGINE C ANOMALY INTELLIGENCE DASHBOARD (QUERY PATHWAY)
  * ============================================================================
  * Read-only materialized operational view consuming data from the Go API Gateway
- * via TanStack Query polling at 30,000ms cadence, with event-driven Redis SSE cache
- * invalidation on critical emergency events.
+ * via TanStack Query polling at 30,000ms cadence.
  *
- * Phase 3 Architecture:
- *  - Step 3.1: Tri-Layer Anomaly Matrix (MAD, STL, PyOD) with Framer Motion spring physics
- *  - Step 3.2: Seasonal STL Residual Tunnel Chart with 60 FPS HTML5 Canvas fallback
- *  - Step 3.3 & 3.4: Horizontal SHAP Divergence Waterfall with Electrical Engineering Dictionary
- *  - Step 3.5: Strict deep-equality render optimization via fast-deep-equal
+ * Date: 2026-10-19 [Phase 2 Engine C Overhaul]
+ *  - Pure Liquid Glass aesthetics matching Engine B
+ *  - Eradicated false-positive systemic degradation banner
+ *  - Stripped diagnostic mock triggers and hardcoded placeholders
+ *  - Standardized UI buttons with framer-motion micro-interactions
  */
 export default function EngineCDashboardPage() {
   const activeFeederId = useFeederStore((state) => state.activeFeederId);
@@ -143,13 +141,9 @@ export default function EngineCDashboardPage() {
     error,
     refetch,
     dataUpdatedAt,
-    dispatchMockAlert,
-    isDegraded,
-    degradedMessage,
-    lastSuccessfulSync,
   } = useEngineCAnomaly();
 
-  // Cadence timer for live visual feedback of the 30-second polling cycle
+  // Cadence timer for visual countdown of the 30-second polling cycle
   const [countdown, setCountdown] = useState(30);
 
   useEffect(() => {
@@ -172,7 +166,7 @@ export default function EngineCDashboardPage() {
     ? new Date(dataUpdatedAt).toLocaleTimeString()
     : "Syncing...";
 
-  // Blueprint Step 4.1: Humanization transformation at caller/hook layer before abstract visualizer
+  // Humanization transformation at caller/hook layer before abstract visualizer
   const divergenceItems = React.useMemo(() => {
     return transformAttributionsToDivergenceItems(
       data?.ranked_attributions ?? [],
@@ -188,7 +182,7 @@ export default function EngineCDashboardPage() {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
-          className="flex flex-col items-center justify-center p-12 text-center rounded-3xl bg-amber-500/10 border border-amber-500/25 backdrop-blur-2xl shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.1)]"
+          className="flex flex-col items-center justify-center p-12 text-center rounded-3xl bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] border border-white/40"
         >
           <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-600 mb-4 shadow-sm">
             <ShieldAlert className="w-10 h-10 animate-pulse" />
@@ -201,8 +195,8 @@ export default function EngineCDashboardPage() {
             Please select a feeder from the global asset selector in the navigation sidebar.
           </p>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/60 border border-white/80 text-xs font-mono text-slate-500 shadow-xs">
-            <span>Query Pathway:</span>
-            <span className="text-teal-700 font-semibold">useFeederStore (Phase 0.2)</span>
+            <span>Asset Status:</span>
+            <span className="text-emerald-700 font-semibold">Awaiting Selection</span>
           </div>
         </motion.div>
       </div>
@@ -216,53 +210,10 @@ export default function EngineCDashboardPage() {
       animate="visible"
       className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6"
     >
-      {/* Blueprint Step 4.4: Degraded State UI Fallback (HTTP 503 Systemic Degradation) */}
-      <AnimatePresence>
-        {isDegraded && (
-          <motion.div
-            initial={{ opacity: 0, y: -16, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -16, scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 350, damping: 28 }}
-            className="rounded-3xl border border-amber-500/40 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-orange-500/15 backdrop-blur-2xl p-5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(245,158,11,0.2)]"
-            data-testid="degraded-state-banner"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div className="p-3 rounded-2xl bg-amber-500/25 border border-amber-500/40 text-amber-700 shadow-xs shrink-0">
-                  <AlertTriangle className="w-5 h-5 animate-pulse" />
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500/25 text-amber-900 border border-amber-500/40">
-                      HTTP 503 INTERCEPTED
-                    </span>
-                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                      SYSTEMIC DEGRADATION: PYTHON ENGINE C OFFLINE - GATEWAY HTTP 503
-                    </h3>
-                  </div>
-                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                    Upstream Python ML inference engine is currently unreachable. Aggressive polling retries have been suppressed to protect the Go Gateway. Displaying cached anomaly intelligence to preserve operational situational awareness.
-                  </p>
-                </div>
-              </div>
-              <div className="flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 border-amber-500/20 pt-2 sm:pt-0 shrink-0">
-                <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-amber-900/70">
-                  Situational Awareness
-                </span>
-                <span className="text-xs font-mono font-bold text-amber-950 bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-500/30">
-                  Last Successful Sync: {lastSuccessfulSync || "Awaiting Telemetry"}
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Dynamic Header: Global Zustand Asset Context & Polling Status */}
       <motion.div
         variants={cardItemVariants}
-        className="rounded-3xl border border-white/60 bg-white/40 backdrop-blur-2xl p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.1)] flex flex-col md:flex-row md:items-center justify-between gap-5"
+        className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col md:flex-row md:items-center justify-between gap-5"
       >
         <div>
           <div className="flex flex-wrap items-center gap-2.5">
@@ -271,7 +222,7 @@ export default function EngineCDashboardPage() {
             </span>
 
             {/* Feeder Badge */}
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 shadow-xs">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 shadow-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <Zap className="w-3 h-3 text-emerald-600" />
               <span>Feeder:</span>
@@ -279,12 +230,14 @@ export default function EngineCDashboardPage() {
             </span>
 
             {/* Substation Badge */}
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-xs ${
-              activeSubstationId
-                ? "bg-teal-500/10 text-teal-800 border-teal-500/30"
-                : "bg-amber-500/10 text-amber-800 border-amber-500/30"
-            }`}>
-              <Building2 className="w-3 h-3 text-teal-600" />
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-xs ${
+                activeSubstationId
+                  ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
+                  : "bg-amber-500/10 text-amber-700 border-amber-500/20"
+              }`}
+            >
+              <Building2 className="w-3 h-3 text-emerald-600" />
               <span>Substation:</span>
               <span className="font-mono">{activeSubstationId || "Unassigned"}</span>
             </span>
@@ -294,12 +247,6 @@ export default function EngineCDashboardPage() {
               <Clock className="w-3 h-3 text-slate-500" />
               <span>Poll: 30s</span>
               <span className="text-slate-400">({countdown}s)</span>
-            </span>
-
-            {/* Redis Stream Connection Badge */}
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-medium bg-blue-500/10 text-blue-700 border border-blue-500/30">
-              <Radio className="w-3 h-3 text-blue-600 animate-pulse" />
-              <span>Redis SSE: Active</span>
             </span>
           </div>
 
@@ -311,37 +258,30 @@ export default function EngineCDashboardPage() {
           </p>
         </div>
 
-        {/* Action Controls & Diagnostic Verification Triggers */}
+        {/* Action Controls with Standardized UI Buttons */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Test SSE Alert Button (Step 2.3 Verification) */}
-          <button
-            type="button"
-            onClick={() => dispatchMockAlert("CRITICAL")}
-            title="Simulate critical Redis stream alert triggering immediate out-of-cycle cache invalidation"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-800 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 rounded-xl shadow-xs transition-all duration-200 cursor-pointer"
-          >
-            <Flame className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
-            <span>Simulate SSE Alert</span>
-          </button>
-
           {/* Manual Refetch */}
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white/70 hover:bg-white border border-white/90 rounded-xl shadow-xs transition-all duration-200 disabled:opacity-50 cursor-pointer"
+            className="rounded-xl bg-white/60 hover:bg-white/80 border border-white/80 text-slate-700 shadow-xs"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${isFetching ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 text-slate-500 ${isFetching ? "animate-spin text-emerald-600" : ""}`} />
             <span>Sync</span>
-          </button>
+          </Button>
 
           {/* CQRS Link to Command Pathway */}
-          <Link
-            href="/dashboard/ingestion/engine-c"
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
-          >
-            <span>Stage Ingestion</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+          <Link href="/dashboard/ingestion/engine-c">
+            <Button
+              variant="default"
+              size="sm"
+              className="rounded-xl shadow-md shadow-emerald-600/20"
+            >
+              <span>Stage Ingestion</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+            </Button>
           </Link>
         </div>
       </motion.div>
@@ -371,23 +311,22 @@ export default function EngineCDashboardPage() {
                 </p>
               </div>
             </div>
-            <Link
-              href="/dashboard/ingestion/engine-c"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 shadow-sm transition-all"
-            >
-              <span>Inspect Command Pipeline</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+            <Link href="/dashboard/ingestion/engine-c">
+              <Button size="sm" variant="danger" className="rounded-xl text-xs">
+                <span>Inspect Command Pipeline</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+              </Button>
             </Link>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Primary KPI Grid (Step 2.4: Visual Risk Stratification) */}
+      {/* Primary KPI Grid: Liquid Glass Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* KPI 1: Visual Risk Stratification Aggregate Score */}
         <motion.div
           variants={cardItemVariants}
-          className={`rounded-3xl border ${strat.borderClass} ${strat.bgClass} backdrop-blur-2xl p-6 ${strat.glowShadow} flex flex-col justify-between`}
+          className={`bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between ${strat.glowShadow}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase font-bold tracking-wider text-slate-500">
@@ -422,7 +361,7 @@ export default function EngineCDashboardPage() {
         {/* KPI 2: Anomaly State & Classification */}
         <motion.div
           variants={cardItemVariants}
-          className="rounded-3xl border border-white/60 bg-white/40 backdrop-blur-2xl p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.08)] flex flex-col justify-between"
+          className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase font-bold tracking-wider text-slate-500">
@@ -456,7 +395,7 @@ export default function EngineCDashboardPage() {
         {/* KPI 3: Infrastructure SLA & Latency */}
         <motion.div
           variants={cardItemVariants}
-          className="rounded-3xl border border-white/60 bg-white/40 backdrop-blur-2xl p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.08)] flex flex-col justify-between"
+          className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase font-bold tracking-wider text-slate-500">
@@ -470,10 +409,10 @@ export default function EngineCDashboardPage() {
               <span className="text-3xl font-bold font-mono text-slate-900">
                 {(data?.inference_latency_ms ?? 0).toFixed(1)}
               </span>
-              <span className="text-xs font-mono text-slate-500">ms inference</span>
+              <span className="text-xs font-mono text-slate-500">ms inference latency</span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Gateway Budget: 8000ms &bull; p99 &lt; 35ms
+              Active Feeder: <span className="font-mono text-slate-700">{activeFeederId}</span>
             </p>
           </div>
 
@@ -484,7 +423,7 @@ export default function EngineCDashboardPage() {
         </motion.div>
       </div>
 
-      {/* Blueprint Step 3.1 & 4.3: Tri-Layer Anomaly Detection Matrix with Isolated Error Boundary */}
+      {/* Tri-Layer Anomaly Detection Matrix with Isolated Error Boundary */}
       <motion.div variants={cardItemVariants}>
         <ChartErrorBoundary
           componentName="Tri-Layer Anomaly Matrix"
@@ -509,7 +448,7 @@ export default function EngineCDashboardPage() {
         </ChartErrorBoundary>
       </motion.div>
 
-      {/* Blueprint Step 3.2 & 4.3: Seasonal STL Residual Tunnel Chart with Isolated Error Boundary */}
+      {/* Seasonal STL Residual Tunnel Chart with Isolated Error Boundary */}
       <motion.div variants={cardItemVariants}>
         <ChartErrorBoundary
           componentName="Seasonal STL Residual Tunnel"
@@ -525,7 +464,7 @@ export default function EngineCDashboardPage() {
         </ChartErrorBoundary>
       </motion.div>
 
-      {/* Blueprint Step 3.3, 3.4 & 4.3: Horizontal SHAP Divergence Waterfall with Isolated Error Boundary */}
+      {/* Horizontal SHAP Divergence Waterfall with Isolated Error Boundary */}
       <motion.div variants={cardItemVariants}>
         <ChartErrorBoundary
           componentName="SHAP Divergence Waterfall"
@@ -541,10 +480,10 @@ export default function EngineCDashboardPage() {
         </ChartErrorBoundary>
       </motion.div>
 
-      {/* Deterministic Explanations Audit Trail Panel */}
+      {/* Deterministic Explanations Audit Trail Panel: Liquid Glass */}
       <motion.div
         variants={cardItemVariants}
-        className="rounded-3xl border border-white/60 bg-white/40 backdrop-blur-2xl p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.08)]"
+        className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6"
       >
         <div className="flex items-center gap-2 pb-4 border-b border-slate-200/60 mb-4">
           <Sparkles className="w-4 h-4 text-slate-600" />
@@ -572,11 +511,10 @@ export default function EngineCDashboardPage() {
         )}
 
         <div className="mt-4 pt-3 border-t border-slate-200/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-500 font-mono">
-          <span>Engine C Isolation Forest Lineage: {data?.model_version || "engine_c_v2"}</span>
-          <span>Zero Generative Hallucinations &bull; Purely Deterministic Mathematical Inference</span>
+          <span>Engine C Model Lineage: {data?.model_version || "engine_c_v2"}</span>
+          <span>Feeder Asset: {activeFeederId}</span>
         </div>
       </motion.div>
     </motion.div>
   );
 }
-

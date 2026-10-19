@@ -117,20 +117,20 @@ function SHAPDivergenceWaterfallComponent({
 
   return (
     <div
-      className={`w-full rounded-3xl border border-white/50 bg-white/25 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/20 to-white/10 p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.1)] ${className}`}
+      className={`w-full bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 ${className}`}
     >
       {/* Component Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/60 mb-5">
         <div>
           <div className="flex flex-wrap items-center gap-2.5">
             <div className="p-2 rounded-xl bg-slate-900 text-white shadow-xs">
-              <Sparkles className="w-4 h-4 text-amber-400" />
+              <Sparkles className="w-4 h-4 text-emerald-400" />
             </div>
             <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
               {title || "Feature Attribution & Contribution Divergence"}
             </h2>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-700 border border-indigo-500/25">
-              <Sliders className="w-3 h-3 text-indigo-600" />
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+              <Sliders className="w-3 h-3 text-emerald-600" />
               <span>Generic XAI Engine</span>
             </span>
           </div>

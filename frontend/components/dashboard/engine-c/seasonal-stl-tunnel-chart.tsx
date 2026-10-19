@@ -354,7 +354,7 @@ function SeasonalSTLTunnelChartComponent({
   }, [isCanvas, points, isAnomaly, metricUnit]);
 
   return (
-    <div className="w-full rounded-3xl border border-white/50 bg-white/25 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/20 to-white/10 p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.1)]">
+    <div className="w-full bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6">
       {/* Chart Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/60 mb-5">
         <div>
@@ -368,7 +368,7 @@ function SeasonalSTLTunnelChartComponent({
             <span className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold font-mono border ${
               isAnomaly
                 ? "bg-rose-500/15 text-rose-800 border-rose-500/35"
-                : "bg-emerald-500/10 text-emerald-800 border-emerald-500/30"
+                : "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
             }`}>
               <span className={`w-2 h-2 rounded-full ${isAnomaly ? "bg-rose-500 animate-ping" : "bg-emerald-500"}`} />
               <span>{isAnomaly ? "Statistical Breach" : "Within Envelope"}</span>

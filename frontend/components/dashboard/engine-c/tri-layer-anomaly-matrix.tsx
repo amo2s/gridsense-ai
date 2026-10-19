@@ -119,7 +119,7 @@ function TriLayerAnomalyMatrixComponent({
       default:
         return {
           textClass: "text-emerald-700",
-          badgeBg: "bg-emerald-500/10 text-emerald-800 border-emerald-500/30",
+          badgeBg: "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20",
           dotColor: "bg-emerald-500",
           pulse: "",
           label: "NOMINAL BASELINE",
@@ -131,9 +131,9 @@ function TriLayerAnomalyMatrixComponent({
   const getLayerCardStyles = (isTriggered: boolean, layerSev: AnomalySeverity) => {
     if (!isTriggered) {
       return {
-        cardBorder: "border-emerald-500/25",
+        cardBorder: "border-emerald-500/20",
         cardBg: "bg-gradient-to-br from-emerald-500/5 via-white/50 to-white/20",
-        badge: "bg-emerald-500/10 text-emerald-700 border-emerald-500/25",
+        badge: "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20",
         statusText: "NOMINAL",
         dotColor: "bg-emerald-500",
         shadow: "shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_4px_20px_-4px_rgba(16,185,129,0.08)]",
@@ -178,7 +178,7 @@ function TriLayerAnomalyMatrixComponent({
   ].filter(Boolean).length;
 
   return (
-    <div className="w-full rounded-3xl border border-white/50 bg-white/25 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/20 to-white/10 p-6 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),inset_-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.1)]">
+    <div className="w-full bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6">
       {/* Container Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200/60 mb-6">
         <div>

@@ -8,7 +8,6 @@ import {
   AlertOctagon,
   AlertTriangle,
   ArrowRight,
-  Building2,
   CheckCircle2,
   Cpu,
   Database,
@@ -17,7 +16,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
-  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFeederStore } from "@/store/feeder-store";
@@ -130,7 +128,6 @@ function getRiskStratification(score: number, severity: AnomalySeverity) {
  */
 export default function EngineCDashboardPage() {
   const activeFeederId = useFeederStore((state) => state.activeFeederId);
-  const activeSubstationId = useFeederStore((state) => state.activeSubstationId);
 
   const {
     data,
@@ -201,30 +198,7 @@ export default function EngineCDashboardPage() {
         className="bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40 p-6 flex flex-col md:flex-row md:items-center justify-between gap-5"
       >
         <div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Feeder Badge */}
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <Zap className="w-3 h-3 text-emerald-600" />
-              <span>Feeder:</span>
-              <span className="font-mono">{activeFeederId}</span>
-            </span>
-
-            {/* Substation Badge */}
-            <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-xs ${
-                activeSubstationId
-                  ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
-                  : "bg-amber-500/10 text-amber-700 border-amber-500/20"
-              }`}
-            >
-              <Building2 className="w-3 h-3 text-emerald-600" />
-              <span>Substation:</span>
-              <span className="font-mono">{activeSubstationId || "Unassigned"}</span>
-            </span>
-          </div>
-
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 mt-2">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
             Engine C: Multivariate Anomaly Intelligence
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
@@ -467,8 +441,13 @@ export default function EngineCDashboardPage() {
         </div>
 
         {(!data?.reasons || data.reasons.length === 0) ? (
-          <div className="py-6 text-center text-slate-400 text-xs">
-            Operational baseline state: Zero threshold violations or physical boundary alerts flagged.
+          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-4">
+            <div className="p-2 rounded-full bg-emerald-500/10 text-emerald-600 shrink-0">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            </div>
+            <p className="text-xs sm:text-sm font-medium text-emerald-700">
+              Continuous monitoring active. All deterministic guardrails and mathematical bounds are strictly satisfied.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

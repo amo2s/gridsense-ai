@@ -11,6 +11,7 @@ import {
   ReferenceLine,
   Cell,
   Tooltip,
+  CartesianGrid,
 } from "recharts";
 import {
   Sparkles,
@@ -178,13 +179,15 @@ function SHAPDivergenceWaterfallComponent({
 
       {/* Recharts Horizontal Divergence Bar Chart */}
       {waterfallData.length === 0 ? (
-        <div className="h-64 flex flex-col items-center justify-center text-center p-6 rounded-2xl bg-slate-50/50 border border-slate-200/50">
-          <Info className="w-8 h-8 text-slate-400 mb-2" />
-          <p className="text-sm font-semibold text-slate-700">
-            Zero Significant Feature Divergence
-          </p>
-          <p className="text-xs text-slate-500 max-w-sm mt-0.5">
-            Operational telemetry conforms strictly to baseline model expectations. No anomalous attribution weights detected.
+        <div className="h-72 flex flex-col items-center justify-center text-center p-8 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)] backdrop-blur-md">
+          <div className="bg-emerald-500/10 p-4 rounded-full animate-pulse mb-3">
+            <ShieldCheck className="h-12 w-12 text-emerald-500" />
+          </div>
+          <h4 className="text-lg font-semibold text-emerald-700">
+            System Nominal: No Divergence Detected
+          </h4>
+          <p className="text-sm text-emerald-600/80 mt-2 max-w-md">
+            Operational telemetry is perfectly aligned with historical baseline envelopes. Zero anomalous feature weights to report.
           </p>
         </div>
       ) : (
@@ -195,13 +198,15 @@ function SHAPDivergenceWaterfallComponent({
               layout="vertical"
               margin={{ top: 10, right: 30, left: 30, bottom: 20 }}
             >
+              <CartesianGrid stroke="rgba(203, 213, 225, 0.3)" strokeDasharray="3 3" />
+
               {/* Symmetrical X-Axis centered on 0 */}
               <XAxis
                 type="number"
                 domain={[-maxAbsValue, maxAbsValue]}
                 tickLine={false}
-                axisLine={{ stroke: "#cbd5e1", strokeWidth: 1 }}
-                tick={{ fill: "#64748b", fontSize: 11, fontFamily: "monospace" }}
+                axisLine={false}
+                tick={{ fill: "#64748b", fontSize: 12, fontFamily: "monospace" }}
                 tickFormatter={(val) => `${val > 0 ? "+" : ""}${val}`}
               />
 
@@ -213,9 +218,9 @@ function SHAPDivergenceWaterfallComponent({
                 tickLine={false}
                 axisLine={false}
                 tick={{
-                  fill: "#1e293b",
-                  fontSize: 11,
-                  fontWeight: 600,
+                  fill: "#64748b",
+                  fontSize: 12,
+                  fontWeight: 500,
                 }}
               />
 
@@ -234,9 +239,18 @@ function SHAPDivergenceWaterfallComponent({
                 }}
               />
 
-              {/* Custom Tooltip (Section 8.1 Native Recharts Tooltip Physics) */}
+              {/* Liquid Glass Recharts Tooltip */}
               <Tooltip
-                cursor={{ fill: "rgba(241, 245, 249, 0.5)" }}
+                contentStyle={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.4)', 
+                  backdropFilter: 'blur(16px)', 
+                  borderRadius: '16px', 
+                  border: '1px solid rgba(255, 255, 255, 0.5)',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                  color: '#334155'
+                }}
+                itemStyle={{ color: '#0f172a', fontWeight: 500 }}
+                cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }}
                 allowEscapeViewBox={{ x: false, y: true }}
                 offset={20}
                 wrapperStyle={{ zIndex: 100 }}
@@ -246,8 +260,8 @@ function SHAPDivergenceWaterfallComponent({
                   const isPositive = item.contributionValue >= 0;
 
                   return (
-                    <div className="rounded-2xl border border-white/80 bg-white/95 backdrop-blur-xl p-3.5 shadow-xl max-w-xs text-xs space-y-2">
-                      <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                    <div className="rounded-2xl border border-white/50 bg-white/40 backdrop-blur-xl p-3.5 shadow-xl max-w-xs text-xs space-y-2">
+                      <div className="flex items-center justify-between gap-2 border-b border-slate-200/50 pb-2">
                         <span className="font-bold text-slate-900 text-xs truncate">
                           {item.label}
                         </span>

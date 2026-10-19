@@ -12,6 +12,7 @@ import {
   Tooltip,
   Legend,
   ReferenceLine,
+  CartesianGrid,
 } from "recharts";
 import {
   Activity,
@@ -515,22 +516,34 @@ function SeasonalSTLTunnelChartComponent({
                 </linearGradient>
               </defs>
 
+              <CartesianGrid stroke="rgba(203, 213, 225, 0.3)" strokeDasharray="3 3" />
+
               <XAxis
                 dataKey="time"
-                tick={{ fontSize: 11, fill: "#64748b", fontFamily: "monospace" }}
-                stroke="#cbd5e1"
+                tick={{ fontSize: 12, fill: "#64748b", fontFamily: "monospace" }}
+                axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 domain={["auto", "auto"]}
-                tick={{ fontSize: 11, fill: "#64748b", fontFamily: "monospace" }}
-                stroke="#cbd5e1"
+                tick={{ fontSize: 12, fill: "#64748b", fontFamily: "monospace" }}
+                axisLine={false}
                 tickLine={false}
                 unit="kW"
               />
 
-              {/* Custom Tooltip (Section 8.1 Native Recharts Tooltip Physics) */}
+              {/* Liquid Glass Recharts Tooltip */}
               <Tooltip
+                contentStyle={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.4)', 
+                  backdropFilter: 'blur(16px)', 
+                  borderRadius: '16px', 
+                  border: '1px solid rgba(255, 255, 255, 0.5)',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                  color: '#334155'
+                }}
+                itemStyle={{ color: '#0f172a', fontWeight: 500 }}
+                cursor={{ fill: 'rgba(16, 185, 129, 0.05)' }}
                 allowEscapeViewBox={{ x: false, y: true }}
                 offset={20}
                 wrapperStyle={{ zIndex: 100 }}
@@ -540,7 +553,7 @@ function SeasonalSTLTunnelChartComponent({
                   if (!data) return null;
 
                   return (
-                    <div className="rounded-2xl border border-white/80 bg-white/90 backdrop-blur-xl p-3.5 shadow-xl text-xs font-mono space-y-1.5">
+                    <div className="rounded-2xl border border-white/50 bg-white/40 backdrop-blur-xl p-3.5 shadow-xl text-xs font-mono space-y-1.5">
                       <div className="font-bold text-slate-800 border-b border-slate-200/60 pb-1 mb-1">
                         Timeline Step: {label}
                       </div>

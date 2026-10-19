@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sony/gobreaker"
@@ -30,6 +31,22 @@ import (
 // ==========================================
 // 1. ENGINE C DATA CONTRACTS (Phase 4 Alignment)
 // ==========================================
+
+// EngineCIngestionRequest defines the incoming payload from the frontend baseline generator.
+type EngineCIngestionRequest struct {
+	FeederID     string                    `json:"feeder_id"`
+	SubstationID *string                   `json:"substation_id,omitempty"`
+	Readings     []EngineCIngestionReading `json:"readings"`
+}
+
+// EngineCIngestionReading represents a single temporal data point in the diurnal curve.
+type EngineCIngestionReading struct {
+	Timestamp    string  `json:"timestamp"`
+	Voltage      float64 `json:"voltage"`
+	Load         float64 `json:"load"`
+	Frequency    float64 `json:"frequency"`
+	Availability float64 `json:"availability"`
+}
 
 type EngineCTelemetryReading struct {
 	FeederID     string    `json:"feeder_id"`
@@ -329,6 +346,67 @@ func (r *pgxAnomalyRepo) PersistAnomaly(ctx context.Context, p AnomalyResponse) 
 
 var _ = pgx.ErrNoRows
 
+// AnomalyDB provides a transactional interface compatible with IngestEngineCTelemetry.
+type AnomalyDB interface {
+	BeginTx(ctx context.Context, opts interface{}) (TxInterface, error)
+}
+
+// TxInterface abstracts transaction lifecycle methods.
+type TxInterface interface {
+	Rollback() error
+	Commit() error
+	PrepareContext(ctx context.Context, query string) (StmtInterface, error)
+}
+
+// StmtInterface abstracts prepared statement execution.
+type StmtInterface interface {
+	ExecContext(ctx context.Context, args ...interface{}) (interface{}, error)
+	Close() error
+}
+
+type pgxDBWrapper struct {
+	pool *pgxpool.Pool
+}
+
+func (w *pgxDBWrapper) BeginTx(ctx context.Context, _ interface{}) (TxInterface, error) {
+	tx, err := w.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pgxTxWrapper{tx: tx, ctx: ctx}, nil
+}
+
+type pgxTxWrapper struct {
+	tx  pgx.Tx
+	ctx context.Context
+}
+
+func (t *pgxTxWrapper) Rollback() error {
+	return t.tx.Rollback(t.ctx)
+}
+
+func (t *pgxTxWrapper) Commit() error {
+	return t.tx.Commit(t.ctx)
+}
+
+func (t *pgxTxWrapper) PrepareContext(ctx context.Context, query string) (StmtInterface, error) {
+	return &pgxStmtWrapper{tx: t.tx, query: query}, nil
+}
+
+type pgxStmtWrapper struct {
+	tx    pgx.Tx
+	query string
+}
+
+func (s *pgxStmtWrapper) ExecContext(ctx context.Context, args ...interface{}) (interface{}, error) {
+	tag, err := s.tx.Exec(ctx, s.query, args...)
+	return tag, err
+}
+
+func (s *pgxStmtWrapper) Close() error {
+	return nil
+}
+
 // ==========================================
 // 6. HTTP HANDLER EXECUTION
 // ==========================================
@@ -337,13 +415,124 @@ type AnomalyHandler struct {
 	repo       AnomalyRepository
 	aiClient   EngineCClient
 	requestGrp singleflight.Group
+	DB         AnomalyDB
 }
 
-func NewAnomalyHandler(repo AnomalyRepository, aiClient EngineCClient) *AnomalyHandler {
+func NewAnomalyHandler(repo AnomalyRepository, aiClient EngineCClient, db ...*database.PostgresDB) *AnomalyHandler {
+	var anomalyDB AnomalyDB
+	if len(db) > 0 && db[0] != nil && db[0].Pool != nil {
+		anomalyDB = &pgxDBWrapper{pool: db[0].Pool}
+	} else if pgxRepo, ok := repo.(*pgxAnomalyRepo); ok && pgxRepo.db != nil && pgxRepo.db.Pool != nil {
+		anomalyDB = &pgxDBWrapper{pool: pgxRepo.db.Pool}
+	}
 	return &AnomalyHandler{
 		repo:     repo,
 		aiClient: aiClient,
+		DB:       anomalyDB,
 	}
+}
+
+// IngestEngineCTelemetry handles manual operational telemetry ingestion payloads (Command Pathway).
+// Implements an idempotent transactional PostgreSQL batch UPSERT (ON CONFLICT (feeder_id, timestamp))
+// to persist the 24-hour diurnal baseline into the power_readings table.
+func (h *AnomalyHandler) IngestEngineCTelemetry(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 1. Context and Decode
+	ctx := r.Context()
+	var payload EngineCIngestionRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		slog.Error("Failed to decode Engine C ingestion payload", "error", err)
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	// 2. Validation Guardrails
+	if payload.FeederID == "" {
+		http.Error(w, "Missing feeder_id in payload", http.StatusBadRequest)
+		return
+	}
+	if len(payload.Readings) == 0 {
+		http.Error(w, "Payload must contain at least one telemetry reading", http.StatusBadRequest)
+		return
+	}
+
+	// Ensure DB is initialized
+	if h.DB == nil {
+		if pgxRepo, ok := h.repo.(*pgxAnomalyRepo); ok && pgxRepo.db != nil && pgxRepo.db.Pool != nil {
+			h.DB = &pgxDBWrapper{pool: pgxRepo.db.Pool}
+		}
+	}
+
+	if h.DB == nil {
+		slog.Error("Database connection not initialized on AnomalyHandler")
+		http.Error(w, "Database unavailable", http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Database Transaction Lifecycle
+	tx, err := h.DB.BeginTx(ctx, nil)
+	if err != nil {
+		slog.Error("Failed to initialize database transaction", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Ensure rollback on panic or unhandled error
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p) // re-throw after rolling back
+		} else if err != nil {
+			tx.Rollback() // err is not nil, rollback
+		} else {
+			err = tx.Commit() // err is nil, attempt commit
+		}
+	}()
+
+	// 4. Batch Execution with Idempotency
+	query := `
+        INSERT INTO power_readings (feeder_id, timestamp, voltage, load, frequency, availability)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (feeder_id, timestamp) 
+        DO UPDATE SET
+            voltage = EXCLUDED.voltage,
+            load = EXCLUDED.load,
+            frequency = EXCLUDED.frequency,
+            availability = EXCLUDED.availability;
+    `
+
+	// Prepare statement for performance mapping
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		slog.Error("Failed to prepare SQL statement", "error", err)
+		http.Error(w, "Database preparation failure", http.StatusInternalServerError)
+		return
+	}
+	defer stmt.Close()
+
+	for _, reading := range payload.Readings {
+		_, err = stmt.ExecContext(ctx, payload.FeederID, reading.Timestamp, reading.Voltage, reading.Load, reading.Frequency, reading.Availability)
+		if err != nil {
+			slog.Error("Failed to execute telemetry insert", "feeder_id", payload.FeederID, "timestamp", reading.Timestamp, "error", err)
+			http.Error(w, "Failed to persist telemetry records", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// 5. RESTful Acknowledgment
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":            "success",
+		"message":           fmt.Sprintf("Successfully ingested %d telemetry readings for feeder %s", len(payload.Readings), payload.FeederID),
+		"records_processed": len(payload.Readings),
+	})
 }
 
 func (h *AnomalyHandler) DetectAnomaly(w http.ResponseWriter, r *http.Request) {

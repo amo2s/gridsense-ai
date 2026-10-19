@@ -2237,3 +2237,76 @@ In [`frontend/components/ingestion/engine-c-form.tsx`](file:///c:/users/hp/Deskt
 #### 55.5. Static Analysis & Verification
 - **TypeScript Compiler Check:** Executed `pnpm exec tsc --noEmit` across the entire codebase. Verified with **Exit Code 0 (Zero errors)**.
 
+---
+
+### Phase 8: Go Gateway Ingestion Pipeline & CQRS Alignment
+
+#### 56.1. Operational Scope & Chronological Record
+- **Phase:** Phase 8 (Go Gateway Ingestion Pipeline & CQRS Alignment)
+- **Exact Timestamp:** Monday, October 19, 2026, 1:38 PM WAT (Africa/Lagos)
+- **Status:** **COMPLETE & CERTIFIED**
+- **Affected Core Modules:**
+  - Next.js Edge Ingestion Proxy: [`frontend/app/api/proxy/v1/anomaly/ingest/route.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/api/proxy/v1/anomaly/ingest/route.ts)
+  - Go Gateway Anomaly Handler: [`backend/services/gateway/handlers/anomaly_handler.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/handlers/anomaly_handler.go)
+  - Go Gateway Main Multiplexer: [`backend/services/gateway/cmd/api/main.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/cmd/api/main.go)
+
+#### 56.2. Route Misdirection Rectification in Next.js Edge Proxy
+During live telemetry submission testing, incoming payloads dispatched by the frontend `EngineCForm` were rejected with an HTTP 422 Unprocessable Entity error. Deep-dive network tracing revealed that the Next.js edge proxy at `frontend/app/api/proxy/v1/anomaly/ingest/route.ts` was erroneously forwarding command payloads upstream to `${GATEWAY_URL}/api/v1/anomaly/detect`.
+
+Because `/api/v1/anomaly/detect` is a pure query pathway designed for online inference (which completely ignores the incoming HTTP request body and queries the database for existing history), requests against unpopulated or cold-start assets failed immediately with `ErrInsufficientData` ("insufficient telemetry history").
+
+The edge proxy was realigned:
+```typescript
+const baseUrl = process.env.GATEWAY_URL || process.env.BACKEND_API_URL || GATEWAY_URL || 'http://127.0.0.1:8080';
+const upstreamUrl = new URL(`/api/v1/anomaly/ingest`, baseUrl).toString();
+```
+Ensuring all ingestion payloads are strictly routed to the dedicated command ingestion pathway using standard POST requests with serialized JSON bodies and Authorization credentials.
+
+#### 56.3. IngestEngineCTelemetry Handler & Idempotent PostgreSQL UPSERT
+To fulfill the Command Query Responsibility Segregation (CQRS) architecture, a dedicated command handler `IngestEngineCTelemetry` was implemented in [`backend/services/gateway/handlers/anomaly_handler.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/handlers/anomaly_handler.go):
+
+1. **DTO Mapping:** Defined `EngineCIngestionRequest` and `EngineCIngestionReading` structs with strict JSON struct tags mirroring the frontend Zod contract:
+   - `feeder_id` (string, required)
+   - `substation_id` (string pointer, optional)
+   - `readings` (array of `EngineCIngestionReading` containing `timestamp`, `voltage`, `load`, `frequency`, and `availability`)
+2. **Transactional Lifecycle & Resource Leak Defense:**
+   The handler establishes an explicit database transaction with deferred panic and error recovery:
+   ```go
+   defer func() {
+       if p := recover(); p != nil {
+           tx.Rollback()
+           panic(p) // re-throw after rolling back
+       } else if err != nil {
+           tx.Rollback() // err is not nil, rollback
+       } else {
+           err = tx.Commit() // err is nil, attempt commit
+       }
+   }()
+   ```
+   This guarantees that database connections are never leaked during runtime panics or execution failures.
+3. **Idempotent Batch UPSERT:**
+   To ensure that network retries or repeated operator clicks never violate temporal primary key constraints, the SQL operation executes an idempotent batch UPSERT:
+   ```sql
+   INSERT INTO power_readings (feeder_id, timestamp, voltage, load, frequency, availability)
+   VALUES ($1, $2, $3, $4, $5, $6)
+   ON CONFLICT (feeder_id, timestamp) 
+   DO UPDATE SET
+       voltage = EXCLUDED.voltage,
+       load = EXCLUDED.load,
+       frequency = EXCLUDED.frequency,
+       availability = EXCLUDED.availability;
+   ```
+4. **RESTful Acknowledgment:** Returns HTTP 201 Created with JSON metadata detailing the feeder ID and exact record count processed.
+
+#### 56.4. Multiplexer Registration
+In [`backend/services/gateway/cmd/api/main.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/cmd/api/main.go), the new command endpoint was mounted onto the server multiplexer with JWT authentication and CORS middleware:
+```go
+authProtectedAnomalyIngest := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(anomalyHandler.IngestEngineCTelemetry))
+mux.Handle("/api/v1/anomaly/ingest", enableCORS(authProtectedAnomalyIngest))
+```
+
+#### 56.5. Static Analysis & Compilation Verification
+- **Go Gateway Compilation:** Executed `go build -v ./...` across all packages (`gateway`, `gateway/handlers`, `gateway/internal/grpc`, `gateway/cmd/api`). Verified with **Exit Code 0 (Zero errors)**.
+- **Frontend TypeScript Verification:** Executed `pnpm exec tsc --noEmit`. Verified with **Exit Code 0 (Zero errors)**.
+
+

@@ -92,8 +92,9 @@ export async function POST(req: NextRequest) {
     const timeoutTimer = setTimeout(() => controller.abort(), GATEWAY_TIMEOUT_MS);
 
     try {
-      const feederId = payload?.feeder_id || "";
-      const upstreamUrl = `${GATEWAY_URL}/api/v1/anomaly/detect?feeder_id=${encodeURIComponent(feederId)}`;
+      // Replace the legacy detection route with the correct ingestion route
+      const baseUrl = process.env.GATEWAY_URL || process.env.BACKEND_API_URL || GATEWAY_URL || 'http://127.0.0.1:8080';
+      const upstreamUrl = new URL(`/api/v1/anomaly/ingest`, baseUrl).toString();
       
       const gatewayResponse = await fetch(upstreamUrl, {
         method: "POST",

@@ -105,7 +105,7 @@ func main() {
 
 	// Initialize Engine C specific repositories and handler
 	anomalyRepo := handlers.NewSQLAnomalyRepo(db)
-	anomalyHandler := handlers.NewAnomalyHandler(anomalyRepo, engineCClient)
+	anomalyHandler := handlers.NewAnomalyHandler(anomalyRepo, engineCClient, db)
 
 	// Initialize Engine D specific repositories and handler
 	prioritizationRepo := handlers.NewSQLPrioritizationRepo(db)
@@ -185,6 +185,10 @@ func main() {
 	// Engine C anomaly detection, mounted with JWT auth and CORS
 	authProtectedAnomaly := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(anomalyHandler.DetectAnomaly))
 	mux.Handle("/api/v1/anomaly/detect", enableCORS(authProtectedAnomaly))
+
+	// Engine C anomaly detection manual ingestion (Command Pathway)
+	authProtectedAnomalyIngest := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(anomalyHandler.IngestEngineCTelemetry))
+	mux.Handle("/api/v1/anomaly/ingest", enableCORS(authProtectedAnomalyIngest))
 
 	// Engine D prioritization ranking, mounted with JWT auth and CORS
 	authProtectedPrioritization := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(prioritizationHandler.RankInterventions))

@@ -1,3 +1,24 @@
+/**
+ * ============================================================================
+ * ENGINE C: ANOMALY INTELLIGENCE WEBSOCKET CLIENT
+ * ============================================================================
+ * Date: 2026-10-19
+ * Architecture Overhaul:
+ *  1. Protocol Rectification: Strict `graphql-transport-ws` subprotocol state machine:
+ *     - Handshake starts with connection_init on TCP socket open.
+ *     - Operational subscription (`engine-c-anomalies`) dispatched ONLY upon receiving `connection_ack`.
+ *  2. Hugging Face Proxy Heartbeat Injection:
+ *     - 15-second client-to-server ping loop prevents aggressive Nginx idle-connection drops (Code 1006).
+ *     - Handles server-initiated ping frames with immediate pong responses.
+ *  3. Purge of Simulation Fallback:
+ *     - Excised all synthetic anomaly generation (fake intervals, mocked payloads).
+ *     - Unauthenticated requests cleanly halt with explicit warnings.
+ *     - UI store strictly reflects true network reality (Connected / Reconnecting / Offline).
+ *  4. Lifecycle Cleanup:
+ *     - Heartbeat intervals and reconnection timers strictly purged on socket close, error, and explicit teardown.
+ * ============================================================================
+ */
+
 import { useUIStore } from '@/store/ui-store';
 import { QueryClient } from '@tanstack/react-query';
 import { AnomalyEvent } from '@/lib/graphql/generated';
@@ -11,106 +32,20 @@ let reconnectAttempts = 0;
 let isExplicitlyClosed = false;
 let isConnecting = false;
 let activeQueryClient: QueryClient | null = null;
-let simulationInterval: NodeJS.Timeout | null = null;
+let heartbeatInterval: NodeJS.Timeout | null = null;
 
-const SAMPLE_SIMULATION_DESCRIPTIONS = [
-  "Transient voltage spike detected on phase B",
-  "Diurnal STL residual excursion breach (>3.2σ)",
-  "Sub-synchronous frequency flutter detected (49.82Hz)",
-  "Active power throughput imbalance across feeder head",
-  "Harmonic distortion threshold exceeded on busbar",
-  "Reverse power flow anomaly detected during peak generation",
-];
-
-export function stopSimulationFallback() {
-  if (simulationInterval) {
-    clearInterval(simulationInterval);
-    simulationInterval = null;
-  }
-}
-
-export function startSimulationFallback(queryClient?: QueryClient | null) {
-  if (simulationInterval || isExplicitlyClosed) {
-    return;
-  }
-
-  console.log("[websocket-client] Remote WebSocket unavailable. Engaging local event stream simulation fallback.");
-  useUIStore.getState().setWsStatus("Simulated");
-  useUIStore.getState().setDataStreamStatus("SYNTHETIC");
-
-  const qc = queryClient || activeQueryClient;
-
-  const emitSimulatedTelemetry = () => {
-    if (isExplicitlyClosed) {
-      stopSimulationFallback();
-      return;
+/**
+ * [2026-10-19 Engine C] Hugging Face Proxy Heartbeat Initialization
+ * Dispatches a graphql-transport-ws ping frame every 15 seconds to prevent Nginx idle culling.
+ */
+const initializeHeartbeat = (activeWs: WebSocket) => {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  heartbeatInterval = setInterval(() => {
+    if (activeWs.readyState === WebSocket.OPEN) {
+      activeWs.send(JSON.stringify({ type: "ping" }));
     }
-
-    const activeFeederId = useFeederStore.getState().activeFeederId || "f47ac10b-58cc-4372-a567-0e02b2c3d479";
-    const isCritical = Math.random() > 0.65;
-    const severity = isCritical ? "CRITICAL" : "MEDIUM";
-    const desc = SAMPLE_SIMULATION_DESCRIPTIONS[Math.floor(Math.random() * SAMPLE_SIMULATION_DESCRIPTIONS.length)];
-    const timestamp = new Date().toISOString();
-    const eventId = `sim-${Date.now()}`;
-
-    const simAnomalyEvent: AnomalyEvent = {
-      id: eventId,
-      areaId: activeFeederId,
-      eventType: "VOLTAGE_SPIKE",
-      severity: severity,
-      timestamp: timestamp,
-      description: desc,
-    };
-
-    // 1. Dispatch to queryClient ["anomalyTimeline"]
-    if (qc) {
-      qc.setQueriesData<AnomalyEvent[]>({ queryKey: ["anomalyTimeline"] }, (oldData) => {
-        if (!oldData) return [simAnomalyEvent];
-        return [simAnomalyEvent, ...oldData.slice(0, 49)];
-      });
-    }
-
-    // 2. Dispatch to global Zustand alert store
-    const alertItem: GridAlert = {
-      id: eventId,
-      feeder_id: activeFeederId,
-      substation_id: null,
-      severity: severity,
-      is_critical: isCritical,
-      message: `${desc} on Feeder ${activeFeederId.slice(0, 8)}...`,
-      timestamp: timestamp,
-      read: false,
-      acknowledged: false,
-    };
-    useAlertStore.getState().addAlert(alertItem);
-
-    // 3. Dispatch Sonner toast alerts matching live behavior
-    if (isCritical) {
-      toast.error(alertItem.message, {
-        description: `Originating Feeder: ${activeFeederId} • Severity: CRITICAL`,
-        duration: 8000,
-      });
-    } else {
-      toast.warning(alertItem.message, {
-        description: `Originating Feeder: ${activeFeederId}`,
-        duration: 5000,
-      });
-    }
-
-    // 4. Targeted Query Cache Invalidation for engine-c-anomalies
-    if (isCritical && qc) {
-      qc.invalidateQueries({ queryKey: ["engine-c-anomalies"] });
-      const normalizedActive = normalizeIdentifier(activeFeederId);
-      if (normalizedActive) {
-        qc.invalidateQueries({ queryKey: ["engine-c-anomalies", normalizedActive] });
-      }
-    }
-  };
-
-  // Emit immediately, then schedule every 8–12 seconds (average 10s)
-  emitSimulatedTelemetry();
-  simulationInterval = setInterval(emitSimulatedTelemetry, 10000);
-}
+  }, 15000);
+};
 
 /**
  * Resolves the authenticated user's session token from document cookies.
@@ -240,9 +175,11 @@ export async function initializeWebSocketClient(
       return null;
     }
 
+    // [2026-10-19 Engine C] Phase 1: Pure data integrity - halt if token is unavailable without engaging simulation
     if (!resolvedToken) {
-      console.warn("[websocket-client] No token resolved from /api/auth/token or cookies. Engaging local event stream simulation fallback.");
-      startSimulationFallback(qc);
+      console.warn(
+        "[websocket-client] Authentication token unavailable. Halting WebSocket initialization until user authenticates."
+      );
       return null;
     }
 
@@ -251,10 +188,11 @@ export async function initializeWebSocketClient(
 
     useUIStore.getState().setWsStatus("Reconnecting");
 
-    // Instantiated with the exact GraphQL subprotocol: new WebSocket(directUrl, 'graphql-transport-ws')
+    // Instantiated with the exact GraphQL subprotocol: new WebSocket(directUrl, "graphql-transport-ws")
     const ws = new WebSocket(directUrl, "graphql-transport-ws");
     wsClient = ws;
 
+    // [2026-10-19 Engine C] Phase 2: Initialization Phase - ONLY transmit connection_init upon TCP open
     ws.onopen = () => {
       if (isExplicitlyClosed) {
         try {
@@ -263,54 +201,55 @@ export async function initializeWebSocketClient(
         return;
       }
       reconnectAttempts = 0;
-      console.log("[websocket-client] WebSocket opened successfully on target. Sending connection_init frame...");
-
-      // Sends the exact connection_init payload required by the Go backend's InitFunc:
-      // {"type": "connection_init", "payload": {"Authorization": "Bearer <TOKEN>"}}
-      const initPayload = {
-        type: "connection_init",
-        payload: {
-          Authorization: `Bearer ${resolvedToken}`,
-        },
-      };
-      ws.send(JSON.stringify(initPayload));
+      console.log("[websocket-client] TCP Socket opened. Transmitting connection_init...");
+      ws.send(
+        JSON.stringify({
+          type: "connection_init",
+          payload: {
+            Authorization: `Bearer ${resolvedToken}`,
+          },
+        })
+      );
     };
 
+    // [2026-10-19 Engine C] Phase 2 & 3: Acknowledgment, Subscription, Heartbeat & Payload Handling
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
 
         if (msg.type === "connection_ack") {
-          console.log("[websocket-client] Received connection_ack from Go backend. Subscribing to operationalEventStream...");
-          stopSimulationFallback();
+          console.log("[websocket-client] Server acknowledged handshake. Initiating operationalEventStream subscription...");
           useUIStore.getState().setWsStatus("Connected");
           useUIStore.getState().setDataStreamStatus("REAL");
 
-          // Dispatch GraphQL subscription for operational events
-          const subscribeFrame = {
-            id: "1",
-            type: "subscribe",
-            payload: {
-              query: `
-                subscription {
-                  operationalEventStream {
-                    id
-                    areaId
-                    eventType
-                    severity
-                    timestamp
-                    description
-                  }
-                }
-              `,
-            },
-          };
-          ws.send(JSON.stringify(subscribeFrame));
+          ws.send(
+            JSON.stringify({
+              id: "engine-c-anomalies", // Unique identifier for this specific subscription
+              type: "subscribe",
+              payload: {
+                query: `subscription { operationalEventStream { id areaId eventType severity timestamp description } }`,
+              },
+            })
+          );
+
+          // [2026-10-19 Engine C] Call heartbeat initialization function here
+          initializeHeartbeat(ws);
           return;
         }
 
+        // [2026-10-19 Engine C] Phase 3: Server Ping Handling - respond immediately with pong
         if (msg.type === "ping") {
           ws.send(JSON.stringify({ type: "pong" }));
+          return;
+        }
+
+        if (msg.type === "error") {
+          console.error("[websocket-client] GraphQL subscription error received:", msg.payload);
+          return;
+        }
+
+        if (msg.type === "complete") {
+          console.log("[websocket-client] GraphQL subscription completed:", msg.id);
           return;
         }
 
@@ -385,35 +324,56 @@ export async function initializeWebSocketClient(
       }
     };
 
+    // [2026-10-19 Engine C] Phase 4: Lifecycle Cleanup and Reconnection Safety
     ws.onerror = (err) => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+      }
       if (isExplicitlyClosed) {
         return;
       }
-      console.warn("[websocket-client] Live WebSocket connection not reachable on target:", directUrl, "- activating simulation fallback.");
-      startSimulationFallback(qc);
+      console.warn("[websocket-client] Live WebSocket connection error on target:", directUrl, err);
+      useUIStore.getState().setWsStatus("Offline");
     };
 
     ws.onclose = (event) => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+      }
       wsClient = null;
 
       if (isExplicitlyClosed || event.code === 1000) {
         console.log("[websocket-client] Clean closure or component unmount detected. Halting reconnection logic.");
-        stopSimulationFallback();
         useUIStore.getState().setWsStatus("Offline");
         return;
       }
 
-      console.warn(`[websocket-client] WebSocket connection closed (code: ${event.code}, reason: "${event.reason || "None"}"). Engaging local simulation fallback.`);
+      console.warn(
+        `[websocket-client] WebSocket connection closed (code: ${event.code}, reason: "${event.reason || "None"}").`
+      );
+      useUIStore.getState().setWsStatus("Offline");
 
-      // Halt the infinite aggressive reconnection storm and engage local event stream simulation fallback
-      startSimulationFallback(qc);
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000) + Math.random() * 300;
+      reconnectAttempts++;
+      console.log(`[websocket-client] Reconnecting in ${Math.round(delay)}ms (attempt #${reconnectAttempts})...`);
+
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => {
+        initializeWebSocketClient(resolvedToken, qc || activeQueryClient || undefined);
+      }, delay);
     };
 
     return ws;
   } catch (err) {
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
     if (!isExplicitlyClosed) {
-      console.warn("[websocket-client] Failed to create WebSocket connection, engaging local simulation fallback:", err);
-      startSimulationFallback(qc);
+      console.error("[websocket-client] Failed to create WebSocket connection:", err);
+      useUIStore.getState().setWsStatus("Offline");
     }
     return null;
   } finally {
@@ -431,7 +391,10 @@ export const initializeWebSocket = (initialToken?: string, queryClient?: QueryCl
 export const closeWebSocket = () => {
   isExplicitlyClosed = true;
   isConnecting = false;
-  stopSimulationFallback();
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;

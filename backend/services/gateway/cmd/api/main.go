@@ -72,7 +72,7 @@ func main() {
 	engineBConfig := handlers.LoadConfig()
 	engineBClient := handlers.NewEngineBClient(engineBConfig)
 
-	// Engine C (multivariate anomaly detection) config & client
+	// Engine C (multivariate anomaly detection) config & client targeting FastAPI POST /internal/v1/anomalies/detect
 	engineCConfig := handlers.LoadEngineCConfig()
 	engineCClient := handlers.NewEngineCClient(engineCConfig)
 

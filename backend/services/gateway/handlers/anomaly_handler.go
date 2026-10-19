@@ -99,6 +99,15 @@ func LoadEngineCConfig() EngineCConfig {
 	url := os.Getenv("ENGINE_C_URL")
 	if url == "" {
 		url = "http://localhost:8003/internal/v1/anomalies/detect"
+	} else {
+		url = strings.TrimRight(url, "/")
+		if !strings.HasSuffix(url, "/internal/v1/anomalies/detect") {
+			if strings.HasSuffix(url, "/detect") {
+				url = strings.TrimSuffix(url, "/detect") + "/internal/v1/anomalies/detect"
+			} else {
+				url = url + "/internal/v1/anomalies/detect"
+			}
+		}
 	}
 	token := mustGetEnv("ENGINE_C_INTERNAL_KEY")
 	return EngineCConfig{EngineCURL: url, ServiceToken: token}
@@ -149,8 +158,22 @@ type engineCClientImpl struct {
 }
 
 func NewEngineCClient(cfg EngineCConfig) EngineCClient {
+	targetURL := cfg.EngineCURL
+	if targetURL == "" {
+		targetURL = "http://localhost:8003/internal/v1/anomalies/detect"
+	} else {
+		targetURL = strings.TrimRight(targetURL, "/")
+		if !strings.HasSuffix(targetURL, "/internal/v1/anomalies/detect") {
+			if strings.HasSuffix(targetURL, "/detect") {
+				targetURL = strings.TrimSuffix(targetURL, "/detect") + "/internal/v1/anomalies/detect"
+			} else {
+				targetURL = targetURL + "/internal/v1/anomalies/detect"
+			}
+		}
+	}
+
 	return &engineCClientImpl{
-		url:   cfg.EngineCURL,
+		url:   targetURL,
 		token: cfg.ServiceToken,
 		httpClient: &http.Client{
 			Transport: &http.Transport{
@@ -218,7 +241,16 @@ func (c *engineCClientImpl) doWithRetries(ctx context.Context, payloadBytes []by
 			slog.Warn("retrying Engine C inference", "attempt", attempt+1, "backoff", backoff)
 		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url, bytes.NewReader(payloadBytes))
+		targetURL := c.url
+		if !strings.HasSuffix(targetURL, "/internal/v1/anomalies/detect") {
+			if strings.HasSuffix(targetURL, "/detect") {
+				targetURL = strings.TrimSuffix(targetURL, "/detect") + "/internal/v1/anomalies/detect"
+			} else {
+				targetURL = fmt.Sprintf("%s/internal/v1/anomalies/detect", strings.TrimRight(targetURL, "/"))
+			}
+		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(payloadBytes))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build request: %w", err)
 		}

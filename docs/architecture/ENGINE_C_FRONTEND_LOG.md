@@ -2356,5 +2356,51 @@ To enforce temporal uniqueness and satisfy PostgreSQL's UPSERT contract, a new s
 - **ORM & Type System Compatibility:** Verified that adding this constraint introduces no breaking alterations to Go structs (`EngineCIngestionReading`, `TelemetryReading`) or frontend Zod validation schemas.
 - **Deployment Parity:** Ready for seamless execution across Hugging Face Spaces backend instances and production Supabase environments.
 
+---
+
+### Phase 10: AI Microservice Routing Reconciliation
+
+#### 58.1. Operational Scope & Chronological Record
+- **Phase:** Phase 10 (AI Microservice Routing Reconciliation)
+- **Exact Timestamp:** Monday, October 19, 2026, 2:25 PM WAT (Africa/Lagos) / 2026-10-19T14:25:00+01:00
+- **Status:** **COMPLETE & CERTIFIED**
+- **Affected Core Modules:**
+  - Python FastAPI Router: [`backend/ai-services/engine_c/api/anomaly_routes.py`](file:///c:/users/hp/Desktop/gridsense-ai/backend/ai-services/engine_c/api/anomaly_routes.py)
+  - Python FastAPI App Mount: [`backend/ai-services/engine_c/main.py`](file:///c:/users/hp/Desktop/gridsense-ai/backend/ai-services/engine_c/main.py)
+  - Go Gateway Anomaly Handler & Client: [`backend/services/gateway/handlers/anomaly_handler.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/handlers/anomaly_handler.go)
+  - Go Gateway Main Application: [`backend/services/gateway/cmd/api/main.go`](file:///c:/users/hp/Desktop/gridsense-ai/backend/services/gateway/cmd/api/main.go)
+
+#### 58.2. Root Cause Analysis: POST / 404 Error
+Following the database query retrieval for the 24-hour diurnal baseline, the Go API Gateway attempted to dispatch inference payloads to the Python Engine C AI microservice. However, upstream communication failed with:
+- **Upstream Rejection:** `ai microservice rejected payload: status 404`
+- **Root Cause:** When `ENGINE_C_URL` was configured in the environment as the base host (`http://localhost:8003` or `http://engine-c.gridsense.svc.cluster.local:8003`), the Go Gateway dispatched HTTP POST requests directly to `http://localhost:8003/` (the root path).
+- **FastAPI Routing Reality:** In `backend/ai-services/engine_c/api/anomaly_routes.py`, the anomaly router is declared with `prefix="/internal/v1/anomalies"` and mounted onto the FastAPI app with the `@router.post("/detect")` endpoint. Therefore, Engine C only accepts inference payloads at:
+  ```
+  POST /internal/v1/anomalies/detect
+  ```
+  Requests hitting `POST /` received an HTTP 404 Not Found response from FastAPI's ASGI router.
+
+#### 58.3. Go Gateway URL Normalization & Target Hardwiring
+To eliminate root path dispatch and ensure absolute routing parity across local, Docker Compose, and Kubernetes/Hugging Face environments:
+1. **`LoadEngineCConfig()` Invariant:** Updated in `backend/services/gateway/handlers/anomaly_handler.go` to sanitize incoming `ENGINE_C_URL` environment variables. If the path does not end with `/internal/v1/anomalies/detect`, it trims trailing slashes and dynamically appends the target endpoint path.
+2. **`NewEngineCClient()` Target Normalization:** Ensures that any initialized `engineCClientImpl` instance guarantees that `c.url` ends with `/internal/v1/anomalies/detect`.
+3. **`doWithRetries()` Request Interpolation:** In the HTTP request dispatch loop, the request URL formulation explicitly validates and ensures the target URL resolves to:
+  ```go
+  targetURL := c.url
+  if !strings.HasSuffix(targetURL, "/internal/v1/anomalies/detect") {
+      if strings.HasSuffix(targetURL, "/detect") {
+          targetURL = strings.TrimSuffix(targetURL, "/detect") + "/internal/v1/anomalies/detect"
+      } else {
+          targetURL = fmt.Sprintf("%s/internal/v1/anomalies/detect", strings.TrimRight(targetURL, "/"))
+      }
+  }
+  req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(payloadBytes))
+  ```
+
+#### 58.4. Compilation & Verification
+- **Static Analysis & Build:** Executed `go build -v ./...` in `backend/services/gateway` across `gateway`, `gateway/handlers`, `gateway/internal/grpc`, and `gateway/cmd/api`. Verified with **Exit Code 0 (Zero errors)**.
+- **Unit & Integration Suite:** Executed `go test -v -run TestFetchEngineCTelemetry ./handlers`. Verified with **Exit Code 0 (Zero errors)**.
+
+
 
 

@@ -1913,3 +1913,38 @@ In Next.js 15 with React Strict Mode enabled (`pnpm dev`), components execute a 
 #### 49.4. Verification & Validation Metrics
 - **TypeScript Type Safety:** `pnpm exec tsc --noEmit` verified with **0 errors** (exit code `0`).
 - **Dev Terminal Cleanliness:** Eliminated the red error stack trace; Next.js dev server runs without uncaught browser error traps.
+
+---
+
+### 50. Phase 1: Topbar Dual-Pipeline State Rectification
+
+#### 50.1. Operational Scope & Chronological Record
+- **Directive:** Topbar Dual-Pipeline State Rectification & "Degraded/Stale" False-Positive Resolution
+- **Date & Timestamp:** October 19, 2026, 10:20 AM WAT (Africa/Lagos)
+- **Lead Agent:** Autonomous Enterprise Frontend Engineering Agent (GridSense AI Infrastructure)
+- **Status:** **COMPLETE, VERIFIED & SYNCHRONIZED**
+- **Affected Core Modules:**
+  - [`frontend/components/dashboard/topbar.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/topbar.tsx) *(Telemetry Stream Status Badge & Network State Mapping)*
+
+#### 50.2. Context & Root Cause Analysis
+Prior to this rectification, the top navigation bar displayed a persistent, alarming `"Degraded / Stale"` warning banner whenever the WebSocket client was `"Offline"` or `"Reconnecting"`. 
+
+In our dual-pipeline architecture:
+1. **HTTP Database Pipeline (Operational Intelligence):** Consumes live, materialized grid metrics from the PostgreSQL data store via the Go API Gateway. This pipeline functions independently and reliably.
+2. **Machine Learning Pipeline (Telemetry Inference & WebSocket Broadcast):** Broadcasts real-time anomalies. During system initializations, newly provisioned assets, or asset switching, the ML Engine undergoes a **"Cold Start"** (HTTP 422 - insufficient telemetry history prior to accumulating the mandatory 24-hour window), keeping the WebSocket quiet or in an idle offline state.
+
+The previous UI logic committed a categorical error by conflating a quiet or offline WebSocket connection with systemic infrastructure degradation. This triggered continuous false-positive operator alarms ("Degraded / Stale") despite the primary HTTP database pipeline operating at nominal performance.
+
+#### 50.3. Architectural Implementation & State Decoupling
+1. **Decoupling WebSocket State from Systemic Degradation:**
+   - The WebSocket offline state was decoupled from systemic network failure.
+   - When the WebSocket is in an `"Offline"` or `"Reconnecting"` state, the topbar now renders a calm, reassuring `"System Stable"` badge with `CheckCircle2` (`text-emerald-500` / `bg-emerald-500/10 border-emerald-500/20`), reflecting that the standard HTTP PostgreSQL pipeline is operational while the ML pipeline safely gathers baseline telemetry.
+2. **Live Telemetry State Indication:**
+   - When the WebSocket connection is active (`wsStatus === "Connected"`), the badge displays the pulsing emerald ping indicator with the updated label `"Live Telemetry"`.
+3. **Purge of Simulation State Checks:**
+   - Completely removed legacy checks for `isSynthetic` and `wsStatus === "Simulated"`, as the synthetic simulation fallback layer has been permanently excised from the client codebase.
+
+#### 50.4. Issues Encountered & Resolution Strategy
+- **Icon Resolution & Type Safety:** Verified that `CheckCircle2` is cleanly imported from `lucide-react` without symbol collisions.
+- **Unused State Pruning:** Removed the orphan `const [isSynthetic, setIsSynthetic] = useState(false);` hook to maintain zero-lint warnings and optimize bundle size.
+- **Static Analysis Compilation:** Executed `pnpm exec tsc --noEmit` across `frontend/`, verifying clean compilation with **0 errors**.

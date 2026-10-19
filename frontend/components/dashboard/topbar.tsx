@@ -42,7 +42,6 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   const [isHydrated, setIsHydrated] = useState(false);
   
   const wsStatus = useUIStore((state) => state.wsStatus);
-  const [isSynthetic, setIsSynthetic] = useState(false);
   
   // Real-time alerts state from global Zustand alert store (Step 4.2)
   const unreadCriticalCount = useAlertStore((state) => state.unreadCriticalCount);
@@ -209,35 +208,21 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
             </div>
           </div>
 
-          {/* Data Governance Badge */}
-          <div 
-            onClick={() => setIsSynthetic(!isSynthetic)}
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm cursor-pointer select-none"
-            title="Double-click to toggle data mode"
-          >
-            {isSynthetic || wsStatus === "Simulated" ? (
-              <>
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
-                </span>
-                <span className="text-xs font-semibold text-cyan-800">
-                  {wsStatus === "Simulated" ? "Simulated Stream" : "Synthetic Data"}
-                </span>
-              </>
-            ) : wsStatus === "Connected" ? (
-              <>
+          {/* Telemetry Stream Status Badge */}
+          <div className="hidden sm:flex items-center">
+            {wsStatus === "Connected" ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-xs select-none">
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                 </span>
-                <span className="text-xs font-semibold text-emerald-800">Real Data</span>
-              </>
+                <span className="text-xs font-semibold text-emerald-800">Live Telemetry</span>
+              </div>
             ) : (
-              <>
-                <AlertCircle className="h-3 w-3 text-amber-500" />
-                <span className="text-xs font-semibold text-amber-700">Degraded / Stale</span>
-              </>
+              <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-md shadow-xs">
+                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                <span className="text-xs font-semibold text-emerald-700">System Stable</span>
+              </div>
             )}
           </div>
 

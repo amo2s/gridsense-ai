@@ -233,10 +233,10 @@ function TriLayerAnomalyMatrixComponent({
         {/* Layer 1: Statistical Median Absolute Deviation (MAD) */}
         <motion.div
           variants={subCardVariants}
-          className={`rounded-2xl border ${l1Styles.cardBorder} ${l1Styles.cardBg} ${l1Styles.shadow} backdrop-blur-xl p-5 flex flex-col justify-between transition-colors`}
+          className={`rounded-2xl border ${l1Styles.cardBorder} ${l1Styles.cardBg} ${l1Styles.shadow} backdrop-blur-xl p-5 flex flex-col h-full justify-between transition-colors`}
         >
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className={`p-2 rounded-xl border ${l1Styles.iconClass}`}>
                   <Activity className="w-4 h-4" />
@@ -256,13 +256,9 @@ function TriLayerAnomalyMatrixComponent({
                 {l1Styles.statusText}
               </span>
             </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed mt-2">
-              Computes rolling 6-step Median Absolute Deviation (MAD). Flags point anomalies departing radically from local median.
-            </p>
           </div>
 
-          <div className="mt-5 pt-3.5 border-t border-slate-200/50 space-y-1.5 text-[11px] font-mono">
+          <div className="mt-auto pt-3.5 border-t border-slate-200/50 space-y-1.5 text-[11px] font-mono">
             <div className="flex items-center justify-between text-slate-500">
               <span>Threshold Mode:</span>
               <span className="text-slate-800 font-semibold">&gt; 3.5 MAD Outliers</span>
@@ -279,10 +275,10 @@ function TriLayerAnomalyMatrixComponent({
         {/* Layer 2: Seasonal-Trend Decomposition (STL) */}
         <motion.div
           variants={subCardVariants}
-          className={`rounded-2xl border ${l2Styles.cardBorder} ${l2Styles.cardBg} ${l2Styles.shadow} backdrop-blur-xl p-5 flex flex-col justify-between transition-colors`}
+          className={`rounded-2xl border ${l2Styles.cardBorder} ${l2Styles.cardBg} ${l2Styles.shadow} backdrop-blur-xl p-5 flex flex-col h-full justify-between transition-colors`}
         >
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className={`p-2 rounded-xl border ${l2Styles.iconClass}`}>
                   <Calendar className="w-4 h-4" />
@@ -302,13 +298,9 @@ function TriLayerAnomalyMatrixComponent({
                 {l2Styles.statusText}
               </span>
             </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed mt-2">
-              Decomposes 24-hour diurnal patterns into trend, seasonal harmonics, and residuals. Identifies slow envelope drift.
-            </p>
           </div>
 
-          <div className="mt-5 pt-3.5 border-t border-slate-200/50 space-y-1.5 text-[11px] font-mono">
+          <div className="mt-auto pt-3.5 border-t border-slate-200/50 space-y-1.5 text-[11px] font-mono">
             <div className="flex items-center justify-between text-slate-500">
               <span>Diurnal Envelope:</span>
               <span className="text-slate-800 font-semibold">&plusmn; 3&sigma; Confidence Band</span>
@@ -325,10 +317,10 @@ function TriLayerAnomalyMatrixComponent({
         {/* Layer 3: Multivariate Machine Learning Isolation (PyOD) */}
         <motion.div
           variants={subCardVariants}
-          className={`rounded-2xl border ${l3Styles.cardBorder} ${l3Styles.cardBg} ${l3Styles.shadow} backdrop-blur-xl p-5 flex flex-col justify-between transition-colors`}
+          className={`rounded-2xl border ${l3Styles.cardBorder} ${l3Styles.cardBg} ${l3Styles.shadow} backdrop-blur-xl p-5 flex flex-col h-full justify-between transition-colors`}
         >
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className={`p-2 rounded-xl border ${l3Styles.iconClass}`}>
                   <Cpu className="w-4 h-4" />
@@ -348,13 +340,9 @@ function TriLayerAnomalyMatrixComponent({
                 {l3Styles.statusText}
               </span>
             </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed mt-2">
-              Evaluates coupled multidimensional feature spaces (voltage-load-frequency). Isolates non-linear cross-phase anomalies.
-            </p>
           </div>
 
-          <div className="mt-5 pt-3.5 border-t border-slate-200/50 space-y-1.5 text-[11px] font-mono">
+          <div className="mt-auto pt-3.5 border-t border-slate-200/50 space-y-1.5 text-[11px] font-mono">
             <div className="flex items-center justify-between text-slate-500">
               <span>Model Architecture:</span>
               <span className="text-slate-800 font-semibold">Isolation Forest Ensemble</span>

@@ -1948,3 +1948,51 @@ The previous UI logic committed a categorical error by conflating a quiet or off
 - **Icon Resolution & Type Safety:** Verified that `CheckCircle2` is cleanly imported from `lucide-react` without symbol collisions.
 - **Unused State Pruning:** Removed the orphan `const [isSynthetic, setIsSynthetic] = useState(false);` hook to maintain zero-lint warnings and optimize bundle size.
 - **Static Analysis Compilation:** Executed `pnpm exec tsc --noEmit` across `frontend/`, verifying clean compilation with **0 errors**.
+
+---
+
+### 51. Phase 3: Production UI Declutter and Structural Refinement
+
+#### 51.1. Operational Scope & Chronological Record
+- **Directive:** Production UI Decluttering, Diagnostic Badge Eradication, and Flexbox Structural Refinement
+- **Exact Timestamp:** Monday, October 19, 2026, 11:07 AM WAT (Africa/Lagos)
+- **Lead Agent:** Autonomous Enterprise Frontend Engineering Agent (GridSense AI Infrastructure)
+- **Status:** **COMPLETE, VERIFIED & SYNCHRONIZED**
+- **Specific Files Modified:**
+  - [`frontend/app/dashboard/engine-c/page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-c/page.tsx) *(Eradication of header diagnostic badges, Query Pathway label, countdown timer state, and unneeded imports; reconciliation of flexbox alignment)*
+  - [`frontend/components/dashboard/engine-c/tri-layer-anomaly-matrix.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/engine-c/tri-layer-anomaly-matrix.tsx) *(Purging textbook-style academic explanations, enforcing flex-col h-full card wrappers, and anchoring footer metrics with mt-auto)*
+
+#### 51.2. Summary: Elevating from Developer Diagnostics to Executive Interface
+During earlier architectural phases (Phase 1 & Phase 2), several diagnostic transport badges (such as raw polling timers and developmental transport indicators) and blueprint labels (`QUERY PATHWAY`) were introduced to monitor real-time data ingestion and pipeline health. Similarly, the Tri-Layer Anomaly Matrix cards contained dense, textbook-style mathematical paragraphs describing rolling MAD, diurnal STL decomposition, and multidimensional isolation forest mechanics. 
+
+While valuable during initial verification, these artifacts created cognitive clutter and developer-centric visual noise unsuitable for an executive-grade operational dashboard. In Phase 3, these diagnostic artifacts and academic explanations were systematically excised from the DOM to elevate Engine C into a high-density, production-ready interface focusing strictly on primary operational KPIs, spatial clarity, and standardized liquid glass aesthetics.
+
+#### 51.3. Eradication of Header Diagnostic Badges & Alignment Reconciliation
+1. **Header Diagnostic Purge ([`page.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/app/dashboard/engine-c/page.tsx)):**
+   - Completely deleted the `"Poll: 30s ({countdown}s)"` visual cadence badge and its enclosing DOM elements.
+   - Removed the internal `countdown` state variable and associated interval timer `useEffect` hooks, eliminating background timer re-renders.
+   - Removed the unreferenced `Clock` icon import from `lucide-react`.
+   - Deleted the developmental `"QUERY PATHWAY"` blueprint text label and wrapper.
+2. **Preservation of Core Asset Context:**
+   - Retained the `Feeder` badge (`activeFeederId`) and `Substation` badge (`activeSubstationId || "Unassigned"`).
+3. **Flexbox Alignment Reconciliation:**
+   - The parent container (`flex flex-wrap items-center gap-2.5`) now neatly spaces the remaining Feeder and Substation badges aligned to the left of the title block without orphaned margins or awkward spacing gaps.
+
+#### 51.4. Purging Academic Text Bloat from Tri-Layer Matrix & CSS Flexbox Mitigation
+1. **Text Purge ([`tri-layer-anomaly-matrix.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/dashboard/engine-c/tri-layer-anomaly-matrix.tsx)):**
+   - **Layer 1 (Point MAD):** Removed `"Computes rolling 6-step Median Absolute Deviation (MAD). Flags point anomalies departing radically from local median."`
+   - **Layer 2 (Seasonal STL):** Removed `"Decomposes 24-hour diurnal patterns into trend, seasonal harmonics, and residuals. Identifies slow envelope drift."`
+   - **Layer 3 (Multivariate Isolation):** Removed `"Evaluates coupled multidimensional feature spaces (voltage-load-frequency). Isolates non-linear cross-phase anomalies."`
+2. **Preservation of Critical Operational Telemetry:**
+   - Preserved card headers (layer titles, detection layer index numbers, icons, and dynamic status badges: `NOMINAL`, `TRIGGERED`, `ELEVATED`).
+   - Preserved all footer key-value metric pairs (Threshold Mode, Mathematical Guard, Diurnal Envelope, Residual Drift, Model Architecture, Coupled Anomaly).
+3. **CSS Flexbox Structural Mitigation (`flex-col h-full` and `mt-auto`):**
+   - Because the deleted explanatory paragraphs previously served as physical vertical spacers within the DOM, removing them risked card height collapse and uneven upward displacement of footer metric sections.
+   - To guarantee symmetrical vertical alignment and structural stability across the three-column responsive grid:
+     - Set the outermost card container to `flex flex-col h-full justify-between`.
+     - Added the Tailwind utility `mt-auto` to the metric container wrapping the bottom key-value rows (`mt-auto pt-3.5 border-t border-slate-200/50 ...`).
+     - This forces the metadata section to anchor perfectly to the bottom boundary of each card, absorbing any remaining flex space and guaranteeing uniform height and aesthetic balance regardless of inner content variations.
+
+#### 51.5. Verification & Validation Metrics
+- **Static Analysis Compilation:** Executed `pnpm exec tsc --noEmit` across `frontend/`, confirming zero compilation errors (`exit code 0`).
+- **Visual & Structural Symmetry:** Confirmed that removing DOM nodes leaves zero orphaned styles, syntax errors, or broken layout grids.

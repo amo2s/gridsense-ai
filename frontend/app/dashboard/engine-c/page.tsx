@@ -10,7 +10,6 @@ import {
   ArrowRight,
   Building2,
   CheckCircle2,
-  Clock,
   Cpu,
   Database,
   Layers,
@@ -143,20 +142,6 @@ export default function EngineCDashboardPage() {
     dataUpdatedAt,
   } = useEngineCAnomaly();
 
-  // Cadence timer for visual countdown of the 30-second polling cycle
-  const [countdown, setCountdown] = useState(30);
-
-  useEffect(() => {
-    setCountdown(30);
-  }, [dataUpdatedAt]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => (prev > 1 ? prev - 1 : 30));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   const riskScore = data?.risk_score ?? 0;
   const severity = data?.severity ?? "LOW";
   const strat = getRiskStratification(riskScore, severity);
@@ -217,10 +202,6 @@ export default function EngineCDashboardPage() {
       >
         <div>
           <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-xs uppercase font-bold tracking-widest text-slate-400">
-              Query Pathway
-            </span>
-
             {/* Feeder Badge */}
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 shadow-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -240,13 +221,6 @@ export default function EngineCDashboardPage() {
               <Building2 className="w-3 h-3 text-emerald-600" />
               <span>Substation:</span>
               <span className="font-mono">{activeSubstationId || "Unassigned"}</span>
-            </span>
-
-            {/* Polling Cadence Badge */}
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200">
-              <Clock className="w-3 h-3 text-slate-500" />
-              <span>Poll: 30s</span>
-              <span className="text-slate-400">({countdown}s)</span>
             </span>
           </div>
 

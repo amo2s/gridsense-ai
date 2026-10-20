@@ -3,13 +3,12 @@
 import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { subHours } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Loader2, 
   CheckCircle2, 
   AlertCircle, 
-  Sparkles, 
+  Wand2, 
   Plus, 
   Trash2, 
   ShieldAlert, 
@@ -26,6 +25,7 @@ import {
   EgressPredictionResponse,
 } from "@/types/engine-b-ingestion";
 import { Button } from "@/components/ui/button";
+import { generateEngineBDiurnalBaseline } from "@/lib/telemetry-generator";
 
 type FormStateFSM = "IDLE" | "SUBMITTING" | "ERROR" | "SUCCESS";
 
@@ -65,51 +65,13 @@ export default function EngineBForm() {
   }, [activeFeederId, setValue]);
 
   /**
-   * Mock 24h Baseline Generator
-   * Computes a diurnal sine-wave progression of load and voltage ending at current UTC hour.
-   * Guarantees 24 chronologically ascending hourly readings within physical bounds.
+   * Dual-Step CQRS Pipeline: Stages a presentation-grade 24-hour diurnal baseline
+   * directly into the React Hook Form state via replace().
+   * Governed by centralized mathematical synthesis adhering to Engine B data contract.
    */
   const handleGenerateBaseline = () => {
-    const now = new Date();
-    // Anchor to top of the current hour in UTC
-    const endHour = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate(),
-      now.getUTCHours(),
-      0, 0, 0
-    ));
-
-    const baselineReadings: TelemetryReading[] = [];
-
-    for (let i = 23; i >= 0; i--) {
-      const timestampDate = subHours(endHour, i);
-      const hour = timestampDate.getUTCHours();
-
-      // Realistic diurnal sine-wave formula for voltage: centered at 230V, +/- 12V swing
-      // Physical boundary: 0.0 <= voltage <= 500.0
-      const voltageNoise = (Math.random() * 2 - 1) * 0.8;
-      const voltageWave = 230 + 12 * Math.sin(((hour - 4) / 24) * 2 * Math.PI) + voltageNoise;
-      const voltage = Math.round(Math.min(500, Math.max(0, voltageWave)) * 10) / 10;
-
-      // Realistic diurnal load formula: peak load at 18:00 (~650 kW), trough at 04:00 (~350 kW)
-      // Physical boundary: 0.0 <= load <= 1000.0
-      const loadNoise = (Math.random() * 2 - 1) * 5;
-      const loadWave = 500 + 175 * Math.sin(((hour - 10) / 24) * 2 * Math.PI) + loadNoise;
-      const load = Math.round(Math.min(1000, Math.max(0, loadWave)) * 10) / 10;
-
-      // Rare sporadic fault on certain hours
-      const fault_count_recent = (i === 5 && Math.random() > 0.45) ? 1 : 0;
-
-      baselineReadings.push({
-        timestamp: timestampDate.toISOString(),
-        voltage,
-        load,
-        fault_count_recent,
-      });
-    }
-
-    replace(baselineReadings);
+    const syntheticData = generateEngineBDiurnalBaseline();
+    replace(syntheticData);
     setStatus("IDLE");
     setErrorMessage(null);
     toast.success("Synthesized 24-hour diurnal baseline telemetry successfully.");
@@ -252,7 +214,7 @@ export default function EngineBForm() {
             onClick={handleGenerateBaseline}
             disabled={status === "SUBMITTING"}
           >
-            <Sparkles className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+            <Wand2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
             <span>Generate 24h Baseline</span>
           </Button>
 

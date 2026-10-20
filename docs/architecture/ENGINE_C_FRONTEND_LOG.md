@@ -2419,6 +2419,46 @@ With the completion of **Phase 10: AI Microservice Routing Reconciliation**, the
 | **8** | CQRS Ingestion Pathway | Edge Proxy & Go API Gateway | Realigned `/api/v1/anomaly/ingest` route; implemented `IngestEngineCTelemetry` with transactional rollback (`6a4562f`) | **CERTIFIED** |
 | **9** | Database Schema Migration | PostgreSQL `power_readings` | Eliminated `SQLSTATE 42P10` via composite unique constraint migration `power_readings_feeder_timestamp_key` (`e281279`) | **CERTIFIED** |
 | **10** | Microservice Routing | Go Gateway & Python FastAPI | Reconciled URL interpolation to target `/internal/v1/anomalies/detect`; resolved POST / 404 upstream error (`acde71e`) | **CERTIFIED** |
+| **11** | Mock Data Audit & Sanitization | [`frontend/components/ingestion/engine-b-form.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/engine-b-form.tsx) | Eradicated inline math and `date-fns`; implemented centralized `generateEngineBDiurnalBaseline` with `Wand2` iconography parity | **CERTIFIED** |
+
+---
+
+### Phase 11: Engine B Mock Data Audit & Sanitization
+
+#### 59.1. Operational Scope & Chronological Record
+- **Phase:** Phase 11 (Engine B Mock Data Audit & Sanitization)
+- **Exact Timestamp:** Tuesday, October 20, 2026, 1:33 PM WAT (Africa/Lagos) / 2026-10-20T13:33:00+01:00
+- **Status:** **COMPLETE & CERTIFIED**
+- **Affected Core Modules:**
+  - Ingestion Form Component: [`frontend/components/ingestion/engine-b-form.tsx`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/components/ingestion/engine-b-form.tsx)
+  - Centralized Telemetry Generator: [`frontend/lib/telemetry-generator.ts`](file:///c:/users/hp/Desktop/gridsense-ai/frontend/lib/telemetry-generator.ts)
+  - Architecture Documentation: [`docs/architecture/ENGINE_C_FRONTEND_LOG.md`](file:///c:/users/hp/Desktop/gridsense-ai/docs/architecture/ENGINE_C_FRONTEND_LOG.md)
+
+#### 59.2. Legacy Scaffolding Audit & Eradication
+Prior to Phase 11, Engine B's manual ingestion interface relied on an inline mock baseline generator within `handleGenerateBaseline` that:
+1. Implemented raw, localized mathematical functions (`Math.sin`, `Math.random`) directly within the React component logic.
+2. Relied on `date-fns` (`subHours`) to perform non-centralized backward date calculations.
+3. Created an architectural disparity with Engine C, which had already transitioned to the centralized, presentation-grade diurnal baseline utility established in Phase 7 (`frontend/lib/telemetry-generator.ts`).
+
+All legacy inline mathematical logic, localized random noise generators, and extraneous dependencies (`subHours` from `date-fns`) have been completely eradicated from `frontend/components/ingestion/engine-b-form.tsx`.
+
+#### 59.3. Centralized Telemetry Generator Upgrade (`generateEngineBDiurnalBaseline`)
+To maintain absolute system-wide architectural consistency across ingestion pipelines:
+1. **Engine B Generator Implementation:** Exported `generateEngineBDiurnalBaseline(startDate: Date = new Date())` in `frontend/lib/telemetry-generator.ts` returning `TelemetryReading[]` (`EngineBSynthesizedTelemetryRow[]`).
+2. **Mathematical Parity:** Implemented identical time-shifted cosine diurnal wave dynamics ($350.0\text{ kW}$ base load, $250.0\text{ kW}$ amplitude, peaking at 18:00 UTC) with bounded stochastic noise ($\pm 15\text{ kW}$) and voltage bounded noise ($230.0\text{ V} \pm 1.5\text{ V}$).
+3. **Engine B Specific Data Contract:** Tailored output to Engine B's schema requirements (`timestamp`, `voltage`, `load`, `fault_count_recent`). Injected stochastic `fault_count_recent` metric defaulting to 0 with a controlled 5% probability of minor anomaly (1), preventing critical prediction failure while preserving realistic telemetry characteristics.
+4. **Zod Schema Alignment:** Guaranteed exact compliance with `TelemetryReadingSchema` and `EngineBIngestRequestSchema` in `frontend/types/engine-b-ingestion.ts`.
+
+#### 59.4. Form Refactoring & UX Alignment
+1. **CQRS Dual-Step Pipeline Parity:** Refactored `handleGenerateBaseline` in `EngineBForm` to invoke `generateEngineBDiurnalBaseline()` and stage data safely via `useFieldArray`'s `replace()` method, preventing array mutation side effects.
+2. **Iconography Harmonization:** Replaced legacy `Sparkles` icon with canonical `Wand2` icon from `lucide-react`, matching the Engine C staging trigger.
+
+#### 59.5. Static Analysis & TypeScript Verification
+- **Command:** `pnpm exec tsc --noEmit`
+- **Working Directory:** `c:\users\hp\Desktop\gridsense-ai\frontend`
+- **Result:** **Exit Code 0 (Zero Errors)**
+- **Verification Note:** All type bindings across `TelemetryReading`, `useFieldArray.replace`, and `generateEngineBDiurnalBaseline` resolved cleanly without casting or type assertions.
+
 
 
 

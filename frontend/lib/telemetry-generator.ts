@@ -87,3 +87,71 @@ export const generateEngineBDiurnalBaseline = (startDate: Date = new Date()): Te
 
   return baseline;
 };
+
+export interface EngineDFusedSignalParams {
+  feeder_id: string;
+  reliability_score: number;
+  duration_penalty: number;
+  frequency_penalty: number;
+  risk_score: number;
+  is_anomaly: boolean;
+  anomaly_confidence: number;
+}
+
+/**
+ * Generates presentation-grade fused multi-engine telemetry signals for Engine D
+ * listwise ranking. Synthesizes inputs from Engine A (Reliability), Engine B (Risk),
+ * and Engine C (Anomaly) across multiple feeders.
+ */
+export const generateEngineDFusedBaseline = (
+  feederIds: string[] = [
+    "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "a1b2c3d4-e5f6-4a5b-8c9d-112233445566",
+    "b2c3d4e5-f6a7-4b5c-9d0e-223344556677",
+  ]
+): EngineDFusedSignalParams[] => {
+  // Ensure minimum 2 feeders
+  const targetIds = feederIds.length >= 2 ? feederIds : [
+    "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "a1b2c3d4-e5f6-4a5b-8c9d-112233445566",
+  ];
+
+  return targetIds.map((feeder_id, index) => {
+    // Generate varied physical characteristics across the batch
+    if (index === 0) {
+      // Asset 1: High Risk & Anomaly (Urgent Candidate)
+      return {
+        feeder_id,
+        reliability_score: 42.5,
+        duration_penalty: 0.65,
+        frequency_penalty: 0.45,
+        risk_score: 88.5,
+        is_anomaly: true,
+        anomaly_confidence: 0.92,
+      };
+    } else if (index === 1) {
+      // Asset 2: Elevated Risk, Moderate Reliability
+      return {
+        feeder_id,
+        reliability_score: 68.0,
+        duration_penalty: 0.35,
+        frequency_penalty: 0.25,
+        risk_score: 64.0,
+        is_anomaly: false,
+        anomaly_confidence: 0.15,
+      };
+    } else {
+      // Asset 3+: Stable Baseline
+      const relNoise = Math.floor(Math.random() * 15);
+      return {
+        feeder_id,
+        reliability_score: Math.min(100, 80 + relNoise),
+        duration_penalty: parseFloat((0.05 + Math.random() * 0.1).toFixed(2)),
+        frequency_penalty: parseFloat((0.05 + Math.random() * 0.1).toFixed(2)),
+        risk_score: parseFloat((15 + Math.random() * 20).toFixed(1)),
+        is_anomaly: false,
+        anomaly_confidence: 0.05,
+      };
+    }
+  });
+};

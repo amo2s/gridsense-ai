@@ -11,7 +11,8 @@ import {
   Zap,
   Layers,
   Database,
-  ChevronDown
+  ChevronDown,
+  ShieldAlert
 } from "lucide-react";
 import FeederSelector from "@/components/dashboard/feeder-selector";
 
@@ -27,6 +28,7 @@ export const MENU_ITEMS = [
   { name: "Reliability (Engine A)", icon: Activity, path: "/dashboard/engine-a", roles: ["ADMIN", "MANAGER", "STAFF"] },
   { name: "Outage Risk (Engine B)", icon: Zap, path: "/dashboard/engine-b", roles: ["ADMIN", "MANAGER", "STAFF"] },
   { name: "Anomaly Detection (Engine C)", icon: Layers, path: "/dashboard/engine-c", roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { name: "Priority Ranking (Engine D)", icon: ShieldAlert, path: "/dashboard/engine-d", roles: ["ADMIN", "MANAGER", "STAFF"] },
   { 
     name: "Data Ingestion", 
     icon: Database, 
@@ -34,7 +36,8 @@ export const MENU_ITEMS = [
     submenu: [
       { name: "Engine A", path: "/dashboard/ingestion/engine-a" },
       { name: "Engine B", path: "/dashboard/ingestion/engine-b" },
-      { name: "Engine C", path: "/dashboard/ingestion/engine-c" }
+      { name: "Engine C", path: "/dashboard/ingestion/engine-c" },
+      { name: "Engine D", path: "/dashboard/ingestion/engine-d" }
     ]
   },
 ];

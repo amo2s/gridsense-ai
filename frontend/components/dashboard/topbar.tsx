@@ -10,8 +10,6 @@ import {
   Command,
   ChevronRight,
   CheckCircle2,
-  AlertCircle,
-  Activity,
   LogOut,
   UserCircle
 } from "lucide-react";
@@ -245,7 +243,7 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
             className="hidden md:flex items-center justify-between w-56 max-w-full h-9 px-3 
                        bg-slate-100/50 hover:bg-slate-100/80 transition-colors 
                        border border-slate-200/60 rounded-xl cursor-pointer group shadow-2xs"
-            aria-label="Open command palette"
+            aria-label="Open command palette (⌘K)"
           >
             <div className="flex items-center gap-2">
               <Search className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
@@ -253,8 +251,8 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
                 Search...
               </span>
             </div>
-            <kbd className="text-[10px] font-medium text-slate-500 bg-white border border-slate-200 rounded px-1.5 py-0.5 shadow-sm">
-              ⌘K
+            <kbd className="text-[10px] font-medium text-slate-500 bg-white border border-slate-200 rounded px-1.5 py-0.5 shadow-xs flex items-center">
+              <Command className="h-2.5 w-2.5 mr-0.5" />K
             </kbd>
           </button>
 

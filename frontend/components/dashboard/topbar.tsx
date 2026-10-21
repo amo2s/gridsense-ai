@@ -84,6 +84,8 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
 
   // 3. Health Check Polling (Removed in favor of WebSocket heartbeat)
 
+  const isEngineDRoute = pathname?.includes("/engine-d") ?? false;
+
   // 4. Context-Aware Breadcrumbs Generator
   const generateBreadcrumbs = () => {
     const paths = pathname.split("/").filter((p) => p !== "");
@@ -98,6 +100,8 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
         formattedPath = "Engine B: Outage-Risk Intelligence";
       } else if (path === "engine-c") {
         formattedPath = "Engine C: Anomaly Intelligence";
+      } else if (path === "engine-d") {
+        formattedPath = "Engine D: Prioritization & Ranking";
       } else if (index > 0 && paths[index - 1] === "engine-a") {
         // Handle dynamic [id] segments gracefully instead of rendering raw UUIDs
         formattedPath = `Area Details: ${path.substring(0, 6).toUpperCase()}`;
@@ -117,6 +121,12 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   // Dynamic Layout Page Title Resolution
   const getDynamicPageTitle = () => {
     if (pageTitle) return pageTitle;
+    if (pathname === "/dashboard/engine-d" || pathname.startsWith("/dashboard/engine-d")) {
+      return "Engine D: Prioritization & Ranking";
+    }
+    if (pathname.includes("/dashboard/ingestion/engine-d")) {
+      return "Engine D: Batch Staging & Prioritization";
+    }
     if (pathname === "/dashboard/engine-c" || pathname.startsWith("/dashboard/engine-c")) {
       return "Engine C: Anomaly Intelligence";
     }
@@ -161,6 +171,11 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
             {/* Dynamic Grid Asset Status Badge from Zustand Store */}
             {!isHydrated || !activeFeeder ? (
               <div className="ml-2 h-7 w-40 animate-pulse bg-white/10 rounded border border-white/10" />
+            ) : isEngineDRoute ? (
+              <div className="ml-2 px-3 py-1 text-xs bg-slate-100/70 backdrop-blur-md rounded-full border border-slate-200/80 text-slate-700 font-medium flex items-center gap-1.5 shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
+                <span className="font-semibold text-slate-700">Multiple Feeders (Engine D Batch View)</span>
+              </div>
             ) : (
               <div className="ml-2 px-3 py-1 text-xs bg-white/60 backdrop-blur-md rounded-full border border-white/80 text-emerald-900 font-medium flex items-center gap-1.5 shadow-xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />

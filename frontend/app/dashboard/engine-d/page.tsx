@@ -30,6 +30,7 @@ export default function EngineDDashboardPage() {
   const activeAreaId = useEngineDStore((state) => state.activeAreaId);
   const setActiveAreaId = useEngineDStore((state) => state.setActiveAreaId);
   const activeFeederId = useEngineDStore((state) => state.activeFeederId);
+  const selectedFeeders = useEngineDStore((state) => state.selectedFeeders);
 
   // Phase 3: Query & Resilient Circuit Breaker
   const {
@@ -113,22 +114,53 @@ export default function EngineDDashboardPage() {
           <Link href="/dashboard/ingestion/engine-d">
             <Button size="sm" variant="outline" className="border-slate-300 text-slate-700">
               <Plus className="w-3.5 h-3.5 mr-1" />
-              <span>Stage Telemetry</span>
+              <span>Candidate Staging</span>
             </Button>
           </Link>
 
           <Button
             size="sm"
             variant="default"
-            disabled={isFetching || isCircuitBreakerOpen}
+            disabled={isFetching || isCircuitBreakerOpen || selectedFeeders.length < 2}
             onClick={() => refetch()}
-            className="bg-emerald-700 hover:bg-emerald-800 text-white"
+            className="bg-emerald-700 hover:bg-emerald-800 text-white disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isFetching ? "animate-spin" : ""}`} />
             <span>Re-Rank Area</span>
           </Button>
         </div>
       </header>
+
+      {/* Insufficient Assets Staging Notice */}
+      <AnimatePresence>
+        {selectedFeeders.length < 2 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 backdrop-blur-md shadow-sm"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-xs text-amber-900">
+                  Batch Staging Required (Multi-Feeder Paradigm)
+                </p>
+                <p className="text-xs text-amber-800/90 mt-0.5 leading-relaxed">
+                  Engine D performs comparative learning-to-rank optimization across multi-feeder candidate pools. 
+                  Currently {selectedFeeders.length} feeder{selectedFeeders.length === 1 ? "" : "s"} staged. At least 2 candidate feeders are required to execute ranking.
+                </p>
+              </div>
+            </div>
+            <Link href="/dashboard/ingestion/engine-d" className="shrink-0">
+              <Button size="sm" className="bg-amber-700 hover:bg-amber-800 text-white text-xs">
+                <span>Select Candidate Feeders</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+              </Button>
+            </Link>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Circuit Breaker Alert Banner: Explicit HTTP 503 Degradation State */}
       <AnimatePresence>

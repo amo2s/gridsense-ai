@@ -38,6 +38,7 @@ export interface UseEngineDQueryResult {
 export function useEngineDQuery(): UseEngineDQueryResult {
   const queryClient = useQueryClient();
   const activeAreaId = useEngineDStore((state) => state.activeAreaId);
+  const selectedFeeders = useEngineDStore((state) => state.selectedFeeders);
 
   // Circuit Breaker State
   const consecutiveFailuresRef = useRef<number>(0);
@@ -90,10 +91,14 @@ export function useEngineDQuery(): UseEngineDQueryResult {
   }, []);
 
   const query = useQuery({
-    queryKey: [ENGINE_D_QUERY_KEY, activeAreaId],
+    queryKey: [ENGINE_D_QUERY_KEY, activeAreaId, selectedFeeders],
     queryFn: async ({ signal }) => {
       if (!activeAreaId) {
         throw new Error("Missing activeAreaId: Select an operational grid area to execute ranking.");
+      }
+
+      if (selectedFeeders.length < 2) {
+        throw new Error("Insufficient assets: At least 2 candidate feeders are required for listwise ranking.");
       }
 
       if (isCircuitBreakerOpen) {
@@ -110,6 +115,10 @@ export function useEngineDQuery(): UseEngineDQueryResult {
             headers: {
               "Content-Type": "application/json",
             },
+            body: JSON.stringify({
+              query_id: activeAreaId,
+              selected_feeders: selectedFeeders,
+            }),
             signal,
           }
         );
@@ -141,7 +150,8 @@ export function useEngineDQuery(): UseEngineDQueryResult {
         throw err;
       }
     },
-    enabled: Boolean(activeAreaId) && !isCircuitBreakerOpen,
+    // Strictly gate execution: never fire to the Gateway if fewer than 2 feeders are staged
+    enabled: Boolean(activeAreaId) && selectedFeeders.length >= 2 && !isCircuitBreakerOpen,
     staleTime: 20_000, // 20s fresh
     refetchOnWindowFocus: false,
     retry: (failureCount, error: any) => {

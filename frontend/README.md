@@ -580,6 +580,25 @@ This creates a more complete picture of grid conditions.
 
 ---
 
+# Architectural Paradigm Shift: Single vs. Multi-Feeder Context
+
+GridSense AI operates across two fundamentally distinct operational paradigms:
+
+### The Architectural Friction Point
+1. **Single-Feeder Paradigm (Engines A, B, C):**
+   - **Scope:** Evaluates single asset conditions (e.g., *"What is the health, outage probability, or anomaly risk for Feeder X?"*).
+   - **State Binding:** Global Topbar and Sidebar Feeder Selector bind to one active asset (`activeFeederId`).
+2. **Multi-Feeder Batch Paradigm (Engine D: Prioritization & Ranking):**
+   - **Scope:** Evaluates comparative ranking across candidate feeder fleets (e.g., *"Out of these 10 candidate feeders, which one should we dispatch crews to first?"*).
+   - **State Binding:** Operates on an area batch scope (`activeAreaId`, `selectedFeeders`), processing comparative listwise ONNX models.
+
+### Resolution Architecture
+- **Global Read-Only Mode (Option B):** On all `/engine-d` routes, the global single-feeder dropdown is locked and visually grayed out (`disabled={true}`), displaying `"Multiple Feeders (Engine D Batch View)"` to eliminate UX ambiguity without unmounting the layout component.
+- **Batch Candidate Staging Pipeline:** Stripped out client-side synthetic mock generation in favor of a 3-step candidate staging workflow in `/dashboard/ingestion/engine-d`: Area Selection (Step A) -> Candidate Checklist from live database (Step B) -> Validation & Submission requiring $\ge 2$ feeders (Step C).
+- **Strict Query Gating:** `useEngineDQuery` is gated with `enabled: Boolean(activeAreaId) && selectedFeeders.length >= 2 && !isCircuitBreakerOpen`, completely preventing premature Go Gateway HTTP 422 (Unprocessable Entity) errors on mount.
+
+---
+
 # Data Visualization
 
 The frontend uses charts to reveal patterns that are difficult to identify from individual numbers.

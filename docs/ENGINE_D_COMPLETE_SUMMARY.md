@@ -99,3 +99,35 @@ npx tsc --noEmit
 Both routes are verified and functional on the local development server:
 * `http://localhost:3000/dashboard/ingestion/engine-d`
 * `http://localhost:3000/dashboard/engine-d`
+
+---
+
+## 5. Architectural Paradigm Shift: Single vs. Multi-Feeder Context
+
+### The Friction Point & Issue Analysis
+A critical architectural friction point emerged between GridSense AI's predictive engines (Engines A, B, and C) and our prescriptive engine (Engine D):
+
+1. **Single-Feeder Paradigm (Engines A, B, C):**
+   * **Domain Focus:** Evaluates the risk, anomaly score, or reliability metrics for an isolated, individual asset (e.g., *"What is the risk for Feeder X?"*).
+   * **State Model:** Bound to `useFeederStore` (`activeFeederId`), locking the global Topbar, Sidebar, and metrics to a single asset.
+2. **Multi-Feeder Batch Paradigm (Engine D):**
+   * **Domain Focus:** Evaluates comparative ranking across candidate feeder fleets (e.g., *"Out of these 10 candidate feeders in this operational zone, which one should we dispatch crews to first?"*).
+   * **State Model:** Bound to `useEngineDStore` (`activeAreaId`, `selectedFeeders`), processing comparative listwise ONNX model matrices.
+
+### Manifested Failure Modes
+* **UX Clash:** When an operator navigated to `/dashboard/engine-d`, the persistent Topbar and Sidebar Feeder Selector continued displaying a single feeder (e.g., *"North Corridor Feeder"*), creating the false impression of single-asset scope while inspecting a multi-feeder prioritization matrix.
+* **Gateway HTTP 422 Rejection:** The Go API Gateway strictly validates that candidate asset count is $\ge 2$ (`ErrInsufficientAssets`). When the original ingestion form mimicked Engine B's single-asset baseline, or when `useEngineDQuery` auto-fired on mount with an unseeded or empty array, the Gateway instantly returned an HTTP 422 (Unprocessable Entity).
+
+### Architectural Resolutions Implemented
+1. **Global Read-Only Mode (Option B):**
+   * Detected Engine D routes via `usePathname()`.
+   * Locked the feeder selector dropdown, overridden displayed text to read `"Multiple Feeders (Engine D Batch View)"`, and applied muted read-only styling with a `LOCKED` badge and `Layers` batch icon without unmounting the component.
+2. **Refactored Ingestion & Candidate Staging Flow:**
+   * Stripped out all mock/synthetic data generators (`generateEngineDFusedBaseline()`).
+   * Redesigned `engine-d-form.tsx` to follow a 3-step pipeline: **Step A** (Area Selection / `activeAreaId`), **Step B** (Candidate Checklist via `useFeeders()`), and **Step C** (Selection & Validation requiring $\ge 2$ feeders before enabling *"Run Prioritization"*).
+   * Synchronized staged assets directly to Zustand `useEngineDStore` and navigated to `/dashboard/engine-d`.
+3. **Strictly Gated TanStack Query Hook:**
+   * Updated `useEngineDQuery` with `enabled: Boolean(activeAreaId) && selectedFeeders.length >= 2 && !isCircuitBreakerOpen`.
+   * Added validation guards in `queryFn` and passed `selected_feeders` in the POST request body.
+   * Completely eliminated premature HTTP 422 gateway rejections on mount.
+

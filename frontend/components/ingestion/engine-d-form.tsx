@@ -1,505 +1,409 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import React, { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
+  Building2, 
+  CheckSquare, 
+  Square, 
+  Play, 
+  Layers, 
+  Search, 
+  AlertTriangle, 
   CheckCircle2, 
-  AlertCircle, 
-  Wand2, 
-  Plus, 
-  Trash2, 
-  ShieldAlert, 
-  Send,
-  Layers,
+  Loader2, 
   Database,
-  Building2,
-  Cpu
+  ArrowRight,
+  ShieldCheck,
+  Check
 } from "lucide-react";
 import { toast } from "sonner";
 import { useEngineDStore, DEFAULT_ENGINE_D_AREA_ID } from "@/store/engine-d-store";
-import {
-  PrioritizationRequestSchema,
-  PrioritizationRequest,
-  PrioritizationResponse,
-} from "@/types/engine-d";
+import { useFeeders } from "@/hooks/use-feeders";
+import { FALLBACK_FEEDERS, FeederOption } from "@/components/dashboard/feeder-selector";
 import { Button } from "@/components/ui/button";
-import { generateEngineDFusedBaseline } from "@/lib/telemetry-generator";
 
-type FormStateFSM = "IDLE" | "SUBMITTING" | "ERROR" | "SUCCESS";
+export const PREDEFINED_GRID_AREAS = [
+  {
+    id: DEFAULT_ENGINE_D_AREA_ID,
+    name: "Central District Sub-Grid",
+    region: "Zone A (Metro Core)",
+    description: "High-density urban distribution grid with redundant ring feeder topology",
+  },
+  {
+    id: "e1f2a3b4-5c6d-7e8f-9a0b-1c2d3e4f5a6b",
+    name: "Northern Industrial Sector",
+    region: "Zone B (Heavy Industry)",
+    description: "Dedicated high-voltage feeder cluster supplying manufacturing corridors",
+  },
+  {
+    id: "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
+    name: "East Grid Substation Hub",
+    region: "Zone C (Commercial)",
+    description: "Commercial and healthcare continuous-power priority distribution zone",
+  },
+  {
+    id: "f5a6b7c8-d9e0-1f2a-3b4c-5d6e7f8a9b0c",
+    name: "South Suburban Network",
+    region: "Zone D (Residential)",
+    description: "Suburban branch feeders prone to weather-induced vegetation contact faults",
+  },
+];
 
 export default function EngineDForm() {
-  const activeAreaId = useEngineDStore((state) => state.activeAreaId);
+  const router = useRouter();
+
+  // Zustand Store Slices
+  const storeActiveAreaId = useEngineDStore((state) => state.activeAreaId);
   const setActiveAreaId = useEngineDStore((state) => state.setActiveAreaId);
-  const selectedFeeders = useEngineDStore((state) => state.selectedFeeders);
+  const storeSelectedFeeders = useEngineDStore((state) => state.selectedFeeders);
   const setSelectedFeeders = useEngineDStore((state) => state.setSelectedFeeders);
 
-  const [status, setStatus] = useState<FormStateFSM>("IDLE");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [rankedResult, setRankedResult] = useState<PrioritizationResponse | null>(null);
+  // Step A: Area Selection State
+  const [selectedAreaId, setSelectedAreaId] = useState<string>(
+    storeActiveAreaId || DEFAULT_ENGINE_D_AREA_ID
+  );
+  const [customAreaInput, setCustomAreaInput] = useState<string>("");
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    setValue,
-    setError,
-    reset,
-    watch,
-    formState: { errors },
-  } = useForm<PrioritizationRequest>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(PrioritizationRequestSchema) as any,
-    defaultValues: {
-      query_id: activeAreaId || DEFAULT_ENGINE_D_AREA_ID,
-      assets: [],
-    },
-  });
+  // Step B & C: Candidate Checklist State
+  const [selectedFeederIds, setSelectedFeederIds] = useState<string[]>(
+    storeSelectedFeeders.length > 0 ? storeSelectedFeeders : []
+  );
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const { fields, replace, append, remove } = useFieldArray({
-    control,
-    name: "assets",
-  });
+  // TanStack Query for live candidate feeders
+  const { data: liveFeeders, isLoading: isLoadingFeeders } = useFeeders();
+  const candidateFeeders: FeederOption[] = liveFeeders && liveFeeders.length > 0
+    ? liveFeeders
+    : FALLBACK_FEEDERS;
 
-  // Keep form query_id synchronized with store activeAreaId
-  useEffect(() => {
-    if (activeAreaId) {
-      setValue("query_id", activeAreaId, { shouldValidate: true });
-    }
-  }, [activeAreaId, setValue]);
-
-  /**
-   * Dual-Step Pipeline: Stages cross-engine fused baseline intelligence
-   * directly into form state via replace().
-   */
-  const handleStageFusedBaseline = () => {
-    const syntheticAssets = generateEngineDFusedBaseline(
-      selectedFeeders.length >= 2 ? selectedFeeders : undefined
+  // Filtered candidate feeders for the search bar
+  const filteredFeeders = useMemo(() => {
+    if (!searchQuery.trim()) return candidateFeeders;
+    const query = searchQuery.toLowerCase();
+    return candidateFeeders.filter(
+      (f) =>
+        f.id.toLowerCase().includes(query) ||
+        f.name.toLowerCase().includes(query) ||
+        f.substation.toLowerCase().includes(query)
     );
-    replace(syntheticAssets);
-    setStatus("IDLE");
-    setErrorMessage(null);
-    toast.success("Cross-engine intelligence baseline staged successfully (3 feeders).");
+  }, [candidateFeeders, searchQuery]);
+
+  // Checklist Selection Handlers
+  const toggleFeeder = (feederId: string) => {
+    const normalized = feederId.trim().toLowerCase();
+    setSelectedFeederIds((prev) =>
+      prev.includes(normalized)
+        ? prev.filter((id) => id !== normalized)
+        : [...prev, normalized]
+    );
   };
 
-  const handleAddFeederRow = () => {
-    const nextIdx = fields.length + 1;
-    const newId = `f47ac10b-58cc-4372-a567-0e02b2c3d4${String(nextIdx).padStart(2, "0")}`;
-    append({
-      feeder_id: newId,
-      reliability_score: 75.0,
-      duration_penalty: 0.15,
-      frequency_penalty: 0.1,
-      risk_score: 30.0,
-      is_anomaly: false,
-      anomaly_confidence: 0.05,
-    });
+  const selectAll = () => {
+    const allIds = candidateFeeders.map((f) => f.id.toLowerCase());
+    setSelectedFeederIds(allIds);
   };
 
-  const onSubmit = async (data: PrioritizationRequest) => {
-    setStatus("SUBMITTING");
-    setErrorMessage(null);
-    setRankedResult(null);
+  const deselectAll = () => {
+    setSelectedFeederIds([]);
+  };
+
+  const selectHighRiskOnly = () => {
+    const highRiskIds = candidateFeeders
+      .filter((f) => f.status === "HIGH_RISK" || f.status === "VULNERABLE")
+      .map((f) => f.id.toLowerCase());
+    setSelectedFeederIds(highRiskIds);
+  };
+
+  // Validation
+  const isValid = selectedFeederIds.length >= 2;
+
+  // Step C Submission: Run Prioritization
+  const handleRunPrioritization = () => {
+    if (!isValid) {
+      toast.error("Selection rejected: Ranking requires at least 2 candidate feeders.");
+      return;
+    }
+
+    setIsSubmitting(true);
 
     try {
-      const targetQueryId = data.query_id || activeAreaId || DEFAULT_ENGINE_D_AREA_ID;
+      const targetAreaId = selectedAreaId.trim() || DEFAULT_ENGINE_D_AREA_ID;
 
-      const payload: PrioritizationRequest = {
-        query_id: targetQueryId,
-        assets: data.assets.map((asset) => ({
-          feeder_id: asset.feeder_id.trim().toLowerCase(),
-          reliability_score: Number(asset.reliability_score),
-          duration_penalty: Number(asset.duration_penalty),
-          frequency_penalty: Number(asset.frequency_penalty),
-          risk_score: Number(asset.risk_score),
-          is_anomaly: Boolean(asset.is_anomaly),
-          anomaly_confidence: Number(asset.anomaly_confidence),
-        })),
-      };
-
-      const response = await fetch(
-        `/api/proxy/v1/priorities/rank?query_id=${encodeURIComponent(targetQueryId)}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        let summaryMsg = `Gateway Rejection (HTTP ${response.status})`;
-
-        if (errorData) {
-          if (Array.isArray(errorData.detail)) {
-            errorData.detail.forEach((issue: { loc?: (string | number)[]; msg?: string }) => {
-              if (issue.loc && Array.isArray(issue.loc)) {
-                const cleanLoc = issue.loc.filter((p) => p !== "body");
-                const pathString = cleanLoc.join(".");
-                setError(pathString as any, {
-                  type: "server",
-                  message: issue.msg || "Invalid asset attribute",
-                });
-              }
-            });
-            summaryMsg = `Validation rejected: ${errorData.detail.map((e: any) => e.msg || "Invalid value").join("; ")}`;
-          } else if (errorData.message || errorData.error) {
-            summaryMsg = errorData.message || errorData.error;
-          }
-        }
-
-        setErrorMessage(summaryMsg);
-        setStatus("ERROR");
-        toast.error(summaryMsg);
-        return;
-      }
-
-      const result: PrioritizationResponse = await response.json();
-      setRankedResult(result);
-      setStatus("SUCCESS");
-
-      // Synchronize successful feeder identifiers to Engine D store
-      setSelectedFeeders(payload.assets.map((a) => a.feeder_id));
-      if (payload.query_id) {
-        setActiveAreaId(payload.query_id);
-      }
+      // Update Zustand isolated store
+      setActiveAreaId(targetAreaId);
+      setSelectedFeeders(selectedFeederIds);
 
       toast.success(
-        `Ranking completed successfully! Evaluated ${result.ranked_assets.length} grid assets.`
+        `Batch staged successfully: ${selectedFeederIds.length} candidate feeders queued for listwise ranking.`
       );
+
+      // Programmatic navigation to Engine D dashboard
+      router.push("/dashboard/engine-d");
     } catch (err: any) {
-      const msg = err?.message || "Failed to dispatch payload to Go Gateway.";
-      setErrorMessage(msg);
-      setStatus("ERROR");
-      toast.error(msg);
+      setIsSubmitting(false);
+      toast.error(err?.message || "Failed to commit candidate feeder staging.");
     }
   };
 
-  const assetsCount = fields.length;
-  const isAssetsValid = assetsCount >= 2;
-
   return (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
-      {/* Area Context Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-2xl bg-white/40 border border-white/60 shadow-sm backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <Building2 className="w-5 h-5 text-emerald-700 shrink-0" />
-          <div>
-            <label htmlFor="engine-d-query-id" className="text-xs font-semibold text-slate-800 uppercase tracking-wider block">
-              Operational Area / Query Identifier (UUID)
-            </label>
-            <p className="text-[11px] text-slate-500">
-              Groups candidate feeder assets into a common geographic and electrical cluster
-            </p>
+    <div className="space-y-8">
+      {/* ========================================================================= */}
+      {/* STEP A: GRID AREA SELECTION */}
+      {/* ========================================================================= */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2.5 pb-2 border-b border-slate-200/60">
+          <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-bold font-mono">
+            A
+          </div>
+          <h2 className="text-base font-semibold text-slate-900 tracking-tight">
+            Select Operational Grid Area (Query Scope)
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {PREDEFINED_GRID_AREAS.map((area) => {
+            const isSelected = selectedAreaId === area.id;
+
+            return (
+              <div
+                key={area.id}
+                onClick={() => {
+                  setSelectedAreaId(area.id);
+                  setCustomAreaInput("");
+                }}
+                className={`p-4 rounded-2xl cursor-pointer transition-all duration-200 border flex flex-col justify-between ${
+                  isSelected
+                    ? "bg-emerald-500/10 border-emerald-500/40 shadow-sm ring-1 ring-emerald-500/30"
+                    : "bg-white/40 hover:bg-white/70 border-white/60 hover:border-slate-200"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Building2 className={`w-4 h-4 ${isSelected ? "text-emerald-700" : "text-slate-400"}`} />
+                    <span className="font-semibold text-xs text-slate-800">{area.name}</span>
+                  </div>
+                  {isSelected && (
+                    <div className="p-0.5 rounded-full bg-emerald-600 text-white shrink-0">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                  {area.description}
+                </p>
+
+                <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100/60 text-[10px] font-mono text-slate-400">
+                  <span>{area.region}</span>
+                  <span className="truncate max-w-[160px]">{area.id}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Custom Area ID Input */}
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/40 border border-white/60">
+          <label htmlFor="custom-area-id" className="text-xs font-medium text-slate-600 shrink-0">
+            Or Specify Area UUID:
+          </label>
+          <input
+            id="custom-area-id"
+            type="text"
+            value={customAreaInput}
+            onChange={(e) => {
+              const val = e.target.value;
+              setCustomAreaInput(val);
+              if (val.trim()) {
+                setSelectedAreaId(val.trim());
+              }
+            }}
+            placeholder="e.g. 7a8b9c0d-1e2f-4a5b-8c9d-0e1f2a3b4c5d"
+            className="flex-1 bg-white/70 border border-slate-200/80 focus:ring-2 focus:ring-emerald-500/40 focus:bg-white rounded-lg px-3 py-1 text-xs text-slate-800 font-mono transition-all"
+          />
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* STEP B: CANDIDATE FEEDER CHECKLIST */}
+      {/* ========================================================================= */}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-slate-200/60">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-bold font-mono">
+              B
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-slate-900 tracking-tight">
+                Candidate Feeders Checklist
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                Select the pool of grid feeders within this area to evaluate under comparative listwise ranking
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Checklist Controls */}
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={selectAll}
+              className="text-xs h-7 px-2.5 text-slate-700 bg-white/50"
+            >
+              Select All
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={selectHighRiskOnly}
+              className="text-xs h-7 px-2.5 text-amber-800 border-amber-200/80 bg-amber-50/50 hover:bg-amber-100/50"
+            >
+              High-Risk Only
+            </Button>
+            {selectedFeederIds.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={deselectAll}
+                className="text-xs h-7 px-2.5 text-slate-500 bg-white/50"
+              >
+                Clear
+              </Button>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 max-w-md w-full">
+        {/* Search bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input
-            id="engine-d-query-id"
             type="text"
-            disabled={status === "SUBMITTING"}
-            {...register("query_id")}
-            onChange={(e) => {
-              setValue("query_id", e.target.value);
-              setActiveAreaId(e.target.value);
-            }}
-            placeholder="e.g. 7a8b9c0d-1e2f-4a5b-8c9d-0e1f2a3b4c5d"
-            className={`w-full bg-white/70 border ${
-              errors.query_id ? "border-rose-400 ring-1 ring-rose-400" : "border-slate-200/80"
-            } focus:ring-2 focus:ring-emerald-500/50 focus:bg-white rounded-xl px-3 py-1.5 text-xs text-slate-800 font-mono transition-all`}
+            placeholder="Search candidate feeders by ID, substation, or name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-white/60 border border-slate-200/80 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:bg-white transition-all shadow-xs"
           />
         </div>
-      </div>
 
-      {errors.query_id && (
-        <p className="text-xs text-rose-500 font-medium px-2">{errors.query_id.message}</p>
-      )}
+        {/* Candidate Checklist Container */}
+        {isLoadingFeeders ? (
+          <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
+            <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
+            <span className="text-xs">Loading candidate feeders from database...</span>
+          </div>
+        ) : filteredFeeders.length === 0 ? (
+          <div className="py-8 text-center text-xs text-slate-400 bg-white/30 rounded-2xl border border-white/60">
+            No feeders match the search query.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[380px] overflow-y-auto p-1">
+            {filteredFeeders.map((feeder) => {
+              const isChecked = selectedFeederIds.includes(feeder.id.toLowerCase());
 
-      {/* Staging Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200/60">
-        <div>
-          <h3 className="text-base font-semibold text-slate-900">
-            Multi-Asset Telemetry Fusion Matrix
-          </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Stage cross-engine intelligence signals (Reliability, Risk, Anomaly) for listwise ONNX ranking
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            onClick={handleStageFusedBaseline}
-            disabled={status === "SUBMITTING"}
-          >
-            <Wand2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
-            <span>Stage 3-Feeder Baseline</span>
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={handleAddFeederRow}
-            disabled={status === "SUBMITTING"}
-          >
-            <Plus className="w-3.5 h-3.5 mr-1 text-slate-600" />
-            <span>Add Feeder</span>
-          </Button>
-
-          {assetsCount > 0 && (
-            <Button
-              type="button"
-              size="sm"
-              variant="danger"
-              onClick={() => replace([])}
-              disabled={status === "SUBMITTING"}
-            >
-              <Trash2 className="w-3.5 h-3.5 mr-1" />
-              <span>Clear</span>
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Alert Banner for ERROR */}
-      <AnimatePresence>
-        {status === "ERROR" && errorMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="flex items-start gap-3 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]"
-          >
-            <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-            <div className="flex-1 text-xs">
-              <p className="font-semibold text-rose-800">Ranking Request Rejected</p>
-              <p className="text-rose-700/90 mt-0.5 leading-relaxed">{errorMessage}</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Success Banner for SUCCESS */}
-      <AnimatePresence>
-        {status === "SUCCESS" && rankedResult && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]"
-          >
-            <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5 animate-pulse" />
-            <div className="flex-1 text-xs">
-              <p className="font-semibold text-emerald-900">
-                Prioritization Ingestion &amp; Execution Complete
-              </p>
-              <p className="text-emerald-800 mt-0.5">
-                Evaluated {rankedResult.ranked_assets.length} feeders under model version {rankedResult.model_version}.
-                Rankings persisted to PostgreSQL.
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Asset Count Badge */}
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2 text-xs">
-          <span className="font-medium text-slate-600">Batch Asset Depth:</span>
-          <span
-            className={`font-semibold px-2.5 py-0.5 rounded-md ${
-              isAssetsValid
-                ? "bg-emerald-500/15 text-emerald-800 border border-emerald-500/30"
-                : "bg-amber-500/15 text-amber-800 border border-amber-500/30"
-            }`}
-          >
-            {assetsCount} Assets {isAssetsValid ? "(Ready for listwise ranking)" : "(Requires >= 2 feeders)"}
-          </span>
-        </div>
-
-        {errors.assets?.message && (
-          <p className="text-xs text-rose-500 font-medium">{errors.assets.message}</p>
-        )}
-      </div>
-
-      {/* Table Container */}
-      {assetsCount === 0 ? (
-        <div className="p-10 text-center rounded-2xl bg-white/30 border border-white/60 backdrop-blur-sm">
-          <Layers className="w-10 h-10 text-slate-400 mx-auto mb-3 opacity-60" />
-          <p className="text-sm font-medium text-slate-700">No candidate feeders staged</p>
-          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            Click &ldquo;Stage 3-Feeder Baseline&rdquo; to populate multi-engine operational telemetry, or manually add feeder rows.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-2xl border border-white/60 bg-white/20 backdrop-blur-md max-h-[500px] overflow-y-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 bg-white/85 backdrop-blur-md border-b border-white/60 text-slate-700 z-10 shadow-sm">
-              <tr>
-                <th className="py-2.5 px-3 font-semibold w-10 text-center">#</th>
-                <th className="py-2.5 px-3 font-semibold">Feeder Identifier</th>
-                <th className="py-2.5 px-3 font-semibold w-28">Reliability (A)</th>
-                <th className="py-2.5 px-3 font-semibold w-24">Dur. Pen (A)</th>
-                <th className="py-2.5 px-3 font-semibold w-24">Freq. Pen (A)</th>
-                <th className="py-2.5 px-3 font-semibold w-24">Risk (B)</th>
-                <th className="py-2.5 px-3 font-semibold w-20 text-center">Anomaly (C)</th>
-                <th className="py-2.5 px-3 font-semibold w-24">Anom. Conf (C)</th>
-                <th className="py-2.5 px-3 font-semibold w-10 text-center"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/40">
-              {fields.map((field, index) => {
-                const rowErrors = errors.assets?.[index];
-
-                return (
-                  <tr key={field.id} className="hover:bg-white/40 transition-colors duration-150">
-                    {/* Index */}
-                    <td className="py-2 px-3 text-center text-slate-400 font-mono">
-                      {index + 1}
-                    </td>
-
-                    {/* Feeder ID */}
-                    <td className="py-2 px-3">
-                      <input
-                        type="text"
-                        disabled={status === "SUBMITTING"}
-                        {...register(`assets.${index}.feeder_id`)}
-                        className={`w-full bg-white/50 border ${
-                          rowErrors?.feeder_id ? "border-rose-400 ring-1 ring-rose-400" : "border-white/60"
-                        } focus:ring-2 focus:ring-emerald-500/50 focus:bg-white rounded-lg px-2 py-1 text-xs text-slate-800 font-mono transition-all`}
-                      />
-                      {rowErrors?.feeder_id && (
-                        <p className="text-[10px] text-rose-500 mt-0.5">{rowErrors.feeder_id.message}</p>
+              return (
+                <div
+                  key={feeder.id}
+                  onClick={() => toggleFeeder(feeder.id)}
+                  className={`p-3 rounded-xl border cursor-pointer select-none transition-all duration-150 flex items-center justify-between gap-3 ${
+                    isChecked
+                      ? "bg-emerald-500/10 border-emerald-500/40 shadow-xs ring-1 ring-emerald-500/20"
+                      : "bg-white/40 hover:bg-white/70 border-white/70"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <button
+                      type="button"
+                      aria-checked={isChecked}
+                      className="shrink-0 text-emerald-700 focus:outline-none"
+                    >
+                      {isChecked ? (
+                        <CheckSquare className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <Square className="w-4 h-4 text-slate-300 hover:text-slate-400" />
                       )}
-                    </td>
+                    </button>
 
-                    {/* Reliability Score */}
-                    <td className="py-2 px-3">
-                      <input
-                        type="number"
-                        step="0.1"
-                        disabled={status === "SUBMITTING"}
-                        {...register(`assets.${index}.reliability_score`, { valueAsNumber: true })}
-                        className={`w-full bg-white/50 border ${
-                          rowErrors?.reliability_score ? "border-rose-400 ring-1 ring-rose-400" : "border-white/60"
-                        } focus:ring-2 focus:ring-emerald-500/50 focus:bg-white rounded-lg px-2 py-1 text-xs text-slate-800 transition-all`}
-                      />
-                      {rowErrors?.reliability_score && (
-                        <p className="text-[10px] text-rose-500 mt-0.5">{rowErrors.reliability_score.message}</p>
-                      )}
-                    </td>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`font-mono text-xs font-semibold truncate ${
+                            isChecked ? "text-emerald-950 font-bold" : "text-slate-800"
+                          }`}
+                        >
+                          {feeder.id}
+                        </span>
+                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+                          {feeder.voltageClass}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                        {feeder.name} • {feeder.substation}
+                      </p>
+                    </div>
+                  </div>
 
-                    {/* Duration Penalty */}
-                    <td className="py-2 px-3">
-                      <input
-                        type="number"
-                        step="0.01"
-                        disabled={status === "SUBMITTING"}
-                        {...register(`assets.${index}.duration_penalty`, { valueAsNumber: true })}
-                        className={`w-full bg-white/50 border ${
-                          rowErrors?.duration_penalty ? "border-rose-400 ring-1 ring-rose-400" : "border-white/60"
-                        } focus:ring-2 focus:ring-emerald-500/50 focus:bg-white rounded-lg px-2 py-1 text-xs text-slate-800 transition-all`}
-                      />
-                    </td>
+                  <span
+                    className={`text-[9px] font-mono font-semibold px-2 py-0.5 rounded-full shrink-0 border ${
+                      feeder.status === "STABLE"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : feeder.status === "VULNERABLE"
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-rose-50 text-rose-700 border-rose-200"
+                    }`}
+                  >
+                    {feeder.status}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
-                    {/* Frequency Penalty */}
-                    <td className="py-2 px-3">
-                      <input
-                        type="number"
-                        step="0.01"
-                        disabled={status === "SUBMITTING"}
-                        {...register(`assets.${index}.frequency_penalty`, { valueAsNumber: true })}
-                        className={`w-full bg-white/50 border ${
-                          rowErrors?.frequency_penalty ? "border-rose-400 ring-1 ring-rose-400" : "border-white/60"
-                        } focus:ring-2 focus:ring-emerald-500/50 focus:bg-white rounded-lg px-2 py-1 text-xs text-slate-800 transition-all`}
-                      />
-                    </td>
-
-                    {/* Risk Score */}
-                    <td className="py-2 px-3">
-                      <input
-                        type="number"
-                        step="0.1"
-                        disabled={status === "SUBMITTING"}
-                        {...register(`assets.${index}.risk_score`, { valueAsNumber: true })}
-                        className={`w-full bg-white/50 border ${
-                          rowErrors?.risk_score ? "border-rose-400 ring-1 ring-rose-400" : "border-white/60"
-                        } focus:ring-2 focus:ring-emerald-500/50 focus:bg-white rounded-lg px-2 py-1 text-xs text-slate-800 transition-all`}
-                      />
-                    </td>
-
-                    {/* Is Anomaly Checkbox */}
-                    <td className="py-2 px-3 text-center">
-                      <input
-                        type="checkbox"
-                        disabled={status === "SUBMITTING"}
-                        {...register(`assets.${index}.is_anomaly`)}
-                        className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-                      />
-                    </td>
-
-                    {/* Anomaly Confidence */}
-                    <td className="py-2 px-3">
-                      <input
-                        type="number"
-                        step="0.01"
-                        disabled={status === "SUBMITTING"}
-                        {...register(`assets.${index}.anomaly_confidence`, { valueAsNumber: true })}
-                        className={`w-full bg-white/50 border ${
-                          rowErrors?.anomaly_confidence ? "border-rose-400 ring-1 ring-rose-400" : "border-white/60"
-                        } focus:ring-2 focus:ring-emerald-500/50 focus:bg-white rounded-lg px-2 py-1 text-xs text-slate-800 transition-all`}
-                      />
-                    </td>
-
-                    {/* Remove Action */}
-                    <td className="py-2 px-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => remove(index)}
-                        disabled={status === "SUBMITTING"}
-                        className="p-1 text-slate-400 hover:text-rose-500 transition-colors disabled:opacity-30 cursor-pointer"
-                        title="Remove Feeder"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Form Submission Footer */}
-      <div className="pt-2 flex items-center justify-between">
-        <div className="text-xs text-slate-500">
-          {isAssetsValid ? (
-            <span className="text-emerald-700 font-medium">Batch ready for comparative ranking</span>
+      {/* ========================================================================= */}
+      {/* STEP C: VALIDATION & SUBMISSION */}
+      {/* ========================================================================= */}
+      <section className="pt-4 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* Validation Badge */}
+        <div className="flex items-center gap-2.5">
+          {isValid ? (
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 rounded-xl">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                {selectedFeederIds.length} Feeders Selected • Ready for comparative ranking
+              </span>
+            </div>
           ) : (
-            <span className="text-amber-700 font-medium">Minimum 2 candidate feeders required</span>
+            <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 rounded-xl">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                Select at least 2 feeders to perform comparative listwise ranking (Current: {selectedFeederIds.length})
+              </span>
+            </div>
           )}
         </div>
 
+        {/* Action Button */}
         <Button
+          type="button"
           size="default"
-          type="submit"
           variant="default"
-          disabled={status === "SUBMITTING" || !isAssetsValid}
-          isLoading={status === "SUBMITTING"}
+          disabled={!isValid || isSubmitting}
+          isLoading={isSubmitting}
+          onClick={handleRunPrioritization}
+          className="bg-emerald-700 hover:bg-emerald-800 text-white px-6 shadow-sm disabled:opacity-50"
         >
-          <Send className="w-4 h-4 mr-1.5" />
-          <span>Execute Listwise Ranking</span>
+          <Play className="w-4 h-4 mr-1.5 fill-current" />
+          <span>Run Prioritization ({selectedFeederIds.length})</span>
         </Button>
-      </div>
-    </form>
+      </section>
+    </div>
   );
 }

@@ -1,8 +1,8 @@
 import EngineDForm from "@/components/ingestion/engine-d-form";
 
 export const metadata = {
-  title: "Engine D: Telemetry Fusion Ingestion | GridSense AI",
-  description: "Multi-asset operational telemetry fusion staging interface for Engine D Intervention Prioritization.",
+  title: "Engine D: Batch Staging & Prioritization | GridSense AI",
+  description: "Multi-feeder candidate staging and area batch selection interface for Engine D Intervention Prioritization.",
 };
 
 export default function EngineDIngestionPage() {
@@ -12,10 +12,10 @@ export default function EngineDIngestionPage() {
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/50">
         <div>
           <h1 className="text-3xl font-light tracking-tight text-slate-900">
-            Engine D: Telemetry Fusion Ingestion
+            Engine D: Batch Staging & Prioritization
           </h1>
           <p className="text-xs font-semibold tracking-[0.2em] text-slate-500 uppercase mt-1">
-            Multi-Asset Cross-Engine Signal Ingress (Command Pathway)
+            Multi-Feeder Candidate Selection &amp; Staging (Command Pathway)
           </p>
         </div>
       </header>

@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, ChevronDown, Check, Activity, Search, Loader2, Database } from "lucide-react";
+import { Zap, ChevronDown, Check, Activity, Search, Loader2, Database, Layers } from "lucide-react";
 import { useFeederStore, DEFAULT_FEEDER_ID } from "@/store/feeder-store";
 import { useFeeders } from "@/hooks/use-feeders";
 
@@ -62,6 +63,9 @@ interface FeederSelectorProps {
 }
 
 export default function FeederSelector({ isExpanded, className = "" }: FeederSelectorProps) {
+  const pathname = usePathname();
+  const isEngineDRoute = pathname?.includes("/engine-d") ?? false;
+
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -74,6 +78,13 @@ export default function FeederSelector({ isExpanded, className = "" }: FeederSel
 
   const isLive = Boolean(liveFeeders && liveFeeders.length > 0);
   const availableFeeders: FeederOption[] = isLive ? liveFeeders! : FALLBACK_FEEDERS;
+
+  // Automatically dismiss dropdown if navigating to an Engine D route
+  useEffect(() => {
+    if (isEngineDRoute) {
+      setIsOpen(false);
+    }
+  }, [isEngineDRoute]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -133,31 +144,59 @@ export default function FeederSelector({ isExpanded, className = "" }: FeederSel
       {/* Trigger Button */}
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        disabled={isEngineDRoute}
+        onClick={() => {
+          if (!isEngineDRoute) {
+            setIsOpen((prev) => !prev);
+          }
+        }}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        title={`Active Grid Asset: ${activeFeeder.id} (${activeFeeder.name})`}
+        aria-disabled={isEngineDRoute}
+        title={
+          isEngineDRoute
+            ? "Feeder selector locked: Engine D operates on a multi-feeder batch paradigm"
+            : `Active Grid Asset: ${activeFeeder.id} (${activeFeeder.name})`
+        }
         className={`group relative flex items-center transition-all duration-300 rounded-2xl border ${
-          isExpanded
+          isEngineDRoute
+            ? isExpanded
+              ? "w-full p-2.5 bg-slate-100/70 border-slate-200/80 cursor-not-allowed opacity-75 shadow-none"
+              : "w-12 h-12 justify-center mx-auto bg-slate-100/70 border-slate-200/80 cursor-not-allowed opacity-75 shadow-none"
+            : isExpanded
             ? "w-full p-2.5 bg-white/60 hover:bg-white/90 border-white/80 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),_0_2px_8px_rgba(0,0,0,0.02)]"
             : "w-12 h-12 justify-center mx-auto bg-white/60 hover:bg-white/90 border-white/80 shadow-sm"
         }`}
       >
-        {/* Specular edge highlight */}
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+        {/* Specular edge highlight (hidden in read-only mode) */}
+        {!isEngineDRoute && (
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-80" />
+        )}
 
-        {/* Left Icon with Live Status Dot */}
-        <div className="relative shrink-0 flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-white/90 to-emerald-50/60 border border-emerald-100 shadow-[inset_0_1px_0_rgba(255,255,255,1)]">
-          <Zap className="w-4 h-4 text-[#10b981] drop-shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
-          <span
-            className={`absolute -top-1 -right-1 w-2 h-2 rounded-full border border-white ${
-              activeFeeder.status === "STABLE"
-                ? "bg-[#10b981] animate-pulse"
-                : activeFeeder.status === "VULNERABLE"
-                ? "bg-amber-500"
-                : "bg-red-500 animate-ping"
-            }`}
-          />
+        {/* Left Icon with Live Status Dot or Muted Batch Icon */}
+        <div
+          className={`relative shrink-0 flex items-center justify-center w-8 h-8 rounded-xl border ${
+            isEngineDRoute
+              ? "bg-slate-200/60 border-slate-300/80 text-slate-500"
+              : "bg-gradient-to-br from-white/90 to-emerald-50/60 border-emerald-100 shadow-[inset_0_1px_0_rgba(255,255,255,1)]"
+          }`}
+        >
+          {isEngineDRoute ? (
+            <Layers className="w-4 h-4 text-slate-500" />
+          ) : (
+            <>
+              <Zap className="w-4 h-4 text-[#10b981] drop-shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
+              <span
+                className={`absolute -top-1 -right-1 w-2 h-2 rounded-full border border-white ${
+                  activeFeeder.status === "STABLE"
+                    ? "bg-[#10b981] animate-pulse"
+                    : activeFeeder.status === "VULNERABLE"
+                    ? "bg-amber-500"
+                    : "bg-red-500 animate-ping"
+                }`}
+              />
+            </>
+          )}
         </div>
 
         {/* Expanded Content Label */}
@@ -171,23 +210,35 @@ export default function FeederSelector({ isExpanded, className = "" }: FeederSel
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase font-bold tracking-[0.16em] text-slate-400">
-                ACTIVE GRID ASSET
+                {isEngineDRoute ? "BATCH CONTEXT (READ-ONLY)" : "ACTIVE GRID ASSET"}
               </span>
-              <span className="text-[10px] font-mono font-medium text-slate-500">
-                {activeFeeder.voltageClass}
+              <span className="text-[10px] font-mono font-medium text-slate-400">
+                {isEngineDRoute ? "BATCH" : activeFeeder.voltageClass}
               </span>
             </div>
             <div className="flex items-center justify-between mt-0.5">
-              <span className="font-semibold text-xs text-slate-800 truncate font-mono">
-                {activeFeeder.id}
+              <span
+                className={`font-semibold text-xs truncate ${
+                  isEngineDRoute ? "text-slate-600" : "text-slate-800 font-mono"
+                }`}
+              >
+                {isEngineDRoute ? "Multiple Feeders (Engine D Batch View)" : activeFeeder.id}
               </span>
               <div className="flex items-center gap-1">
-                {isLoading && <Loader2 className="w-3 h-3 text-emerald-500 animate-spin" />}
-                <ChevronDown
-                  className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
-                    isOpen ? "rotate-180 text-emerald-600" : ""
-                  }`}
-                />
+                {isEngineDRoute ? (
+                  <span className="text-[9px] font-mono font-semibold text-slate-500 bg-slate-200/80 px-1.5 py-0.5 rounded">
+                    LOCKED
+                  </span>
+                ) : (
+                  <>
+                    {isLoading && <Loader2 className="w-3 h-3 text-emerald-500 animate-spin" />}
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                        isOpen ? "rotate-180 text-emerald-600" : ""
+                      }`}
+                    />
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

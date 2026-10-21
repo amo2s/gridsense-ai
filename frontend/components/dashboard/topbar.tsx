@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   Bell,
-  Command,
   ChevronRight,
   CheckCircle2,
   LogOut,
@@ -236,24 +235,17 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
         {/* ================================================================= */}
         <div className="flex items-center gap-3.5 shrink-0">
 
-          {/* Mock Search Trigger for Command Palette (⌘K) */}
+          {/* Command Palette Trigger Icon Button */}
           <button
             type="button"
             onClick={() => setIsCommandOpen(true)}
-            className="hidden md:flex items-center justify-between w-56 max-w-full h-9 px-3 
-                       bg-slate-100/50 hover:bg-slate-100/80 transition-colors 
-                       border border-slate-200/60 rounded-xl cursor-pointer group shadow-2xs"
-            aria-label="Open command palette (⌘K)"
+            className="flex items-center justify-center h-10 w-10 rounded-xl bg-slate-100/70 hover:bg-slate-100 
+                       text-slate-600 hover:text-slate-900 transition-colors 
+                       border border-slate-200/60 shadow-2xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+            aria-label="Search and command palette (⌘K)"
+            title="Search (⌘K)"
           >
-            <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
-              <span className="text-sm text-slate-400 group-hover:text-slate-600 transition-colors">
-                Search...
-              </span>
-            </div>
-            <kbd className="text-[10px] font-medium text-slate-500 bg-white border border-slate-200 rounded px-1.5 py-0.5 shadow-xs flex items-center">
-              <Command className="h-2.5 w-2.5 mr-0.5" />K
-            </kbd>
+            <Search className="h-5 w-5 text-slate-600 hover:text-slate-900 transition-colors" />
           </button>
 
           {/* System Stable Status Badge */}

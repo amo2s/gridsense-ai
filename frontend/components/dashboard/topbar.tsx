@@ -158,28 +158,28 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
         <div className="flex h-[72px] w-full items-center justify-between gap-4 px-6 sm:px-8 liquid-panel shadow-[0_8px_32px_rgba(0,0,0,0.06)] border border-white/80 bg-white/75 backdrop-blur-xl rounded-2xl">
 
         {/* ================================================================= */}
-        {/* GROUP 1: Brand & Badge Group (Top-Left Alignment) */}
+        {/* Left: Enlarged Logo + Divider + Multiple Feeders Pill */}
         {/* ================================================================= */}
-        <div className="flex items-center gap-3.5 shrink-0">
+        <div className="flex items-center gap-4 shrink-0">
           {/* Logo & Brand Name */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center">
               <Image
                 src="/gridsense-logo.png"
                 alt="GridSense Logo"
-                width={24}
-                height={24}
+                width={32}
+                height={32}
                 className="drop-shadow-xs"
                 style={{ width: "auto", height: "auto" }}
               />
             </div>
-            <span className="whitespace-nowrap text-lg font-bold text-emerald-950 tracking-tight">
+            <span className="whitespace-nowrap text-xl font-bold text-emerald-950 tracking-tight">
               GridSense AI
             </span>
           </div>
 
           {/* Thin Vertical Border Divider */}
-          <div className="h-5 w-[1px] bg-slate-200 shrink-0" />
+          <div className="h-6 w-[1px] bg-slate-200 shrink-0" />
 
           {/* Single-Line Pill Shape Badge (Never Stacked) */}
           {!isHydrated || !activeFeeder ? (
@@ -199,29 +199,20 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
         </div>
 
         {/* ================================================================= */}
-        {/* GROUP 2: Page Context Group (Middle Alignment) */}
+        {/* Center: Page Title + Breadcrumbs (Engine D Active removed) */}
         {/* ================================================================= */}
-        <div className="hidden lg:flex items-center gap-3.5 border-l border-slate-200/80 pl-5 min-w-0">
+        <div className="flex-1 px-4 min-w-0 hidden md:flex items-center">
           <div className="flex flex-col justify-center">
             {/* Page Name */}
             <h1 className="text-lg font-semibold text-slate-900 tracking-tight whitespace-nowrap">
               {getDynamicPageTitle()}
             </h1>
 
-            {/* Breadcrumbs, Active Indicator, and Operator Greeting Inline on Single Row Below */}
+            {/* Breadcrumbs and Operator Greeting Inline on Single Row Below */}
             <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 whitespace-nowrap">
               <div className="flex items-center">
                 {generateBreadcrumbs()}
               </div>
-              {isEngineDRoute && (
-                <>
-                  <span className="text-slate-300">•</span>
-                  <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Engine D Active
-                  </span>
-                </>
-              )}
               <span className="text-slate-300">•</span>
               <span className="text-slate-500 font-medium">
                 {greeting}
@@ -231,21 +222,19 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
         </div>
 
         {/* ================================================================= */}
-        {/* GROUP 3: Control Actions Group (Right Alignment) */}
+        {/* Right: Search Icon Button + Live Telemetry + Bell + Avatar */}
         {/* ================================================================= */}
-        <div className="flex items-center gap-3.5 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
 
-          {/* Command Palette Trigger Icon Button */}
-          <button
+          {/* Minimalist Icon-Only Command Palette Trigger */}
+          <button 
             type="button"
             onClick={() => setIsCommandOpen(true)}
-            className="flex items-center justify-center h-10 w-10 rounded-xl bg-slate-100/70 hover:bg-slate-100 
-                       text-slate-600 hover:text-slate-900 transition-colors 
-                       border border-slate-200/60 shadow-2xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-            aria-label="Search and command palette (⌘K)"
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100/80 rounded-full transition-colors focus:outline-none"
             title="Search (⌘K)"
+            aria-label="Search (⌘K)"
           >
-            <Search className="h-5 w-5 text-slate-600 hover:text-slate-900 transition-colors" />
+            <Search className="w-5 h-5" />
           </button>
 
           {/* System Stable Status Badge */}

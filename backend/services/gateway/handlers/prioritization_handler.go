@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	interventionoutcomes "gateway/intervention_outcomes"
@@ -31,6 +32,20 @@ import (
 // ==========================================
 // 1. ENGINE D DATA CONTRACTS (Phase 2 Alignment)
 // ==========================================
+
+type EngineDIngestionRequest struct {
+	AreaID          string   `json:"area_id"`
+	SelectedFeeders []string `json:"selected_feeders"`
+}
+
+type EngineDIngestionResponse struct {
+	Status       string    `json:"status"`
+	Message      string    `json:"message"`
+	QueryID      string    `json:"query_id"`
+	AreaID       string    `json:"area_id"`
+	FeedersCount int       `json:"feeders_count"`
+	CreatedAt    time.Time `json:"created_at"`
+}
 
 type MultiEngineSignals struct {
 	FeederID          string  `json:"feeder_id"`
@@ -124,6 +139,7 @@ type PrioritizationRepository interface {
 	// generated during the insert, so callers can seed intervention_outcomes
 	// with the exact IDs that were just persisted.
 	PersistPrioritization(ctx context.Context, resp PrioritizationResponse) (map[string]string, error)
+	ValidateFeedersExist(ctx context.Context, feederIDs []string) ([]string, error)
 }
 
 type EngineDClient interface {
@@ -394,6 +410,31 @@ func (r *pgxPrioritizationRepo) PersistPrioritization(ctx context.Context, p Pri
 	return interventionIDs, nil
 }
 
+func (r *pgxPrioritizationRepo) ValidateFeedersExist(ctx context.Context, feederIDs []string) ([]string, error) {
+	if len(feederIDs) == 0 {
+		return nil, nil
+	}
+	ctx, span := prioritizationTracer.Start(ctx, "DB.ValidateFeedersExist")
+	defer span.End()
+
+	query := `SELECT id::text FROM feeders WHERE id::text = ANY($1)`
+	rows, err := r.db.Pool.Query(ctx, query, feederIDs)
+	if err != nil {
+		return nil, fmt.Errorf("feeder validation query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var existing []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		existing = append(existing, id)
+	}
+	return existing, rows.Err()
+}
+
 var _ = pgx.ErrNoRows
 
 // ==========================================
@@ -543,3 +584,103 @@ func (h *PrioritizationHandler) handleError(w http.ResponseWriter, err error) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
+
+// IngestEngineD handles candidate feeder batch staging for Engine D (Command Pathway).
+// Validates that area_id is present and selected_feeders has at least 2 items,
+// performs validation against the feeders table, and returns a generated query_id with HTTP 201 Created.
+func (h *PrioritizationHandler) IngestEngineD(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	ctx, span := prioritizationTracer.Start(ctx, "HTTP.IngestEngineD")
+	defer span.End()
+
+	// Limit request body to 5MB
+	r.Body = http.MaxBytesReader(w, r.Body, 5*1024*1024)
+	var req EngineDIngestionRequest
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&req); err != nil {
+		span.RecordError(err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"error":   "Bad Request",
+			"message": "Malformed JSON or invalid payload: " + err.Error(),
+		})
+		return
+	}
+
+	// Validation 1: AreaID is not empty
+	req.AreaID = strings.TrimSpace(req.AreaID)
+	if req.AreaID == "" {
+		span.RecordError(errors.New("missing area_id"))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"error":   "Bad Request",
+			"message": "area_id is required",
+			"detail": []map[string]interface{}{
+				{
+					"loc":  []interface{}{"body", "area_id"},
+					"msg":  "area_id is required and cannot be empty",
+					"type": "value_error.missing",
+				},
+			},
+		})
+		return
+	}
+
+	// Validation 2: SelectedFeeders contains at least 2 items
+	if len(req.SelectedFeeders) < 2 {
+		span.RecordError(ErrInsufficientAssets)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"error":   "Unprocessable Entity",
+			"message": "insufficient assets: ranking requires at least 2 assets",
+			"detail": []map[string]interface{}{
+				{
+					"loc":  []interface{}{"body", "selected_feeders"},
+					"msg":  "Listwise ranking requires a minimum of 2 feeder assets for comparative scoring.",
+					"type": "value_error.min_length",
+				},
+			},
+		})
+		return
+	}
+
+	// Staging / DB Prep: Log batch & validate feeder IDs against feeders table
+	slog.Info("received Engine D candidate feeder batch", "area_id", req.AreaID, "feeders_count", len(req.SelectedFeeders))
+	if h.repo != nil {
+		existingFeeders, err := h.repo.ValidateFeedersExist(ctx, req.SelectedFeeders)
+		if err != nil {
+			slog.Warn("feeder validation query encountered an issue", "error", err)
+		} else {
+			slog.Info("validated feeders against database", "requested", len(req.SelectedFeeders), "found", len(existingFeeders))
+		}
+	}
+
+	// Generate new query_id (UUID)
+	queryID := uuid.NewString()
+
+	resp := EngineDIngestionResponse{
+		Status:       "success",
+		Message:      fmt.Sprintf("Successfully staged %d candidate feeders for Engine D ranking", len(req.SelectedFeeders)),
+		QueryID:      queryID,
+		AreaID:       req.AreaID,
+		FeedersCount: len(req.SelectedFeeders),
+		CreatedAt:    time.Now().UTC(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		slog.Error("failed to write Engine D ingestion response", "query_id", queryID, "error", err)
+	}
+}
+

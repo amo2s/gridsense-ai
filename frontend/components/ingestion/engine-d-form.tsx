@@ -57,6 +57,7 @@ export default function EngineDForm() {
   // Zustand Store Slices
   const storeActiveAreaId = useEngineDStore((state) => state.activeAreaId);
   const setActiveAreaId = useEngineDStore((state) => state.setActiveAreaId);
+  const setQueryId = useEngineDStore((state) => state.setQueryId);
   const storeSelectedFeeders = useEngineDStore((state) => state.selectedFeeders);
   const setSelectedFeeders = useEngineDStore((state) => state.setSelectedFeeders);
 
@@ -72,6 +73,7 @@ export default function EngineDForm() {
   );
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // TanStack Query for live candidate feeders
   const { data: liveFeeders, isLoading: isLoadingFeeders } = useFeeders();
@@ -120,31 +122,74 @@ export default function EngineDForm() {
   // Validation
   const isValid = selectedFeederIds.length >= 2;
 
-  // Step C Submission: Run Prioritization
-  const handleRunPrioritization = () => {
+  // Step C Submission: Run Prioritization Dispatch
+  const handleRunPrioritization = async () => {
     if (!isValid) {
       toast.error("Selection rejected: Ranking requires at least 2 candidate feeders.");
       return;
     }
 
     setIsSubmitting(true);
+    setErrorMessage(null);
 
     try {
       const targetAreaId = selectedAreaId.trim() || DEFAULT_ENGINE_D_AREA_ID;
 
-      // Update Zustand isolated store
+      // Construct the exact payload: { area_id: activeAreaId, selected_feeders: selectedFeeders }
+      const payload = {
+        area_id: targetAreaId,
+        selected_feeders: selectedFeederIds,
+      };
+
+      // Dispatch the POST request to the Next.js proxy route: /api/proxy/v1/priorities/ingest
+      const response = await fetch("/api/proxy/v1/priorities/ingest", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        let summaryMsg = `Gateway Rejection (HTTP ${response.status})`;
+
+        if (errorData) {
+          // Parse errorData.detail to catch structured validation errors from the Go/Pydantic layer
+          if (Array.isArray(errorData.detail)) {
+            const detailMessages = errorData.detail.map((issue: any) => issue.msg || "Invalid value");
+            summaryMsg = `Validation rejected: ${detailMessages.join("; ")}`;
+          } else if (errorData.message || errorData.error) {
+            summaryMsg = errorData.message || errorData.error;
+          }
+        }
+
+        setErrorMessage(summaryMsg);
+        setIsSubmitting(false);
+        toast.error(summaryMsg);
+        return;
+      }
+
+      // Success State: Upon receiving HTTP 201 success and query_id, save query_id to Zustand
+      const data = await response.json();
+      const returnedQueryId = data.query_id || targetAreaId;
+
       setActiveAreaId(targetAreaId);
+      setQueryId(returnedQueryId);
       setSelectedFeeders(selectedFeederIds);
 
       toast.success(
-        `Batch staged successfully: ${selectedFeederIds.length} candidate feeders queued for listwise ranking.`
+        data.message ||
+          `Batch staged successfully: ${selectedFeederIds.length} candidate feeders queued for listwise ranking.`
       );
 
-      // Programmatic navigation to Engine D dashboard
+      // Route the user to /dashboard/engine-d to view the ranked matrix
       router.push("/dashboard/engine-d");
     } catch (err: any) {
+      const networkMsg = err?.message || "Network transmission to Go Gateway failed.";
+      setErrorMessage(networkMsg);
       setIsSubmitting(false);
-      toast.error(err?.message || "Failed to commit candidate feeder staging.");
+      toast.error(networkMsg);
     }
   };
 
@@ -366,6 +411,17 @@ export default function EngineDForm() {
           </div>
         )}
       </section>
+
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-800 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
+          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-rose-900">Ingestion Staging Trapped</p>
+            <p className="mt-0.5 text-rose-800/90">{errorMessage}</p>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* STEP C: VALIDATION & SUBMISSION */}

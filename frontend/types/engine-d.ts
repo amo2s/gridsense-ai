@@ -116,3 +116,23 @@ export interface LogInterventionPayload {
   notes?: string;
   timestamp: string;
 }
+
+/**
+ * Payload sent to /api/proxy/v1/priorities/ingest
+ */
+export interface EngineDIngestionRequest {
+  area_id: string;
+  selected_feeders: string[];
+}
+
+/**
+ * Standardized response returned from /api/proxy/v1/priorities/ingest
+ */
+export interface EngineDIngestionResponse {
+  status: string;
+  message: string;
+  query_id: string;
+  area_id: string;
+  feeders_count: number;
+  created_at: string;
+}

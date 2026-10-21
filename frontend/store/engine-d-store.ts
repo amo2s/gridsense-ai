@@ -15,6 +15,9 @@ export interface EngineDState {
   /** Currently active grid area/region identifier (UUID) driving the query_id parameter */
   activeAreaId: string | null;
 
+  /** Query ID returned from Engine D batch ingestion endpoint */
+  queryId: string | null;
+
   /** Array of lowercase feeder UUID strings currently staged for batch ranking */
   selectedFeeders: string[];
 
@@ -23,6 +26,9 @@ export interface EngineDState {
 
   /** Set or clear the active grid area identifier */
   setActiveAreaId: (areaId: string | null | undefined) => void;
+
+  /** Set or clear the query ID returned by ingestion */
+  setQueryId: (queryId: string | null | undefined) => void;
 
   /** Bulk set the list of selected feeder identifiers */
   setSelectedFeeders: (feeders: string[]) => void;
@@ -54,12 +60,18 @@ export const useEngineDStore = create<EngineDState>()(
   persist(
     (set) => ({
       activeAreaId: DEFAULT_ENGINE_D_AREA_ID,
+      queryId: DEFAULT_ENGINE_D_AREA_ID,
       selectedFeeders: DEFAULT_ENGINE_D_FEEDERS,
       activeFeederId: DEFAULT_ENGINE_D_FEEDERS[0] ?? null,
 
       setActiveAreaId: (areaId: string | null | undefined) => {
         const normalized = normalizeEngineDId(areaId);
         set({ activeAreaId: normalized });
+      },
+
+      setQueryId: (queryId: string | null | undefined) => {
+        const normalized = normalizeEngineDId(queryId);
+        set({ queryId: normalized });
       },
 
       setSelectedFeeders: (feeders: string[]) => {
@@ -101,6 +113,7 @@ export const useEngineDStore = create<EngineDState>()(
       resetSelection: () => {
         set({
           activeAreaId: null,
+          queryId: null,
           selectedFeeders: [],
           activeFeederId: null,
         });
@@ -120,6 +133,7 @@ export const useEngineDStore = create<EngineDState>()(
       }),
       partialize: (state) => ({
         activeAreaId: state.activeAreaId,
+        queryId: state.queryId,
         selectedFeeders: state.selectedFeeders,
         activeFeederId: state.activeFeederId,
       }),
@@ -129,6 +143,7 @@ export const useEngineDStore = create<EngineDState>()(
           ...currentState,
           ...persisted,
           activeAreaId: normalizeEngineDId(persisted.activeAreaId) ?? currentState.activeAreaId,
+          queryId: normalizeEngineDId(persisted.queryId) ?? currentState.queryId,
           selectedFeeders: Array.isArray(persisted.selectedFeeders)
             ? persisted.selectedFeeders
                 .map((f) => normalizeEngineDId(f))

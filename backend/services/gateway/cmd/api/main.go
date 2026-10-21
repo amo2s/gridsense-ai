@@ -194,6 +194,10 @@ func main() {
 	authProtectedPrioritization := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(prioritizationHandler.RankInterventions))
 	mux.Handle("/api/v1/priorities/rank", enableCORS(authProtectedPrioritization))
 
+	// Engine D prioritization candidate feeder ingestion (Command Pathway)
+	authProtectedPrioritizationIngest := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(prioritizationHandler.IngestEngineD))
+	mux.Handle("/api/v1/priorities/ingest", enableCORS(authProtectedPrioritizationIngest))
+
 	// AI Assistant conversational query, mounted with JWT auth and CORS
 	authProtectedAssistant := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(assistantHandler.HandleQuery))
 	mux.Handle("/api/v1/assistant/query", enableCORS(authProtectedAssistant))

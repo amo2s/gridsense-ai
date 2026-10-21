@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Search, 
-  Bell, 
-  Command, 
+import {
+  Search,
+  Bell,
+  Command,
   ChevronRight,
   CheckCircle2,
   AlertCircle,
@@ -32,7 +32,7 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   const pathname = usePathname();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const bellButtonRef = useRef<HTMLButtonElement>(null);
-  
+
   // Initialize persistent global Server-Sent Events (SSE) notification stream
   useGlobalAlertStream();
 
@@ -40,9 +40,9 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
-  
+
   const wsStatus = useUIStore((state) => state.wsStatus);
-  
+
   // Real-time alerts state from global Zustand alert store (Step 4.2)
   const unreadCriticalCount = useAlertStore((state) => state.unreadCriticalCount);
   const totalUnreadCount = useAlertStore((state) => state.totalUnreadCount);
@@ -64,7 +64,7 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
     let timeGreeting = "Good Morning";
     if (hour >= 12 && hour < 17) timeGreeting = "Good Afternoon";
     else if (hour >= 17) timeGreeting = "Good Evening";
-    
+
     const firstName = name ? name.split(" ")[0] : "Amos";
     setGreeting(`${timeGreeting}, ${firstName}.`);
   }, [name]);
@@ -92,7 +92,7 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
     return paths.map((path, index) => {
       const isLast = index === paths.length - 1;
       let formattedPath = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, " ");
-      
+
       // Dynamic Nomenclature Dictionary
       if (path === "dashboard") formattedPath = "Dashboard";
       else if (path === "engine-a") formattedPath = "Reliability";
@@ -103,7 +103,7 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
       else if (index > 0 && paths[index - 1] === "engine-a") {
         formattedPath = `Area ${path.substring(0, 4).toUpperCase()}`;
       }
-      
+
       return (
         <span key={path} className="inline-flex items-center">
           <span className={isLast ? "text-emerald-800 font-medium" : "text-slate-400"}>
@@ -152,44 +152,44 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   };
 
   return (
-    <header className="w-full pr-4 pl-0 pt-4 pb-1 shrink-0 z-40">
-      <div className="flex h-16 w-full items-center justify-between gap-4 px-6 liquid-panel shadow-[0_8px_32px_rgba(0,0,0,0.06)] border border-white/80 bg-white/75 backdrop-blur-xl rounded-2xl">
-        
+    <header className="w-full pr-3 sm:pr-4 pl-0 pt-4 pb-1 shrink-0 z-40">
+      <div className="flex h-[72px] w-full items-center justify-between gap-4 px-6 sm:px-8 liquid-panel shadow-[0_8px_32px_rgba(0,0,0,0.06)] border border-white/80 bg-white/75 backdrop-blur-xl rounded-2xl">
+
         {/* ================================================================= */}
         {/* GROUP 1: Brand & Badge Group (Top-Left Alignment) */}
         {/* ================================================================= */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-3.5 shrink-0">
           {/* Logo & Brand Name */}
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center">
               <Image
                 src="/gridsense-logo.png"
                 alt="GridSense Logo"
-                width={22}
-                height={22}
+                width={24}
+                height={24}
                 className="drop-shadow-xs"
                 style={{ width: "auto", height: "auto" }}
               />
             </div>
-            <span className="whitespace-nowrap text-base font-bold text-emerald-950 tracking-tight">
+            <span className="whitespace-nowrap text-lg font-bold text-emerald-950 tracking-tight">
               GridSense AI
             </span>
           </div>
 
           {/* Thin Vertical Border Divider */}
-          <div className="h-4 w-[1px] bg-slate-200 shrink-0" />
+          <div className="h-5 w-[1px] bg-slate-200 shrink-0" />
 
           {/* Single-Line Pill Shape Badge (Never Stacked) */}
           {!isHydrated || !activeFeeder ? (
-            <div className="h-7 w-36 animate-pulse bg-slate-100 rounded-full border border-slate-200/50 shrink-0" />
+            <div className="h-8 w-40 animate-pulse bg-slate-100 rounded-full border border-slate-200/50 shrink-0" />
           ) : isEngineDRoute ? (
-            <div className="px-3 py-1 bg-slate-100/80 border border-slate-200/50 rounded-full text-xs text-slate-600 font-medium whitespace-nowrap flex items-center gap-1.5 shrink-0 shadow-2xs">
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 shrink-0" />
+            <div className="px-3.5 py-1.5 bg-slate-100/80 border border-slate-200/50 rounded-full text-[13px] text-slate-700 font-medium whitespace-nowrap flex items-center gap-2 shrink-0 shadow-2xs">
+              <span className="h-2 w-2 rounded-full bg-slate-400 shrink-0" />
               <span>Multiple Feeders (Engine D Batch View)</span>
             </div>
           ) : (
-            <div className="px-3 py-1 bg-white/90 border border-emerald-200/60 rounded-full text-xs text-emerald-900 font-medium whitespace-nowrap flex items-center gap-1.5 shrink-0 shadow-2xs">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <div className="px-3.5 py-1.5 bg-white/90 border border-emerald-200/60 rounded-full text-[13px] text-emerald-900 font-medium whitespace-nowrap flex items-center gap-2 shrink-0 shadow-2xs">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
               <span className="font-semibold">{activeFeeder.name}</span>
               <span className="text-emerald-700/70 font-normal">({activeFeeder.substation})</span>
             </div>
@@ -199,29 +199,29 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
         {/* ================================================================= */}
         {/* GROUP 2: Page Context Group (Middle Alignment) */}
         {/* ================================================================= */}
-        <div className="hidden lg:flex items-center gap-3 border-l border-slate-200/80 pl-4 min-w-0">
+        <div className="hidden lg:flex items-center gap-3.5 border-l border-slate-200/80 pl-5 min-w-0">
           <div className="flex flex-col justify-center">
             {/* Page Name */}
-            <h1 className="text-base font-semibold text-slate-900 tracking-tight whitespace-nowrap">
+            <h1 className="text-lg font-semibold text-slate-900 tracking-tight whitespace-nowrap">
               {getDynamicPageTitle()}
             </h1>
 
             {/* Breadcrumbs, Active Indicator, and Operator Greeting Inline on Single Row Below */}
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5 whitespace-nowrap">
+            <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 whitespace-nowrap">
               <div className="flex items-center">
                 {generateBreadcrumbs()}
               </div>
               {isEngineDRoute && (
                 <>
                   <span className="text-slate-300">•</span>
-                  <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     Engine D Active
                   </span>
                 </>
               )}
               <span className="text-slate-300">•</span>
-              <span className="text-slate-400">
+              <span className="text-slate-500 font-medium">
                 {greeting}
               </span>
             </div>
@@ -232,23 +232,23 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
         {/* GROUP 3: Control Actions Group (Right Alignment) */}
         {/* ================================================================= */}
         <div className="flex items-center gap-3.5 shrink-0">
-          
-          {/* Global Search Input (h-9) */}
+
+          {/* Global Search Input (h-10, wider) */}
           <div className="relative group hidden md:block">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+              <Search className="h-4.5 w-4.5 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
             </div>
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search..."
-              className="w-44 xl:w-56 pl-9 pr-10 h-9 rounded-xl bg-slate-100/80 border border-slate-200/80 
-                         text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 
+              className="w-52 xl:w-64 pl-10 pr-11 h-10 rounded-xl bg-slate-100/80 border border-slate-200/80 
+                         text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 
                          focus:ring-emerald-500/30 focus:bg-white transition-all shadow-2xs"
             />
-            <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-              <span className="flex items-center text-[10px] font-mono font-medium text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200/80">
-                <Command className="h-2.5 w-2.5 mr-0.5" /> K
+            <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+              <span className="flex items-center text-xs font-mono font-medium text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200/80">
+                <Command className="h-3 w-3 mr-0.5" /> K
               </span>
             </div>
           </div>
@@ -256,17 +256,17 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
           {/* System Stable Status Badge */}
           <div className="hidden sm:flex items-center">
             {wsStatus === "Connected" ? (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 shadow-2xs select-none">
-                <span className="relative flex h-2 w-2">
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 shadow-2xs select-none">
+                <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
                 </span>
-                <span className="text-xs font-semibold text-emerald-800">Live Telemetry</span>
+                <span className="text-xs sm:text-[13px] font-semibold text-emerald-800">Live Telemetry</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-full shadow-2xs">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-700">System Stable</span>
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200/80 px-3.5 py-1.5 rounded-full shadow-2xs">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span className="text-xs sm:text-[13px] font-semibold text-emerald-700">System Stable</span>
               </div>
             )}
           </div>
@@ -276,7 +276,7 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
             <button
               ref={bellButtonRef}
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-              className="relative flex items-center justify-center h-9 w-9 rounded-xl hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+              className="relative flex items-center justify-center h-10 w-10 rounded-xl hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
               aria-label={`Grid Alerts (${unreadCriticalCount} critical unread, ${totalUnreadCount} total)`}
               aria-expanded={isNotificationsOpen}
             >
@@ -285,23 +285,22 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
                 animate={
                   unreadCriticalCount > 0
                     ? {
-                        scale: [1, 1.2, 0.95, 1.15, 1],
-                        rotate: [0, -12, 12, -8, 8, 0],
-                        transition: {
-                          duration: 2.2,
-                          repeat: Infinity,
-                          repeatType: "loop",
-                          ease: "easeInOut",
-                        },
-                      }
+                      scale: [1, 1.2, 0.95, 1.15, 1],
+                      rotate: [0, -12, 12, -8, 8, 0],
+                      transition: {
+                        duration: 2.2,
+                        repeat: Infinity,
+                        repeatType: "loop",
+                        ease: "easeInOut",
+                      },
+                    }
                     : { scale: 1, rotate: 0 }
                 }
                 className="flex items-center justify-center"
               >
                 <Bell
-                  className={`h-4.5 w-4.5 transition-colors ${
-                    unreadCriticalCount > 0 ? "text-rose-600" : "text-slate-600"
-                  }`}
+                  className={`h-5 w-5 transition-colors ${unreadCriticalCount > 0 ? "text-rose-600" : "text-slate-600"
+                    }`}
                 />
               </motion.div>
 
@@ -310,9 +309,9 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
                 <motion.span
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-rose-600 border border-white flex items-center justify-center pointer-events-none shadow-xs"
+                  className="absolute -top-1 -right-1 h-4.5 min-w-4.5 px-1.5 rounded-full bg-rose-600 border border-white flex items-center justify-center pointer-events-none shadow-xs"
                 >
-                  <span className="text-[9px] font-bold font-mono text-white leading-none">
+                  <span className="text-[10px] font-bold font-mono text-white leading-none">
                     {unreadCriticalCount > 99 ? "99+" : unreadCriticalCount}
                   </span>
                 </motion.span>
@@ -329,11 +328,11 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
 
           {/* User Profile Avatar "A" */}
           <div className="relative">
-            <button 
+            <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               className="flex items-center justify-center p-0.5 rounded-full hover:ring-2 hover:ring-emerald-500/20 transition-all focus:outline-none"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 shadow-2xs">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-sm font-bold border border-emerald-200 shadow-2xs">
                 {name.charAt(0).toUpperCase()}
               </div>
             </button>
@@ -346,27 +345,27 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="absolute right-0 mt-2 w-56 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl shadow-xl overflow-hidden z-50"
+                  className="absolute right-0 mt-2 w-60 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl shadow-xl overflow-hidden z-50"
                 >
-                  <div className="p-3.5 border-b border-slate-100 bg-slate-50/50">
-                    <p className="text-xs font-semibold text-slate-800 truncate">
+                  <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                    <p className="text-sm font-semibold text-slate-800 truncate">
                       {name}
                     </p>
-                    <p className="text-[10px] text-slate-500 capitalize mt-0.5">
+                    <p className="text-xs text-slate-500 capitalize mt-0.5">
                       {normalizedRole.toLowerCase()}
                     </p>
                   </div>
-                  
-                  <div className="p-1.5">
-                    <button className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-slate-700 hover:bg-slate-100 transition-colors">
-                      <UserCircle className="h-4 w-4 text-slate-500" />
+
+                  <div className="p-2">
+                    <button className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm text-slate-700 hover:bg-slate-100 transition-colors">
+                      <UserCircle className="h-4.5 w-4.5 text-slate-500" />
                       Account Settings
                     </button>
-                    <button 
+                    <button
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors mt-0.5"
+                      className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors mt-0.5"
                     >
-                      <LogOut className="h-4 w-4" />
+                      <LogOut className="h-4.5 w-4.5" />
                       Sign Out
                     </button>
                   </div>

@@ -20,6 +20,7 @@ import { useFeederStore } from "@/store/feeder-store";
 import { useAlertStore } from "@/store/alert-store";
 import { useGlobalAlertStream } from "@/hooks/use-global-alert-stream";
 import AlertDropdown from "@/components/dashboard/alert-dropdown";
+import CommandPalette from "@/components/dashboard/command-palette";
 
 interface TopbarProps {
   email: string;
@@ -30,7 +31,6 @@ interface TopbarProps {
 
 export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   const pathname = usePathname();
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const bellButtonRef = useRef<HTMLButtonElement>(null);
 
   // Initialize persistent global Server-Sent Events (SSE) notification stream
@@ -40,6 +40,7 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isCommandOpen, setIsCommandOpen] = useState(false);
 
   const wsStatus = useUIStore((state) => state.wsStatus);
 
@@ -69,12 +70,15 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
     setGreeting(`${timeGreeting}, ${firstName}.`);
   }, [name]);
 
-  // 2. Global Command Search (Cmd+K / Ctrl+K)
+  // 2. Global Command Palette Keyboard Shortcut (Cmd+K / Ctrl+K / Escape)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        searchInputRef.current?.focus();
+        setIsCommandOpen((prev) => !prev);
+      }
+      if (e.key === "Escape") {
+        setIsCommandOpen(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -152,8 +156,9 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   };
 
   return (
-    <header className="w-full pr-3 sm:pr-4 pl-0 pt-4 pb-1 shrink-0 z-40">
-      <div className="flex h-[72px] w-full items-center justify-between gap-4 px-6 sm:px-8 liquid-panel shadow-[0_8px_32px_rgba(0,0,0,0.06)] border border-white/80 bg-white/75 backdrop-blur-xl rounded-2xl">
+    <>
+      <header className="w-full pr-3 sm:pr-4 pl-0 pt-4 pb-1 shrink-0 z-40">
+        <div className="flex h-[72px] w-full items-center justify-between gap-4 px-6 sm:px-8 liquid-panel shadow-[0_8px_32px_rgba(0,0,0,0.06)] border border-white/80 bg-white/75 backdrop-blur-xl rounded-2xl">
 
         {/* ================================================================= */}
         {/* GROUP 1: Brand & Badge Group (Top-Left Alignment) */}
@@ -233,25 +238,25 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
         {/* ================================================================= */}
         <div className="flex items-center gap-3.5 shrink-0">
 
-          {/* Global Search Input (h-10, wider) */}
-          <div className="relative group hidden md:block">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-              <Search className="h-4.5 w-4.5 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
-            </div>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search..."
-              className="w-52 xl:w-64 pl-10 pr-11 h-10 rounded-xl bg-slate-100/80 border border-slate-200/80 
-                         text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 
-                         focus:ring-emerald-500/30 focus:bg-white transition-all shadow-2xs"
-            />
-            <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
-              <span className="flex items-center text-xs font-mono font-medium text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200/80">
-                <Command className="h-3 w-3 mr-0.5" /> K
+          {/* Mock Search Trigger for Command Palette (⌘K) */}
+          <button
+            type="button"
+            onClick={() => setIsCommandOpen(true)}
+            className="hidden md:flex items-center justify-between w-56 max-w-full h-9 px-3 
+                       bg-slate-100/50 hover:bg-slate-100/80 transition-colors 
+                       border border-slate-200/60 rounded-xl cursor-pointer group shadow-2xs"
+            aria-label="Open command palette"
+          >
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+              <span className="text-sm text-slate-400 group-hover:text-slate-600 transition-colors">
+                Search...
               </span>
             </div>
-          </div>
+            <kbd className="text-[10px] font-medium text-slate-500 bg-white border border-slate-200 rounded px-1.5 py-0.5 shadow-sm">
+              ⌘K
+            </kbd>
+          </button>
 
           {/* System Stable Status Badge */}
           <div className="hidden sm:flex items-center">
@@ -377,5 +382,12 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
         </div>
       </div>
     </header>
+
+    {/* Modern Pro-Tier Command Palette Modal (⌘K) */}
+    <CommandPalette
+      isOpen={isCommandOpen}
+      onClose={() => setIsCommandOpen(false)}
+    />
+  </>
   );
 }

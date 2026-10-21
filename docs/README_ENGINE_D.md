@@ -66,4 +66,91 @@ A fundamental architectural mismatch emerged between GridSense AI's predictive e
 
 ### 4. Verification & Validation Metrics
 * **TypeScript Compilation:** `npx tsc --noEmit` exited with code `0` (Zero errors).
-* **Live Server Status:** `pnpm dev` running cleanly on port `3000`.
+* **Go Backend Compilation:** `go build ./...` exited with code `0` (Zero errors).
+* **Go Test Suite:** `go test -v ./handlers/...` passed with code `0`.
+* **Live Server Status:** `pnpm dev` running cleanly on port `3000` (PID `12284` / Node PID `17860`).
+
+---
+
+### Session Log: Dedicated End-to-End Ingestion Pipeline (Command Pathway)
+* **Subsystem:** Engine D (Intervention Prioritization & Ranking)
+* **Date:** October 21, 2026
+* **Session Start Time:** `02:21:12 PM +01:00`
+* **Session Completion Time:** `02:34:33 PM +01:00`
+* **Commit:** `69cea1f` — `feat(engine-d): implement end-to-end ingestion pipeline`
+* **Status:** Go Gateway Ingest Handler + Next.js Proxy + Frontend Dispatch Form Implemented, Tested, and Pushed to `origin main`.
+
+---
+
+## 5. Live Terminal & Runtime Environment Audit
+
+### 5.1 Active Process & Network State
+* **Command Executed:** `pnpm dev`
+* **Working Directory:** `c:\users\hp\Desktop\gridsense-ai\frontend`
+* **Process Topology:**
+  * **Parent Process (pnpm):** PID `12284`
+  * **Child Runtime (Node.js Next.js Dev Server):** PID `17860`, Working Set `~272 MB`
+* **Network Binding:**
+  * Protocol: `TCP`
+  * Local Address: `[::]:3000` / `127.0.0.1:3000` (State: `LISTEN`)
+  * Active Ingress Connections: Established (`::1:3000`)
+* **Endpoint Probing Results:**
+  * `http://localhost:3000/dashboard/engine-d`: `HTTP/1.1 307 Temporary Redirect` (redirecting unauthenticated requests to `/portal?callbackUrl=...`).
+  * `http://localhost:3000/dashboard/ingestion/engine-d`: `HTTP/1.1 307 Temporary Redirect` (Next.js auth guard active).
+  * `http://localhost:3000/api/proxy/v1/priorities/ingest`: Route mounted and responding to HTTP methods (e.g. `{"error":"Missing Authorization header"}` on unauthenticated test calls).
+
+---
+
+## 6. End-to-End Ingestion Pipeline Architecture (Engine D)
+
+```
+[ Frontend Ingestion Form ]
+       │  (POST { area_id, selected_feeders })
+       ▼
+[ Next.js API Proxy Route ] (/api/proxy/v1/priorities/ingest)
+       │  (Cookie extraction, Bearer token injection, 30s timeout budget)
+       ▼
+[ Go API Gateway Handler ] (/api/v1/priorities/ingest)
+       │  (5MB body limit, AreaID validation, SelectedFeeders >= 2 check, DB check)
+       ▼
+[ Standardized HTTP 201 Response ]
+       │  (Generated UUID query_id, message, feeders_count, created_at)
+       ▼
+[ Frontend Store & Navigation ]
+          (Save query_id in useEngineDStore, router.push("/dashboard/engine-d"))
+```
+
+### Phase 1: Go Backend Gateway Implementation
+1. **DTO Contracts (`prioritization_handler.go`):**
+   * `EngineDIngestionRequest`: `{ area_id: string, selected_feeders: []string }`
+   * `EngineDIngestionResponse`: `{ status: string, message: string, query_id: string, area_id: string, feeders_count: int, created_at: time.Time }`
+2. **Ingestion Handler (`IngestEngineD`):**
+   * Method enforcement: `POST`.
+   * Body cap: `http.MaxBytesReader(w, r.Body, 5*1024*1024)`.
+   * Validation 1: `AreaID` must not be empty (HTTP 400 with Pydantic-compatible structured `detail` array).
+   * Validation 2: `len(SelectedFeeders) >= 2` (HTTP 422 with structured `detail` array).
+   * Database check: Executes `ValidateFeedersExist(ctx, req.SelectedFeeders)` against the PostgreSQL `feeders` table via `pgxPrioritizationRepo`.
+   * Success response: Emits HTTP 201 Created with generated UUID `query_id`.
+3. **Route Mounting (`cmd/api/main.go`):**
+   * Bound `POST /api/v1/priorities/ingest` with `middleware.RequireAuth(cfg.JWTSecret)` and CORS.
+
+### Phase 2: Next.js API Proxy (`route.ts`)
+* **Path:** `frontend/app/api/proxy/v1/priorities/ingest/route.ts`
+* Replicated established gateway reverse-proxy architecture from Engine B (`prediction/ingest`).
+* Extracts `auth_token` or `gridsense_session` from HttpOnly cookies and injects `Authorization: Bearer <token>`.
+* Sets upstream target: `${GATEWAY_URL}/api/v1/priorities/ingest`.
+* Strict 30-second `AbortController` timeout budget (`BACKEND_TIMEOUT_MS = 30_000`).
+* Transparent forwarding of HTTP status codes, error payloads, and diagnostic fallback during local UI development.
+
+### Phase 3: Frontend Ingestion Dispatch (`engine-d-form.tsx`)
+* **Dispatch:** Constructs `{ area_id: targetAreaId, selected_feeders: selectedFeederIds }` and dispatches `fetch("/api/proxy/v1/priorities/ingest", { method: "POST", ... })`.
+* **Pydantic v2 Error Handling:** Parses `errorData.detail` array, mapping structured validation rejections directly to Sonner toasts and an inline trapped error banner.
+* **Success State:** Stores returned `query_id` into Zustand `useEngineDStore.setQueryId(returnedQueryId)` and navigates the operator to `/dashboard/engine-d`.
+
+---
+
+## 7. Verification Summary
+* **Gateway Build:** `go build ./...` in `backend/services/gateway` — **PASS** (Exit Code 0).
+* **Gateway Unit Tests:** `go test -v ./handlers/...` — **PASS** (Exit Code 0).
+* **Frontend TypeScript:** `npx tsc --noEmit` in `frontend` — **PASS** (Exit Code 0).
+* **Git Commit & Push:** Commit `69cea1f` pushed cleanly to `origin/main`.

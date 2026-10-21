@@ -86,7 +86,7 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
 
   const isEngineDRoute = pathname?.includes("/engine-d") ?? false;
 
-  // 4. Context-Aware Breadcrumbs Generator
+  // 4. Context-Aware Breadcrumbs Generator (Compact Inline)
   const generateBreadcrumbs = () => {
     const paths = pathname.split("/").filter((p) => p !== "");
     return paths.map((path, index) => {
@@ -95,49 +95,51 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
       
       // Dynamic Nomenclature Dictionary
       if (path === "engine-a") {
-        formattedPath = "Reliability Intelligence";
+        formattedPath = "Reliability";
       } else if (path === "engine-b") {
-        formattedPath = "Engine B: Outage-Risk Intelligence";
+        formattedPath = "Engine B";
       } else if (path === "engine-c") {
-        formattedPath = "Engine C: Anomaly Intelligence";
+        formattedPath = "Engine C";
       } else if (path === "engine-d") {
-        formattedPath = "Engine D: Prioritization & Ranking";
+        formattedPath = "Engine D";
+      } else if (path === "ingestion") {
+        formattedPath = "Ingest";
       } else if (index > 0 && paths[index - 1] === "engine-a") {
-        // Handle dynamic [id] segments gracefully instead of rendering raw UUIDs
-        formattedPath = `Area Details: ${path.substring(0, 6).toUpperCase()}`;
+        // Dynamic area ID segments
+        formattedPath = `Area ${path.substring(0, 4).toUpperCase()}`;
       }
       
       return (
         <div key={path} className="flex items-center">
-          <span className={`${isLast ? "text-emerald-800 font-semibold" : "text-emerald-600/70"}`}>
+          <span className={`${isLast ? "text-emerald-800 font-medium" : "text-slate-400"}`}>
             {formattedPath}
           </span>
-          {!isLast && <ChevronRight className="h-4 w-4 mx-2 text-emerald-600/40" />}
+          {!isLast && <ChevronRight className="h-3 w-3 mx-1 text-slate-300" />}
         </div>
       );
     });
   };
 
-  // Dynamic Layout Page Title Resolution
+  // Dynamic Layout Page Title Resolution (Compact)
   const getDynamicPageTitle = () => {
     if (pageTitle) return pageTitle;
-    if (pathname === "/dashboard/engine-d" || pathname.startsWith("/dashboard/engine-d")) {
-      return "Engine D: Prioritization & Ranking";
-    }
     if (pathname.includes("/dashboard/ingestion/engine-d")) {
-      return "Engine D: Batch Staging & Prioritization";
+      return "Engine D: Batch Staging";
+    }
+    if (pathname === "/dashboard/engine-d" || pathname.startsWith("/dashboard/engine-d")) {
+      return "Engine D: Prioritization";
+    }
+    if (pathname.includes("/dashboard/ingestion/engine-c")) {
+      return "Engine C: Telemetry Ingest";
     }
     if (pathname === "/dashboard/engine-c" || pathname.startsWith("/dashboard/engine-c")) {
       return "Engine C: Anomaly Intelligence";
     }
-    if (pathname.includes("/dashboard/ingestion/engine-c")) {
-      return "Engine C: Telemetry Ingestion";
+    if (pathname.includes("/dashboard/ingestion/engine-b")) {
+      return "Engine B: Telemetry Ingest";
     }
     if (pathname === "/dashboard/engine-b" || pathname.startsWith("/dashboard/engine-b")) {
       return "Engine B: Outage-Risk Intelligence";
-    }
-    if (pathname.includes("/dashboard/ingestion/engine-b")) {
-      return "Engine B: Telemetry Ingestion";
     }
     if (pathname.includes("/dashboard/engine-a")) {
       return "Engine A: Reliability Intelligence";
@@ -155,98 +157,107 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
   };
 
   return (
-    <header className="sticky top-4 z-40 w-full pr-4 pl-0 md:pr-6 md:pl-2 pt-4 mb-4">
-      <div className="flex items-center justify-between px-6 py-3 bg-white/20 backdrop-blur-2xl bg-gradient-to-br from-white/60 via-white/10 to-white/5 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8),inset-1px_-1px_3px_rgba(255,255,255,0.1)] shadow-[0_16px_40px_-8px_rgba(15,23,42,0.15)] rounded-3xl border border-white/40">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200/50 bg-white/75 backdrop-blur-xl shrink-0">
+      <div className="flex h-14 w-full flex-row items-center justify-between gap-4 px-4 sm:px-6">
         
-        {/* Left side: Branding & Breadcrumbs */}
-        <div className="flex items-center gap-8">
-          {/* Brand Logo/Header */}
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-transparent">
-              <Image src="/gridsense-logo.png" alt="GridSense Logo" width={24} height={24} className="drop-shadow-md" style={{ width: "auto", height: "auto" }} />
+        {/* Left side: Branding, Active Asset Badge, Title & Breadcrumbs */}
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          {/* Brand Logo & Name */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center">
+              <Image
+                src="/gridsense-logo.png"
+                alt="GridSense Logo"
+                width={18}
+                height={18}
+                className="drop-shadow-xs"
+                style={{ width: "auto", height: "auto" }}
+              />
             </div>
-            <span className="whitespace-nowrap text-xl font-bold text-emerald-900 tracking-tight">
+            <span className="whitespace-nowrap text-sm font-bold text-emerald-950 tracking-tight">
               GridSense AI
             </span>
-            {/* Dynamic Grid Asset Status Badge from Zustand Store */}
-            {!isHydrated || !activeFeeder ? (
-              <div className="ml-2 h-7 w-40 animate-pulse bg-white/10 rounded border border-white/10" />
-            ) : isEngineDRoute ? (
-              <div className="ml-2 px-3 py-1 text-xs bg-slate-100/70 backdrop-blur-md rounded-full border border-slate-200/80 text-slate-700 font-medium flex items-center gap-1.5 shadow-xs">
-                <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
-                <span className="font-semibold text-slate-700">Multiple Feeders (Engine D Batch View)</span>
-              </div>
-            ) : (
-              <div className="ml-2 px-3 py-1 text-xs bg-white/60 backdrop-blur-md rounded-full border border-white/80 text-emerald-900 font-medium flex items-center gap-1.5 shadow-xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="font-semibold">{activeFeeder.name}</span>
-                <span className="text-emerald-700/70 font-normal text-[11px]">({activeFeeder.substation})</span>
-              </div>
-            )}
           </div>
 
-          <div className="hidden lg:flex flex-col border-l border-emerald-100 pl-8">
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm font-bold text-emerald-950 tracking-tight">
-                {getDynamicPageTitle()}
-              </h1>
-              <span className="text-xs text-emerald-900/50">
-                • {greeting}
-              </span>
+          {/* Dynamic Grid Asset Status Badge from Zustand Store (Compact text-[10px]) */}
+          {!isHydrated || !activeFeeder ? (
+            <div className="h-6 w-28 animate-pulse bg-slate-100 rounded-full border border-slate-200/60" />
+          ) : isEngineDRoute ? (
+            <div className="px-2.5 py-0.5 text-[10px] bg-slate-100/90 backdrop-blur-md rounded-full border border-slate-200/80 text-slate-700 font-medium flex items-center gap-1.5 shrink-0 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+              <span className="font-semibold text-slate-700">Multiple Feeders (Engine D Batch View)</span>
             </div>
-            <div className="flex items-center text-xs mt-0.5">
+          ) : (
+            <div className="px-2.5 py-0.5 text-[10px] bg-white/90 backdrop-blur-md rounded-full border border-emerald-200/70 text-emerald-900 font-medium flex items-center gap-1.5 shrink-0 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="font-semibold">{activeFeeder.name}</span>
+              <span className="text-emerald-700/70 font-normal">({activeFeeder.substation})</span>
+            </div>
+          )}
+
+          {/* Compact Inline Title, Breadcrumbs & Greeting (Merged into Single Compact Row) */}
+          <div className="hidden lg:flex items-center gap-2 border-l border-slate-200/80 pl-3 min-w-0">
+            <h1 className="text-xs font-semibold text-slate-800 tracking-tight truncate shrink-0">
+              {getDynamicPageTitle()}
+            </h1>
+            <span className="text-slate-300 text-xs shrink-0">•</span>
+            <div className="flex items-center text-[10px] shrink-0">
               {generateBreadcrumbs()}
             </div>
+            <span className="text-slate-300 text-xs shrink-0">•</span>
+            <span className="text-[10px] text-slate-400 truncate shrink-0">
+              {greeting}
+            </span>
           </div>
         </div>
 
-        {/* Right side: Search, Health, Notifications, Profile */}
-        <div className="flex items-center gap-5">
+        {/* Right side: Search, Telemetry Stream, Alerts Notification, User Profile */}
+        <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
           
-          {/* Global Search */}
+          {/* Global Search (Compact h-8) */}
           <div className="relative group hidden md:block">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-emerald-700/50 group-focus-within:text-emerald-600 transition-colors" />
+            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+              <Search className="h-3.5 w-3.5 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
             </div>
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search..."
-              className="w-64 pl-10 pr-12 py-2 rounded-xl bg-white/50 border border-white/60 
-                         text-emerald-900 placeholder-emerald-700/50 focus:outline-none focus:ring-2 
-                         focus:ring-emerald-500/30 focus:bg-white transition-all shadow-inner"
+              className="w-40 xl:w-52 pl-8 pr-9 h-8 rounded-lg bg-slate-100/80 border border-slate-200/80 
+                         text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 
+                         focus:ring-emerald-500/40 focus:bg-white transition-all shadow-2xs"
             />
-            <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-              <span className="flex items-center text-[10px] font-medium text-emerald-700/50 bg-white/60 px-1.5 py-0.5 rounded border border-emerald-700/10">
-                <Command className="h-3 w-3 mr-0.5" /> K
+            <div className="absolute inset-y-0 right-0 pr-1.5 flex items-center pointer-events-none">
+              <span className="flex items-center text-[9px] font-mono text-slate-400 bg-white/80 px-1 py-0.5 rounded border border-slate-200">
+                <Command className="h-2.5 w-2.5 mr-0.5" /> K
               </span>
             </div>
           </div>
 
-          {/* Telemetry Stream Status Badge */}
+          {/* Telemetry Stream Status Badge (Compact) */}
           <div className="hidden sm:flex items-center">
             {wsStatus === "Connected" ? (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-xs select-none">
-                <span className="relative flex h-2.5 w-2.5">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50/90 border border-emerald-200/70 shadow-2xs select-none">
+                <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                <span className="text-xs font-semibold text-emerald-800">Live Telemetry</span>
+                <span className="text-[10px] font-semibold text-emerald-800">Live</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-md shadow-xs">
-                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                <span className="text-xs font-semibold text-emerald-700">System Stable</span>
+              <div className="flex items-center gap-1 bg-emerald-50/80 border border-emerald-200/70 px-2 py-0.5 rounded-full shadow-2xs">
+                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                <span className="text-[10px] font-medium text-emerald-700">Stable</span>
               </div>
             )}
           </div>
 
-          {/* Intelligent Notification Hub (Step 4.2) */}
+          {/* Intelligent Notification Hub (Compact h-8 w-8) */}
           <div className="relative">
             <button
               ref={bellButtonRef}
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-              className="relative p-2 rounded-xl hover:bg-white/50 transition-colors border border-transparent hover:border-white/60 text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+              className="relative flex items-center justify-center h-8 w-8 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
               aria-label={`Grid Alerts (${unreadCriticalCount} critical unread, ${totalUnreadCount} total)`}
               aria-expanded={isNotificationsOpen}
             >
@@ -255,8 +266,8 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
                 animate={
                   unreadCriticalCount > 0
                     ? {
-                        scale: [1, 1.22, 0.94, 1.15, 1],
-                        rotate: [0, -14, 14, -10, 10, 0],
+                        scale: [1, 1.2, 0.95, 1.15, 1],
+                        rotate: [0, -12, 12, -8, 8, 0],
                         transition: {
                           duration: 2.2,
                           repeat: Infinity,
@@ -269,27 +280,27 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
                 className="flex items-center justify-center"
               >
                 <Bell
-                  className={`h-5 w-5 transition-colors ${
-                    unreadCriticalCount > 0 ? "text-rose-600 drop-shadow-sm" : "text-emerald-800"
+                  className={`h-4 w-4 transition-colors ${
+                    unreadCriticalCount > 0 ? "text-rose-600 drop-shadow-xs" : "text-slate-600"
                   }`}
                 />
               </motion.div>
 
-              {/* Dynamic Absolutely Positioned Crimson Notification Badge */}
+              {/* Dynamic Crimson Notification Badge */}
               {unreadCriticalCount > 0 && (
                 <motion.span
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-rose-600 border border-white shadow-[0_0_8px_rgba(225,29,72,0.7)] flex items-center justify-center pointer-events-none"
+                  className="absolute -top-0.5 -right-0.5 h-3.5 min-w-3.5 px-0.5 rounded-full bg-rose-600 border border-white flex items-center justify-center pointer-events-none shadow-xs"
                 >
-                  <span className="text-[9px] font-bold font-mono text-white leading-none">
+                  <span className="text-[8px] font-bold font-mono text-white leading-none">
                     {unreadCriticalCount > 99 ? "99+" : unreadCriticalCount}
                   </span>
                 </motion.span>
               )}
             </button>
 
-            {/* Liquid Glass Dropdown Panel - Live Redis Alerts Stream */}
+            {/* Live Redis Alerts Stream Panel */}
             <AlertDropdown
               isOpen={isNotificationsOpen}
               onClose={() => setIsNotificationsOpen(false)}
@@ -297,46 +308,46 @@ export default function Topbar({ email, role, name, pageTitle }: TopbarProps) {
             />
           </div>
 
-          {/* User Profile Dropdown */}
-          <div className="relative ml-2">
+          {/* User Profile Dropdown (Compact h-7 w-7 Avatar) */}
+          <div className="relative">
             <button 
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="flex items-center gap-2 p-1 pl-2 pr-3 rounded-full hover:bg-white/50 transition-colors border border-transparent hover:border-white/60"
+              className="flex items-center justify-center p-0.5 rounded-full hover:ring-2 hover:ring-emerald-500/20 transition-all focus:outline-none"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold border border-emerald-200">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 shadow-2xs">
                 {name.charAt(0).toUpperCase()}
               </div>
             </button>
 
-            {/* Liquid Glass Dropdown Panel - Profile */}
+            {/* Profile Dropdown Panel */}
             <AnimatePresence>
               {isProfileOpen && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  initial={{ opacity: 0, y: 6, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="absolute right-0 mt-3 w-56 liquid-panel overflow-hidden"
+                  className="absolute right-0 mt-2 w-52 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl shadow-lg overflow-hidden z-50"
                 >
-                  <div className="p-4 border-b border-white/40 bg-white/30">
-                    <p className="text-sm font-semibold text-emerald-900 truncate">
+                  <div className="p-3 border-b border-slate-100 bg-slate-50/50">
+                    <p className="text-xs font-semibold text-slate-800 truncate">
                       {name}
                     </p>
-                    <p className="text-xs text-emerald-700 capitalize mt-0.5">
+                    <p className="text-[10px] text-slate-500 capitalize mt-0.5">
                       {normalizedRole.toLowerCase()}
                     </p>
                   </div>
                   
-                  <div className="p-2 bg-white/20">
-                    <button className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-emerald-800 hover:bg-white/60 transition-colors">
-                      <UserCircle className="h-4 w-4" />
+                  <div className="p-1.5">
+                    <button className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-100 transition-colors">
+                      <UserCircle className="h-3.5 w-3.5" />
                       Account Settings
                     </button>
                     <button 
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors mt-1"
+                      className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors mt-0.5"
                     >
-                      <LogOut className="h-4 w-4" />
+                      <LogOut className="h-3.5 w-3.5" />
                       Sign Out
                     </button>
                   </div>

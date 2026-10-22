@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -25,6 +26,7 @@ import (
 	"gateway/internal/alertstream"
 	"gateway/internal/config"
 	grpcserver "gateway/internal/grpc"
+	"gateway/internal/worker"
 	interventionoutcomes "gateway/intervention_outcomes"
 	"gateway/middleware"
 	pb "gridsense-ai/backend/services/dashboard-bff/proto/gen/gateway/v1/proto"
@@ -290,6 +292,11 @@ func main() {
 	eventConsumer := alertstream.NewConsumer(streamURL, cfg.AlertInternalKey, grpcHandler)
 	go eventConsumer.Run(bgCtx)
 	log.Println("Background event consumer started.")
+
+	// 10b. Initialize and run the Event-Driven Engine D Trigger Worker
+	engineDWorker := worker.NewEngineDTriggerWorker(redisClient, prioritizationRepo, engineDClient, outcomesRepo)
+	go engineDWorker.Run(bgCtx)
+	slog.Info("Event-driven Engine D trigger worker started")
 
 	// 11. Start all servers
 	log.Printf("Starting gRPC server on %s...", grpcAddr)

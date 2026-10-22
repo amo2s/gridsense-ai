@@ -131,6 +131,12 @@ func (f *fakePrioritizationRepo) PersistPrioritization(ctx context.Context, resp
 	f.persisted = append(f.persisted, resp)
 	return f.interventionIDs, f.persistErr
 }
+func (f *fakePrioritizationRepo) ValidateFeedersExist(ctx context.Context, feederIDs []string) ([]string, error) {
+	return feederIDs, nil
+}
+func (f *fakePrioritizationRepo) GetAreaIDByFeederID(ctx context.Context, feederID string) (string, error) {
+	return "test-area-id", nil
+}
 
 type fakeDashboardRepo struct {
 	summaryRes  handlers.DashboardSummary

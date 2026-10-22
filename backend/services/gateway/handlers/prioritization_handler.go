@@ -154,6 +154,7 @@ type PrioritizationRepository interface {
 	// with the exact IDs that were just persisted.
 	PersistPrioritization(ctx context.Context, resp PrioritizationResponse) (map[string]string, error)
 	ValidateFeedersExist(ctx context.Context, feederIDs []string) ([]string, error)
+	GetAreaIDByFeederID(ctx context.Context, feederID string) (string, error)
 }
 
 type EngineDClient interface {
@@ -470,6 +471,26 @@ func (r *pgxPrioritizationRepo) ValidateFeedersExist(ctx context.Context, feeder
 		existing = append(existing, id)
 	}
 	return existing, rows.Err()
+}
+
+func (r *pgxPrioritizationRepo) GetAreaIDByFeederID(ctx context.Context, feederID string) (string, error) {
+	ctx, span := prioritizationTracer.Start(ctx, "DB.GetAreaIDByFeederID")
+	defer span.End()
+
+	queryCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	const query = `SELECT area_id FROM feeders WHERE id = $1;`
+
+	var areaID string
+	err := r.db.Pool.QueryRow(queryCtx, query, feederID).Scan(&areaID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", fmt.Errorf("feeder %s not found: %w", feederID, err)
+		}
+		return "", fmt.Errorf("failed to query area_id for feeder %s: %w", feederID, err)
+	}
+	return areaID, nil
 }
 
 var _ = pgx.ErrNoRows

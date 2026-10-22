@@ -2501,3 +2501,21 @@ License information will be added when the project's distribution and ownership 
 ### From fragmented electricity data to prioritized, explainable action.
 
 **Data → Analysis → Prediction → Risk → Priority → Action**
+
+---
+
+## System Optimization Log: Engine D Microservice Handoff
+**Date/Time:** October 22, 2026 | 1:06 PM (WAT)
+**Lead Engineer:** Nwaka Amos Chika (Sliverboy)
+
+### The Incident
+Following the successful hardening of the GridSense AI PostgreSQL data ingestion pipeline, the Engine D batch prioritization process encountered a critical `404 Not Found` exception during the final network handoff. The Go API Gateway successfully marshaled the telemetry payload but failed to reach the intelligence layer.
+
+### Root Cause Analysis
+The Go Gateway's internal HTTP client was executing a `POST` request to the absolute root `[/]` of the Python AI microservice. The FastAPI Uvicorn server rejected the payload as the root path did not correspond to the Pydantic-validated inference routes.
+
+### The Resolution
+1. Conducted a surface discovery of the FastAPI router to map the exact execution endpoint for Engine D inference.
+2. Refactored the Go API Gateway's network client to dynamically construct a sanitized URL, appending the exact inference URI via `net/url` path joining.
+3. Enforced strict `Content-Type` headers to guarantee seamless serialization between the Go structs and Python Pydantic models. 
+4. The distributed architecture is now fully synced, allowing telemetry to flow seamlessly from the edge UI, through the Go validation gateway, and into the Python AI intelligence engines.

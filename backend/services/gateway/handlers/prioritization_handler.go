@@ -11,7 +11,9 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -101,12 +103,24 @@ type EngineDConfig struct {
 }
 
 func LoadEngineDConfig() EngineDConfig {
-	url := os.Getenv("ENGINE_D_URL")
-	if url == "" {
-		url = "http://localhost:8004/api/v1/priorities/rank"
+	rawURL := os.Getenv("ENGINE_D_URL")
+	if rawURL == "" {
+		rawURL = "http://localhost:8004"
+	}
+	baseURL, err := url.Parse(rawURL)
+	var finalURL string
+	if err == nil && baseURL.Host != "" {
+		if !strings.HasSuffix(baseURL.Path, "/api/v1/priorities/rank") {
+			baseURL.Path = path.Join(baseURL.Path, "/api/v1/priorities/rank")
+		}
+		finalURL = baseURL.String()
+	} else if !strings.HasSuffix(rawURL, "/api/v1/priorities/rank") {
+		finalURL = fmt.Sprintf("%s/api/v1/priorities/rank", strings.TrimSuffix(rawURL, "/"))
+	} else {
+		finalURL = rawURL
 	}
 	token := mustGetEnv("ENGINE_D_INTERNAL_KEY")
-	return EngineDConfig{EngineDURL: url, ServiceToken: token}
+	return EngineDConfig{EngineDURL: finalURL, ServiceToken: token}
 }
 
 var (
@@ -158,8 +172,19 @@ type engineDClientImpl struct {
 }
 
 func NewEngineDClient(cfg EngineDConfig) EngineDClient {
+	targetURL := cfg.EngineDURL
+	baseURL, err := url.Parse(cfg.EngineDURL)
+	if err == nil && baseURL.Host != "" {
+		if !strings.HasSuffix(baseURL.Path, "/api/v1/priorities/rank") {
+			baseURL.Path = path.Join(baseURL.Path, "/api/v1/priorities/rank")
+		}
+		targetURL = baseURL.String()
+	} else if !strings.HasSuffix(targetURL, "/api/v1/priorities/rank") {
+		targetURL = fmt.Sprintf("%s/api/v1/priorities/rank", strings.TrimSuffix(targetURL, "/"))
+	}
+
 	return &engineDClientImpl{
-		url:   cfg.EngineDURL,
+		url:   targetURL,
 		token: cfg.ServiceToken,
 		httpClient: &http.Client{
 			Transport: &http.Transport{
@@ -227,12 +252,24 @@ func (c *engineDClientImpl) doWithRetries(ctx context.Context, payloadBytes []by
 			slog.Warn("retrying Engine D inference", "attempt", attempt+1, "backoff", backoff)
 		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url, bytes.NewReader(payloadBytes))
+		baseURL, err := url.Parse(c.url)
+		targetURL := c.url
+		if err == nil && baseURL.Host != "" {
+			if !strings.HasSuffix(baseURL.Path, "/api/v1/priorities/rank") {
+				baseURL.Path = path.Join(baseURL.Path, "/api/v1/priorities/rank")
+			}
+			targetURL = baseURL.String()
+		} else if !strings.HasSuffix(targetURL, "/api/v1/priorities/rank") {
+			targetURL = fmt.Sprintf("%s/api/v1/priorities/rank", strings.TrimSuffix(targetURL, "/"))
+		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(payloadBytes))
 		if err != nil {
 			return nil, fmt.Errorf("failed to build request: %w", err)
 		}
 
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
 		req.Header.Set("X-Internal-Service-Key", c.token)
 
 		resp, err := c.httpClient.Do(req)

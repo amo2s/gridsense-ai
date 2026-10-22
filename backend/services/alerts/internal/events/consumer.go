@@ -73,7 +73,9 @@ func NewSubscriber(client redis.UniversalClient, logger *zap.Logger, groupName s
 			Client:        client,
 			ConsumerGroup: groupName,
 			Consumer:      consumerID,
-			// Block for 2 seconds waiting for events to minimize idle CPU polling
+			// Block for 2 seconds waiting for events to minimize idle CPU polling.
+			// Set explicitly shorter than Redis ReadTimeout (3s) so the blocking XREADGROUP
+			// yields gracefully before socket timeouts or Upstash's idle TCP kill switch.
 			BlockTime:    2 * time.Second,
 			Unmarshaller: ResilientUnmarshaller{}, // <--- Inject defensive boundary
 		},

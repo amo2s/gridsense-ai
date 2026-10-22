@@ -56,6 +56,25 @@ func main() {
 	if err != nil {
 		logger.Fatal("Invalid Redis URL", zap.Error(err))
 	}
+
+	// Connection pool thresholds
+	redisOptions.PoolSize = 10
+	redisOptions.MinIdleConns = 2
+
+	// Timeouts shorter than Upstash's aggressive TCP kill switch (typically 5 minutes)
+	redisOptions.ConnMaxIdleTime = 3 * time.Minute
+	redisOptions.ConnMaxLifetime = 30 * time.Minute
+
+	// Network timeouts
+	redisOptions.DialTimeout = 5 * time.Second
+	redisOptions.ReadTimeout = 3 * time.Second
+	redisOptions.WriteTimeout = 3 * time.Second
+
+	// Aggressive retry logic for dropped connections
+	redisOptions.MaxRetries = 3
+	redisOptions.MinRetryBackoff = 8 * time.Millisecond
+	redisOptions.MaxRetryBackoff = 512 * time.Millisecond
+
 	redisClient := redis.NewClient(redisOptions)
 	defer redisClient.Close()
 

@@ -53,6 +53,18 @@ func main() {
 		log.Fatalf("Failed to parse Redis URL: %v", err)
 	}
 
+	// Harden connection pool thresholds and timeouts
+	opts.PoolSize = 10
+	opts.MinIdleConns = 2
+	opts.ConnMaxIdleTime = 3 * time.Minute
+	opts.ConnMaxLifetime = 30 * time.Minute
+	opts.DialTimeout = 5 * time.Second
+	opts.ReadTimeout = 3 * time.Second
+	opts.WriteTimeout = 3 * time.Second
+	opts.MaxRetries = 3
+	opts.MinRetryBackoff = 8 * time.Millisecond
+	opts.MaxRetryBackoff = 512 * time.Millisecond
+
 	client := redis.NewClient(opts)
 	ctx := context.Background()
 

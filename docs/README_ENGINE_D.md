@@ -154,3 +154,71 @@ A fundamental architectural mismatch emerged between GridSense AI's predictive e
 * **Gateway Unit Tests:** `go test -v ./handlers/...` — **PASS** (Exit Code 0).
 * **Frontend TypeScript:** `npx tsc --noEmit` in `frontend` — **PASS** (Exit Code 0).
 * **Git Commit & Push:** Commit `69cea1f` pushed cleanly to `origin/main`.
+
+---
+
+### Session Log: Event-Driven Prioritization Pipeline (Engine D Phase 1)
+* **Subsystem:** Engine D (Intervention Prioritization & Ranking) & Go API Gateway
+* **Date:** October 22, 2026
+* **Session Start Time:** `02:38:33 PM +01:00`
+* **Completion Time:** `02:55:00 PM +01:00`
+* **Status:** Redis Stream Consumer Worker implemented, wired to Go Gateway lifecycle, verified with unit tests, compiled cleanly, and pushed to `main` (`1c093e2`).
+
+---
+
+## 8. Event-Driven Architecture (Phase 1 Implementation)
+
+### A. Architectural Context & Problem Statement
+Prior to this phase, Engine D operated strictly as a manual, on-demand query endpoint (`POST /api/v1/priorities/rank`). While Engines A, B, and C continuously stream evaluations and anomalies, an operator had to manually trigger the prioritization process from the UI to generate ranking recommendations. 
+
+The objective of Phase 1 was to transition Engine D to a reactive, event-driven model: **the millisecond Engine C registers a CRITICAL anomaly on any feeder, Engine D must instantly intercept the event, resolve the affected operational area from PostgreSQL, and execute fleet prioritization automatically.**
+
+### B. Summary of File & Logic Changes
+1. **Repository Layer (`backend/services/gateway/handlers/prioritization_handler.go`):**
+   * Added `GetAreaIDByFeederID(ctx context.Context, feederID string) (string, error)` to the `PrioritizationRepository` interface.
+   * Implemented `GetAreaIDByFeederID` on `pgxPrioritizationRepo` executing `SELECT area_id FROM feeders WHERE id = $1;` with a 3-second bounded context and explicit `pgx.ErrNoRows` error handling.
+2. **Background Stream Worker (`backend/services/gateway/internal/worker/engine_d_trigger.go`):**
+   * Defined `EngineDTriggerWorker` struct encapsulating `redisClient`, `prioritizationRepo`, `aiClient`, and `outcomesRepo`.
+   * Constructor `NewEngineDTriggerWorker`: Ensures the Redis Consumer Group `engine-d-workers` exists on stream `gridsense:alerts:stream` with start ID `$` using `XGroupCreateMkStream`, ignoring `BUSYGROUP` errors.
+   * Consumer Loop `Run(ctx context.Context)`: Continuously polls Redis Streams using `XReadGroup` (`Count: 10`, `Block: 2s`, Consumer: `gateway-node-1`).
+   * Event Filtering: Unmarshals Watermill envelopes (`_watermill_message_payload`) and processes only events matching `source == "Engine C"` and `severity == "CRITICAL"`.
+   * Area Resolution & Execution: Resolves `area_id` via `GetAreaIDByFeederID`, executes multi-engine signal fusion and ONNX ranking inference via `ExecutePrioritization`, persists the ranked assets to PostgreSQL `priorities`, and seeds outcome tracking into `intervention_outcomes`.
+   * Acknowledgment: Issues `XAck` upon successful completion or when discarding irrelevant/malformed events to keep the Pending Entries List (PEL) clean.
+3. **Application Startup Wiring (`backend/services/gateway/cmd/api/main.go`):**
+   * Wired `worker.NewEngineDTriggerWorker` with the root `bgCtx` lifecycle so it shuts down gracefully with SIGINT/SIGTERM.
+4. **Unit Tests (`backend/services/gateway/internal/worker/engine_d_trigger_test.go`):**
+   * Implemented unit tests covering successful prioritization execution, asset threshold guards, and JSON stream payload deserialization.
+
+---
+
+## 9. Difficulties, Errors Encountered & Resolutions
+
+During static compilation and unit testing, four specific technical challenges were diagnosed and resolved:
+
+### 1. Watermill Envelope Payload Shape & Feeder ID Resolution
+* **The Problem:** In Engine C (`backend/ai-services/engine_c/core/events.py`), events are published to Redis Streams as a Watermill envelope where the payload dictionary may store `feeder_id` as `"FDR-UNKNOWN"` if the incoming request model lacked a top-level `feeder_id` attribute (since `TelemetryWindowRequest` nests telemetry within a `readings` array).
+* **The Resolution:** In `engine_d_trigger.go`, implemented defensive fallback parsing: if `alert.FeederID` is empty or `"FDR-UNKNOWN"`, the worker inspects `alert.MetricsSnapshot["inference_result"]["feeder_id"]` before rejecting the message. Additionally, non-critical or malformed events are acknowledged immediately via `XAck` to prevent poison pills from blocking the consumer group.
+
+### 2. Method Mismatch on `interventionoutcomes.Repository`
+* **The Error:** 
+  ```
+  internal\worker\engine_d_trigger.go:327:28: w.outcomesRepo.SeedFromPrioritization undefined 
+  (type interventionoutcomes.Repository has no field or method SeedFromPrioritization)
+  ```
+* **Root Cause Analysis:** `SeedFromPrioritization` was an internal helper pattern originally considered, but the actual contract on `interventionoutcomes.Repository` is `SeedOutcomes(ctx context.Context, seeds []InterventionSeed) error`.
+* **The Resolution:** Refactored `ExecutePrioritization` in `engine_d_trigger.go` to iterate over `rankingResult.RankedAssets`, transform SHAP explanations into `interventionoutcomes.ShapAttribution`, map the generated `intervention_id`s into `interventionoutcomes.InterventionSeed` structs, and invoke `SeedOutcomes(ctx, seeds)` directly.
+
+### 3. Test Mock Signature Incompatibilities
+* **The Error:**
+  ```
+  internal\worker\engine_d_trigger_test.go:94:29: undefined: handlers.PrioritizationRankedAsset
+  internal\worker\engine_d_trigger_test.go:119:23: cannot use outcomes as interventionoutcomes.Repository: 
+  missing method RecordAction
+  ```
+* **Root Cause Analysis:** The test fixture initially guessed the struct name `handlers.PrioritizationRankedAsset` (the actual struct is `handlers.RankedAsset`), and `mockOutcomesRepo` omitted `RecordAction`, `RecordOutageCheck`, and `RecordReward` required by `interventionoutcomes.Repository`.
+* **The Resolution:** Updated `engine_d_trigger_test.go` to use `handlers.RankedAsset` and implemented the complete interface signatures on `mockOutcomesRepo`.
+
+### 4. Interface Breakage in Existing gRPC Test Suite
+* **The Problem:** Adding `GetAreaIDByFeederID` to `handlers.PrioritizationRepository` broke compilation for `fakePrioritizationRepo` in `backend/services/gateway/internal/grpc/alert_service_test.go`.
+* **The Resolution:** Added stub implementations for `ValidateFeedersExist` and `GetAreaIDByFeederID` on `fakePrioritizationRepo` in `alert_service_test.go`, restoring full compatibility across all gateway test suites.
+

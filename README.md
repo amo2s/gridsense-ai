@@ -2519,3 +2519,23 @@ The Go Gateway's internal HTTP client was executing a `POST` request to the abso
 2. Refactored the Go API Gateway's network client to dynamically construct a sanitized URL, appending the exact inference URI via `net/url` path joining.
 3. Enforced strict `Content-Type` headers to guarantee seamless serialization between the Go structs and Python Pydantic models. 
 4. The distributed architecture is now fully synced, allowing telemetry to flow seamlessly from the edge UI, through the Go validation gateway, and into the Python AI intelligence engines.
+
+---
+
+## System Optimization Log: Engine D Event-Driven Trigger Pipeline
+**Date/Time:** October 22, 2026 | 2:55 PM (WAT)
+**Lead Engineer:** Nwaka Amos Chika (Sliverboy)
+
+### The Objective
+Upgrade the GridSense AI Prioritization Pipeline (Engine D) from an on-demand, manual-only trigger into an event-driven architecture that automatically intercepts critical feeder anomalies from Engine C and triggers fleet-wide multi-engine intervention rankings in real time.
+
+### Architectural Challenges & Difficulties
+1. **Upstash Redis Stream Ingestion:** Watermill message framing on stream `gridsense:alerts:stream` required resilient envelope deserialization (`_watermill_message_payload`) and consumer group creation idempotency (`XGroupCreateMkStream` with `BUSYGROUP` handling).
+2. **Defensive Feeder Resolution:** Engine C telemetry windows occasionally omit a top-level `feeder_id` in Python payloads; a secondary fallback inspects `metrics_snapshot.inference_result.feeder_id` before querying PostgreSQL for the corresponding `area_id`.
+3. **Repository Interface Synchronization:** Integrating `GetAreaIDByFeederID` across the Go Gateway repository layer and aligning with `interventionoutcomes.Repository.SeedOutcomes` to guarantee reinforcement learning seeds are recorded on every event-driven execution.
+
+### The Resolution
+1. **Area Resolution:** Added and verified `GetAreaIDByFeederID(ctx, feederID)` on `PrioritizationRepository` and `pgxPrioritizationRepo` (`SELECT area_id FROM feeders WHERE id = $1;`).
+2. **Worker Implementation:** Implemented `EngineDTriggerWorker` (`internal/worker/engine_d_trigger.go`) with blocking `XReadGroup` reads, strict `source == "Engine C" && severity == "CRITICAL"` filtering, autonomous prioritization inference, outcome seeding, and `XAck` acknowledgment.
+3. **Gateway Lifecycle Wiring:** Mounted the worker in `cmd/api/main.go` under the daemon background context with graceful shutdown support.
+4. **Validation:** Validated with unit tests (`go test -v ./internal/worker/...` -> PASS) and verified compilation (`go build ./...` -> 0 errors). Committed and pushed to `main` as `1c093e2`.

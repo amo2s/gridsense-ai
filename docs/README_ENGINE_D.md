@@ -222,3 +222,42 @@ During static compilation and unit testing, four specific technical challenges w
 * **The Problem:** Adding `GetAreaIDByFeederID` to `handlers.PrioritizationRepository` broke compilation for `fakePrioritizationRepo` in `backend/services/gateway/internal/grpc/alert_service_test.go`.
 * **The Resolution:** Added stub implementations for `ValidateFeedersExist` and `GetAreaIDByFeederID` on `fakePrioritizationRepo` in `alert_service_test.go`, restoring full compatibility across all gateway test suites.
 
+---
+
+### Session Log: Scheduled Nightly Batch Pipeline (Engine D Phase 2)
+* **Subsystem:** Engine D (Intervention Prioritization & Ranking) & Go API Gateway
+* **Date:** October 22, 2026
+* **Session Start Time:** `03:00:15 PM +01:00`
+* **Completion Time:** `03:08:00 PM +01:00`
+* **Status:** Go-native cron scheduler (`github.com/robfig/cron/v3`) implemented, rate-limited sequential area execution verified, integrated with gateway graceful shutdown, unit tested, and compiled cleanly.
+
+---
+
+## 10. Scheduled Batch Pipeline (Phase 2 Implementation)
+
+### A. Architectural Context & Objective
+While the event-driven trigger (Phase 1) provides immediate reaction to critical anomalies, grid operators require refreshed baseline priority rankings across the entire power grid before morning dispatch crews deploy. 
+
+Phase 2 deployed an enterprise-standard Go-native cron runner (`robfig/cron/v3`) inside the Go API Gateway scheduled for **02:00 AM UTC daily (`0 2 * * *`)**.
+
+### B. Summary of File & Logic Changes
+1. **Dependency Integration (`go.mod`, `go.sum`):**
+   * Installed `github.com/robfig/cron/v3 v3.0.1`.
+2. **Scheduler Construction (`backend/services/gateway/internal/scheduler/engine_d_batch.go`):**
+   * Struct `EngineDBatchScheduler`: Holds references to `cronRunner`, `areaRepo`, `prioritizationRepo`, `aiClient`, and `outcomesRepo`.
+   * Constructor `NewEngineDBatchScheduler`: Configures `cron.New(cron.WithLocation(time.UTC))`.
+   * Lifecycle Methods:
+     * `Start(ctx context.Context)`: Registers cron job `"0 2 * * *"` and starts the runner.
+     * `Stop(ctx context.Context)`: Gracefully stops the cron runner, waiting for active jobs to finish or until context expires.
+   * Batch Execution (`ExecuteNightlyBatch`):
+     * Bounds run with a detached 15-minute background context (`context.WithTimeout(context.Background(), 15*time.Minute)`).
+     * Retrieves all operational grid areas via `areaRepo.FetchAllAreas(batchCtx)`.
+     * Iterates sequentially over each area, running `ExecutePrioritization` with a 30-second per-area timeout.
+     * Injects a 2-second rate-limiting delay between areas (`time.Sleep(2 * time.Second)`) to prevent overloading the Python FastAPI ONNX runtime.
+     * Handles `ErrInsufficientAssets` gracefully as a skip, logs any transient failures at area level without aborting the batch, and logs final aggregation metrics.
+3. **Application Wiring (`backend/services/gateway/cmd/api/main.go`):**
+   * Wired `engineDBatchScheduler := scheduler.NewEngineDBatchScheduler(...)` and started with `engineDBatchScheduler.Start(bgCtx)`.
+   * Wired `engineDBatchScheduler.Stop(shutdownCtx)` into the graceful shutdown sequence.
+4. **Unit Tests (`backend/services/gateway/internal/scheduler/engine_d_batch_test.go`):**
+   * Verified lifecycle start/stop, multi-area sequential execution, and error resilience when encountering areas with insufficient feeders.
+

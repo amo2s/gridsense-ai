@@ -2539,3 +2539,18 @@ Upgrade the GridSense AI Prioritization Pipeline (Engine D) from an on-demand, m
 2. **Worker Implementation:** Implemented `EngineDTriggerWorker` (`internal/worker/engine_d_trigger.go`) with blocking `XReadGroup` reads, strict `source == "Engine C" && severity == "CRITICAL"` filtering, autonomous prioritization inference, outcome seeding, and `XAck` acknowledgment.
 3. **Gateway Lifecycle Wiring:** Mounted the worker in `cmd/api/main.go` under the daemon background context with graceful shutdown support.
 4. **Validation:** Validated with unit tests (`go test -v ./internal/worker/...` -> PASS) and verified compilation (`go build ./...` -> 0 errors). Committed and pushed to `main` as `1c093e2`.
+
+---
+
+## System Optimization Log: Engine D Scheduled Nightly Batch Pipeline
+**Date/Time:** October 22, 2026 | 3:08 PM (WAT)
+**Lead Engineer:** Nwaka Amos Chika (Sliverboy)
+
+### The Objective
+Deploy a resilient, scheduled nightly batch pipeline using `github.com/robfig/cron/v3` inside the Go API Gateway to recalibrate baseline intervention priorities across all operational grid areas daily at 02:00 AM UTC (`0 2 * * *`).
+
+### The Architecture & Implementation
+1. **Cron Runner (`internal/scheduler/engine_d_batch.go`):** Integrated `cron.New(cron.WithLocation(time.UTC))` with lifecycle management (`Start` / `Stop`).
+2. **Batch Processor (`ExecuteNightlyBatch`):** Iterates through all operational areas retrieved from PostgreSQL (`areaRepo.FetchAllAreas`), sequentially triggers Engine D ONNX inference, persists recommendations, seeds outcomes, and enforces a 2-second rate-limiting delay between areas to protect Python AI microservice resources.
+3. **Graceful Shutdown:** Integrated `engineDBatchScheduler.Stop(shutdownCtx)` into `cmd/api/main.go` to cleanly terminate pending schedules without dropped tasks.
+4. **Validation:** Fully verified with unit tests (`go test -v ./internal/scheduler/...` -> PASS) and static compilation (`go build ./...` -> 0 errors).

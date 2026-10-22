@@ -26,6 +26,7 @@ import (
 	"gateway/internal/alertstream"
 	"gateway/internal/config"
 	grpcserver "gateway/internal/grpc"
+	"gateway/internal/scheduler"
 	"gateway/internal/worker"
 	interventionoutcomes "gateway/intervention_outcomes"
 	"gateway/middleware"
@@ -298,6 +299,10 @@ func main() {
 	go engineDWorker.Run(bgCtx)
 	slog.Info("Event-driven Engine D trigger worker started")
 
+	// 10c. Initialize and run the Nightly Engine D Batch Scheduler
+	engineDBatchScheduler := scheduler.NewEngineDBatchScheduler(areaRepo, prioritizationRepo, engineDClient, outcomesRepo)
+	engineDBatchScheduler.Start(bgCtx)
+
 	// 11. Start all servers
 	log.Printf("Starting gRPC server on %s...", grpcAddr)
 	go func() {
@@ -330,6 +335,8 @@ func main() {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
+
+	engineDBatchScheduler.Stop(shutdownCtx)
 
 	var wg sync.WaitGroup
 	wg.Add(3)

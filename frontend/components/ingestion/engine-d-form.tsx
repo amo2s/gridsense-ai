@@ -4,7 +4,6 @@ import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Building2, 
   CheckSquare, 
   Square, 
   Play, 
@@ -15,57 +14,29 @@ import {
   Loader2, 
   Database,
   ArrowRight,
-  ShieldCheck,
-  Check
+  ShieldCheck
 } from "lucide-react";
 import { toast } from "sonner";
-import { useEngineDStore, DEFAULT_ENGINE_D_AREA_ID } from "@/store/engine-d-store";
+import { useEngineDStore } from "@/store/engine-d-store";
 import { useFeeders } from "@/hooks/use-feeders";
+import { useAreasQuery } from "@/hooks/use-areas";
 import { FALLBACK_FEEDERS, FeederOption } from "@/components/dashboard/feeder-selector";
 import { Button } from "@/components/ui/button";
-
-export const PREDEFINED_GRID_AREAS = [
-  {
-    id: DEFAULT_ENGINE_D_AREA_ID,
-    name: "Central District Sub-Grid",
-    region: "Zone A (Metro Core)",
-    description: "High-density urban distribution grid with redundant ring feeder topology",
-  },
-  {
-    id: "e1f2a3b4-5c6d-7e8f-9a0b-1c2d3e4f5a6b",
-    name: "Northern Industrial Sector",
-    region: "Zone B (Heavy Industry)",
-    description: "Dedicated high-voltage feeder cluster supplying manufacturing corridors",
-  },
-  {
-    id: "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f",
-    name: "East Grid Substation Hub",
-    region: "Zone C (Commercial)",
-    description: "Commercial and healthcare continuous-power priority distribution zone",
-  },
-  {
-    id: "f5a6b7c8-d9e0-1f2a-3b4c-5d6e7f8a9b0c",
-    name: "South Suburban Network",
-    region: "Zone D (Residential)",
-    description: "Suburban branch feeders prone to weather-induced vegetation contact faults",
-  },
-];
 
 export default function EngineDForm() {
   const router = useRouter();
 
   // Zustand Store Slices
-  const storeActiveAreaId = useEngineDStore((state) => state.activeAreaId);
   const setActiveAreaId = useEngineDStore((state) => state.setActiveAreaId);
   const setQueryId = useEngineDStore((state) => state.setQueryId);
   const storeSelectedFeeders = useEngineDStore((state) => state.selectedFeeders);
   const setSelectedFeeders = useEngineDStore((state) => state.setSelectedFeeders);
 
+  // TanStack Query for dynamic operational areas
+  const { data: areas, isLoading, isError } = useAreasQuery();
+
   // Step A: Area Selection State
-  const [selectedAreaId, setSelectedAreaId] = useState<string>(
-    storeActiveAreaId || DEFAULT_ENGINE_D_AREA_ID
-  );
-  const [customAreaInput, setCustomAreaInput] = useState<string>("");
+  const [selectedAreaId, setSelectedAreaId] = useState<string>("");
 
   // Step B & C: Candidate Checklist State
   const [selectedFeederIds, setSelectedFeederIds] = useState<string[]>(
@@ -120,10 +91,15 @@ export default function EngineDForm() {
   };
 
   // Validation
-  const isValid = selectedFeederIds.length >= 2;
+  const isValid = Boolean(selectedAreaId.trim()) && selectedFeederIds.length >= 2;
 
   // Step C Submission: Run Prioritization Dispatch
   const handleRunPrioritization = async () => {
+    if (!selectedAreaId.trim()) {
+      toast.error("Selection rejected: Please select an operational grid area.");
+      return;
+    }
+
     if (!isValid) {
       toast.error("Selection rejected: Ranking requires at least 2 candidate feeders.");
       return;
@@ -133,7 +109,7 @@ export default function EngineDForm() {
     setErrorMessage(null);
 
     try {
-      const targetAreaId = selectedAreaId.trim() || DEFAULT_ENGINE_D_AREA_ID;
+      const targetAreaId = selectedAreaId.trim();
 
       // Construct the exact payload: { area_id: activeAreaId, selected_feeders: selectedFeeders }
       const payload = {
@@ -208,68 +184,51 @@ export default function EngineDForm() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {PREDEFINED_GRID_AREAS.map((area) => {
-            const isSelected = selectedAreaId === area.id;
-
-            return (
-              <div
-                key={area.id}
-                onClick={() => {
-                  setSelectedAreaId(area.id);
-                  setCustomAreaInput("");
-                }}
-                className={`p-4 rounded-2xl cursor-pointer transition-all duration-200 border flex flex-col justify-between ${
-                  isSelected
-                    ? "bg-emerald-500/10 border-emerald-500/40 shadow-sm ring-1 ring-emerald-500/30"
-                    : "bg-white/40 hover:bg-white/70 border-white/60 hover:border-slate-200"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Building2 className={`w-4 h-4 ${isSelected ? "text-emerald-700" : "text-slate-400"}`} />
-                    <span className="font-semibold text-xs text-slate-800">{area.name}</span>
-                  </div>
-                  {isSelected && (
-                    <div className="p-0.5 rounded-full bg-emerald-600 text-white shrink-0">
-                      <Check className="w-3 h-3 stroke-[3]" />
-                    </div>
-                  )}
-                </div>
-
-                <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-                  {area.description}
-                </p>
-
-                <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100/60 text-[10px] font-mono text-slate-400">
-                  <span>{area.region}</span>
-                  <span className="truncate max-w-[160px]">{area.id}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Custom Area ID Input */}
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/40 border border-white/60">
-          <label htmlFor="custom-area-id" className="text-xs font-medium text-slate-600 shrink-0">
-            Or Specify Area UUID:
-          </label>
-          <input
-            id="custom-area-id"
-            type="text"
-            value={customAreaInput}
+        {isLoading ? (
+          <select
+            disabled
+            value=""
+            className="w-full p-3 rounded-xl bg-white/50 border border-slate-200 text-slate-400 text-xs font-medium animate-pulse cursor-not-allowed"
+          >
+            <option value="" disabled>
+              Loading operational areas...
+            </option>
+          </select>
+        ) : isError ? (
+          <select
+            disabled
+            value=""
+            className="w-full p-3 rounded-xl bg-white/50 border border-red-500 text-red-500 text-xs font-medium cursor-not-allowed"
+          >
+            <option value="" disabled>
+              Failed to load areas. Please refresh.
+            </option>
+          </select>
+        ) : (
+          <select
+            id="operational-area-select"
+            value={selectedAreaId}
             onChange={(e) => {
               const val = e.target.value;
-              setCustomAreaInput(val);
-              if (val.trim()) {
-                setSelectedAreaId(val.trim());
-              }
+              setSelectedAreaId(val);
+              setActiveAreaId(val);
+              setQueryId(val);
+              setSelectedFeeders([]);
+              setSelectedFeederIds([]);
             }}
-            placeholder="e.g. 7a8b9c0d-1e2f-4a5b-8c9d-0e1f2a3b4c5d"
-            className="flex-1 bg-white/70 border border-slate-200/80 focus:ring-2 focus:ring-emerald-500/40 focus:bg-white rounded-lg px-3 py-1 text-xs text-slate-800 font-mono transition-all"
-          />
-        </div>
+            className="w-full p-3 rounded-xl bg-white/70 border border-slate-200/80 focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/40 focus:bg-white text-xs font-medium text-slate-800 transition-all cursor-pointer shadow-sm"
+          >
+            <option value="" disabled>
+              Select an Operational Area...
+            </option>
+            {areas &&
+              areas.map((area) => (
+                <option key={area.id} value={area.id}>
+                  {area.name} ({area.state})
+                </option>
+              ))}
+          </select>
+        )}
       </section>
 
       {/* ========================================================================= */}
@@ -429,18 +388,23 @@ export default function EngineDForm() {
       <section className="pt-4 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Validation Badge */}
         <div className="flex items-center gap-2.5">
-          {isValid ? (
-            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 rounded-xl">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>
-                {selectedFeederIds.length} Feeders Selected • Ready for comparative ranking
-              </span>
+          {!selectedAreaId ? (
+            <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 rounded-xl">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Please select an operational grid area</span>
             </div>
-          ) : (
+          ) : !isValid ? (
             <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 rounded-xl">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
               <span>
                 Select at least 2 feeders to perform comparative listwise ranking (Current: {selectedFeederIds.length})
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 rounded-xl">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                {selectedFeederIds.length} Feeders Selected • Ready for comparative ranking
               </span>
             </div>
           )}

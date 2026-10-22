@@ -43,13 +43,6 @@ export interface EngineDState {
   resetSelection: () => void;
 }
 
-export const DEFAULT_ENGINE_D_AREA_ID = "7a8b9c0d-1e2f-4a5b-8c9d-0e1f2a3b4c5d";
-export const DEFAULT_ENGINE_D_FEEDERS = [
-  "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-  "a1b2c3d4-e5f6-4a5b-8c9d-112233445566",
-  "b2c3d4e5-f6a7-4b5c-9d0e-223344556677",
-];
-
 /**
  * Engine D Isolated Zustand Store (Phase 1)
  *
@@ -59,10 +52,10 @@ export const DEFAULT_ENGINE_D_FEEDERS = [
 export const useEngineDStore = create<EngineDState>()(
   persist(
     (set) => ({
-      activeAreaId: DEFAULT_ENGINE_D_AREA_ID,
-      queryId: DEFAULT_ENGINE_D_AREA_ID,
-      selectedFeeders: DEFAULT_ENGINE_D_FEEDERS,
-      activeFeederId: DEFAULT_ENGINE_D_FEEDERS[0] ?? null,
+      activeAreaId: null,
+      queryId: null,
+      selectedFeeders: [],
+      activeFeederId: null,
 
       setActiveAreaId: (areaId: string | null | undefined) => {
         const normalized = normalizeEngineDId(areaId);

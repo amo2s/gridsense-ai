@@ -132,6 +132,10 @@ func main() {
 	// Initialize Grid Asset handler
 	assetHandler := handlers.NewAssetHandler(db)
 
+	// Initialize Operational Area handler
+	areaRepo := handlers.NewSQLAreaRepo(db)
+	areaHandler := handlers.NewAreaHandler(areaRepo)
+
 	// Initialize Engine B summary handler (Phase 2: Query Pathway)
 	summaryHandler := handlers.NewSummaryHandler(db)
 
@@ -164,6 +168,10 @@ func main() {
 
 	authProtectedPriorities := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(dashboardHandler.HandleGetPriorityAreas))
 	mux.Handle("/api/v1/priorities", enableCORS(authProtectedPriorities))
+
+	// Operational Areas read-only route
+	authProtectedAreas := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(areaHandler.HandleGetAreas))
+	mux.Handle("/api/v1/areas", enableCORS(authProtectedAreas))
 
 	// Grid Assets (Feeders) read-only route
 	authProtectedAssets := middleware.RequireAuth(cfg.JWTSecret)(http.HandlerFunc(assetHandler.GetFeeders))

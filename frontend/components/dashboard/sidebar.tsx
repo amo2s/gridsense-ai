@@ -12,7 +12,8 @@ import {
   Layers,
   Database,
   ChevronDown,
-  ShieldAlert
+  ShieldAlert,
+  Bot
 } from "lucide-react";
 import FeederSelector from "@/components/dashboard/feeder-selector";
 
@@ -29,6 +30,7 @@ export const MENU_ITEMS = [
   { name: "Outage Risk (Engine B)", icon: Zap, path: "/dashboard/engine-b", roles: ["ADMIN", "MANAGER", "STAFF"] },
   { name: "Anomaly Detection (Engine C)", icon: Layers, path: "/dashboard/engine-c", roles: ["ADMIN", "MANAGER", "STAFF"] },
   { name: "Priority Ranking (Engine D)", icon: ShieldAlert, path: "/dashboard/engine-d", roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { name: "AI Assistant", icon: Bot, path: "/dashboard/assistant", roles: ["ADMIN", "MANAGER", "STAFF"] },
   { 
     name: "Data Ingestion", 
     icon: Database, 

@@ -16,9 +16,18 @@ import { encryptedAssistantStorage, DEFAULT_SECURE_STORAGE_KEY } from "@/lib/cry
 
 export const MAX_CHAT_HISTORY_TURNS = 20;
 
+export interface Citation {
+  source_table: string;
+  record_id: string;
+  metric_snippet: string;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  citations?: Citation[];
+  isError?: boolean;
+  timestamp?: string;
 }
 
 export interface AssistantState {
@@ -97,6 +106,9 @@ export const useAssistantStore = create<AssistantState>()(
         const sanitizedTurn: ChatMessage = {
           role: incoming.role,
           content: incoming.content.trim(),
+          citations: incoming.citations,
+          isError: incoming.isError,
+          timestamp: incoming.timestamp || new Date().toISOString(),
         };
 
         const updatedHistory = enforceSlidingWindow([...currentHistory, sanitizedTurn]);
@@ -111,6 +123,9 @@ export const useAssistantStore = create<AssistantState>()(
         const sanitizedHistory = incomingHistory.map((msg) => ({
           role: msg.role,
           content: msg.content.trim(),
+          citations: msg.citations,
+          isError: msg.isError,
+          timestamp: msg.timestamp || new Date().toISOString(),
         }));
 
         set({

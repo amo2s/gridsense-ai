@@ -34,12 +34,16 @@ async function verifyUIArchitecture() {
     assert(fs.existsSync(fullPath), `File exists: ${relPath}`);
   }
 
-  // TEST 1: Global Visual Governance & Canvas Layout
+  // TEST 1: Global Visual Governance & Canvas Layout (Strict Light Mode)
   const chatLayoutPath = path.resolve(process.cwd(), "components/assistant/chat-layout.tsx");
   const chatLayoutContent = fs.readFileSync(chatLayoutPath, "utf-8");
   assert(
-    chatLayoutContent.includes("bg-[#0B1120]") || chatLayoutContent.includes("bg-slate-900"),
-    "ChatLayout implements sleek dark canvas background"
+    chatLayoutContent.includes("bg-white") && chatLayoutContent.includes("bg-slate-50"),
+    "ChatLayout implements strict light mode canvas background"
+  );
+  assert(
+    !chatLayoutContent.includes("Sparkles"),
+    "ChatLayout removes all Sparkles icons"
   );
   assert(
     chatLayoutContent.includes("/gridsense-logo.png"),
@@ -106,16 +110,13 @@ async function verifyUIArchitecture() {
   assert(chatLayoutContent.includes("Send"), "Composer Dock includes primary Send action trigger");
   assert(chatLayoutContent.includes("FeatureModal"), "ChatLayout wires actions to FeatureModal");
 
-  // TEST 7: Feature Coming Soon Portal Modal
+  // TEST 7: Feature Coming Soon Portal Modal (Strict Light Mode & Simplified)
   const modalPath = path.resolve(process.cwd(), "components/assistant/feature-modal.tsx");
   const modalContent = fs.readFileSync(modalPath, "utf-8");
   assert(modalContent.includes("createPortal"), "FeatureModal utilizes React createPortal");
-  assert(modalContent.includes("Premium Feature in Development"), "FeatureModal renders required title text");
-  assert(
-    modalContent.includes("Voice inputs, multimodal telemetry attachments, and neural audio synthesis"),
-    "FeatureModal renders required subtext advisory"
-  );
-  assert(modalContent.includes("backdrop-blur"), "FeatureModal implements heavy backdrop blur");
+  assert(modalContent.includes("This feature is coming soon"), "FeatureModal renders simplified 'This feature is coming soon' title text");
+  assert(!modalContent.includes("Sparkles"), "FeatureModal removes Sparkles icon");
+  assert(modalContent.includes("backdrop-blur"), "FeatureModal implements backdrop blur");
 
   // TEST 8: Advanced Wave-Motion Optimistic Loader
   const loaderPath = path.resolve(process.cwd(), "components/assistant/optimistic-loader.tsx");

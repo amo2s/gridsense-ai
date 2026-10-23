@@ -11,7 +11,6 @@ import { FeatureModal } from "./feature-modal";
 import {
   Send,
   RotateCcw,
-  Sparkles,
   Zap,
   Layers,
   ShieldAlert,
@@ -207,11 +206,11 @@ export function ChatLayout() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-8.5rem)] flex-col rounded-2xl border border-slate-800 bg-[#0B1120] shadow-2xl overflow-hidden relative">
-      {/* 1. Header Bar: Dark Glass Aesthetic with Official Brand Logo */}
-      <div className="flex items-center justify-between border-b border-slate-800/90 bg-slate-900/90 px-6 py-3.5 backdrop-blur-xl">
+    <div className="flex h-[calc(100vh-8.5rem)] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden relative">
+      {/* 1. Header Bar: Strict Light Mode Aesthetic with Official Brand Logo */}
+      <div className="flex items-center justify-between border-b border-slate-200 bg-white/90 px-6 py-3.5 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-full bg-white/10 p-1 border border-white/15 shadow-md backdrop-blur-md">
+          <div className="flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-full bg-slate-100 p-1 border border-slate-200 shadow-sm">
             <Image
               src="/gridsense-logo.png"
               alt="GridSense AI"
@@ -222,15 +221,15 @@ export function ChatLayout() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-semibold text-white tracking-tight">
+              <h1 className="text-base font-semibold text-slate-900 tracking-tight">
                 GridSense AI Assistant
               </h1>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950/80 px-2 py-0.5 text-[11px] font-medium text-emerald-400 border border-emerald-600/40">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-200">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Sovereign Intelligence
               </span>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Grounded power distribution diagnostics with zero-hallucination telemetry citations.
             </p>
           </div>
@@ -239,9 +238,9 @@ export function ChatLayout() {
         {/* Operational Scope & Actions */}
         <div className="flex items-center gap-3">
           {/* Feeder Scope Pill */}
-          <div className="hidden sm:flex items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-800/80 px-3 py-1.5 text-xs text-slate-300 font-medium">
-            <span className="text-slate-400">Scope:</span>
-            <span className="font-mono text-emerald-400 font-semibold truncate max-w-[140px]">
+          <div className="hidden sm:flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 font-medium">
+            <span className="text-slate-500">Scope:</span>
+            <span className="font-mono text-emerald-600 font-semibold truncate max-w-[140px]">
               {activeFeederId || activeFeederContext || "Global Fleet"}
             </span>
           </div>
@@ -256,7 +255,7 @@ export function ChatLayout() {
             }}
             title="Reset active conversational thread"
             aria-label="Reset active session"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/90 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             <span className="hidden md:inline">New Session</span>
@@ -264,18 +263,15 @@ export function ChatLayout() {
         </div>
       </div>
 
-      {/* 2. Deep Background Canvas: Scrollable Message Stream with Ultra-Thin Scrollbar */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-3 bg-[#0B1120] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/60 [&::-webkit-scrollbar-track]:bg-transparent">
+      {/* 2. Light Canvas: Scrollable Message Stream with Ultra-Thin Scrollbar */}
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-3 bg-slate-50 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-transparent">
         {chatHistory.length === 0 ? (
           /* Empty State: High-Contrast Starter Prompts */
           <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto text-center py-12">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 mb-4 shadow-lg shadow-emerald-950/40">
-              <Sparkles className="h-7 w-7 animate-pulse" />
-            </div>
-            <h2 className="text-lg font-semibold text-white mb-1 tracking-tight">
+            <h2 className="text-lg font-semibold text-slate-800 mb-1 tracking-tight">
               Distribution Network Operational Co-Pilot
             </h2>
-            <p className="text-sm text-slate-400 max-w-lg mb-8 leading-relaxed">
+            <p className="text-sm text-slate-600 max-w-lg mb-8 leading-relaxed">
               Query real-time feeder risk scores, harmonic distortion events, and reinforcement
               learning dispatch recommendations. All diagnostic answers are grounded against live telemetry.
             </p>
@@ -289,13 +285,13 @@ export function ChatLayout() {
                     key={item.title}
                     type="button"
                     onClick={() => handleSendMessage(item.prompt)}
-                    className="flex flex-col gap-1.5 rounded-xl border border-slate-800/90 bg-slate-900/60 p-4 shadow-md hover:border-emerald-500/50 hover:bg-slate-800/80 transition-all duration-200 text-left group focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-emerald-400 hover:bg-slate-50 transition-all duration-200 text-left group focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-200 group-hover:text-emerald-400 transition-colors">
-                      <IconComponent className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 group-hover:text-emerald-600 transition-colors">
+                      <IconComponent className="h-4 w-4 text-emerald-600 shrink-0" />
                       {item.title}
                     </div>
-                    <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
                       {item.prompt}
                     </p>
                   </button>
@@ -324,13 +320,13 @@ export function ChatLayout() {
       </div>
 
       {/* 3. Re-Engineered Composer Dock */}
-      <div className="border-t border-slate-800/90 bg-slate-900/90 p-4 backdrop-blur-xl">
+      <div className="border-t border-slate-200 bg-white/90 p-4 backdrop-blur-xl">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSendMessage();
           }}
-          className="relative max-w-4xl mx-auto flex items-end gap-2 rounded-2xl border border-slate-700/80 bg-slate-950/80 p-2 shadow-inner focus-within:border-emerald-500/80 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all"
+          className="relative max-w-4xl mx-auto flex items-end gap-2 rounded-2xl border border-slate-300 bg-white p-2 shadow-sm focus-within:border-emerald-500/80 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all"
         >
           {/* Left Side: Prominent Plus (+) Button */}
           <button
@@ -338,7 +334,7 @@ export function ChatLayout() {
             onClick={() => handleTriggerFeatureModal("Multimodal Attachment Upload")}
             aria-label="Add attachment or telemetry context"
             title="Attach file or context"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-800/80 text-slate-300 hover:border-emerald-500 hover:bg-slate-700 hover:text-emerald-400 active:scale-95 transition-all focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-emerald-600 active:scale-95 transition-all focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -353,7 +349,7 @@ export function ChatLayout() {
             placeholder="Ask about feeder health, risk scores, or Engine A-D analytics... (Enter to send)"
             aria-label="Ask the GridSense AI Assistant"
             disabled={isThinking}
-            className="flex-1 max-h-36 min-h-[42px] resize-none bg-transparent px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none disabled:opacity-50 leading-relaxed"
+            className="flex-1 max-h-36 min-h-[42px] resize-none bg-transparent px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-50 leading-relaxed"
           />
 
           {/* Right Side: Voice Mic Button */}
@@ -362,7 +358,7 @@ export function ChatLayout() {
             onClick={() => handleTriggerFeatureModal("Voice Telemetry Input")}
             aria-label="Record voice query"
             title="Voice input"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:text-emerald-400 hover:bg-slate-800 transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-emerald-600 transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <Mic className="h-4 w-4" />
           </button>
@@ -372,7 +368,7 @@ export function ChatLayout() {
             type="submit"
             disabled={!inputQuery.trim() || isThinking}
             aria-label="Submit query to GridSense AI Assistant"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-lg shadow-emerald-950/40 transition-all hover:bg-emerald-500 active:scale-95 disabled:pointer-events-none disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-slate-900"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-900/20 transition-all hover:bg-emerald-500 active:scale-95 disabled:pointer-events-none disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-white"
           >
             <Send className="h-4 w-4" />
           </button>
@@ -381,10 +377,10 @@ export function ChatLayout() {
         {/* Footer Audit Bar */}
         <div className="flex items-center justify-between max-w-4xl mx-auto mt-2 px-2 text-[11px] text-slate-500">
           <span className="flex items-center gap-1.5">
-            <Cpu className="h-3 w-3 text-emerald-500" />
+            <Cpu className="h-3 w-3 text-emerald-600" />
             AES-GCM encrypted persistence &bull; 35s sovereign RAG budget
           </span>
-          <span className="font-mono text-slate-400">
+          <span className="font-mono text-slate-500">
             Session: {sessionId.substring(0, 8)}...
           </span>
         </div>

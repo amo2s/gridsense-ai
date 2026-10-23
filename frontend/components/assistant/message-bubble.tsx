@@ -70,8 +70,8 @@ export function MessageBubble({
         className="flex items-end justify-end gap-3 my-4 group"
       >
         <div className="flex flex-col items-end max-w-[85%] md:max-w-[70%]">
-          {/* User Bubble: Crisp White with Liquid Glass Drop Shadow */}
-          <div className="relative rounded-2xl rounded-tr-sm bg-white px-5 py-3.5 text-slate-900 shadow-xl shadow-black/20 border border-slate-200/80">
+          {/* User Bubble: Crisp White with Soft Shadow */}
+          <div className="relative rounded-2xl rounded-tr-sm bg-white px-5 py-3.5 text-slate-900 shadow-sm border border-slate-200">
             <p className="whitespace-pre-wrap leading-relaxed text-sm font-normal text-slate-900 selection:bg-emerald-100">
               {message.content}
             </p>
@@ -116,7 +116,7 @@ export function MessageBubble({
         </div>
 
         {/* User Avatar Container: Seamlessly Tucked */}
-        <div className="flex h-9 w-9 shrink-0 select-none items-center justify-center rounded-full bg-slate-800 border border-slate-700 text-slate-200 shadow-md">
+        <div className="flex h-9 w-9 shrink-0 select-none items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-slate-500 shadow-sm">
           <User className="h-4 w-4" />
         </div>
       </motion.div>
@@ -135,7 +135,7 @@ export function MessageBubble({
       className="flex items-start justify-start gap-3 my-4 group"
     >
       {/* Brand Logo Avatar */}
-      <div className="flex h-9 w-9 shrink-0 select-none items-center justify-center rounded-full bg-white/10 p-1 border border-white/15 shadow-md backdrop-blur-md">
+      <div className="flex h-9 w-9 shrink-0 select-none items-center justify-center rounded-full bg-white p-1 border border-slate-200 shadow-sm">
         {isError ? (
           <AlertCircle className="h-5 w-5 text-red-400" />
         ) : (

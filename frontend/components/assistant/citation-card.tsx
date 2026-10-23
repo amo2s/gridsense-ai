@@ -29,25 +29,25 @@ export function CitationCard({ citation, index }: CitationCardProps) {
       case "anomalies":
         return {
           label: "Engine C Grounded",
-          badgeStyle: "bg-indigo-50 text-indigo-700 border-indigo-200/80",
+          badgeStyle: "bg-indigo-950/80 text-indigo-300 border-indigo-700/60",
           icon: Layers,
         };
       case "risk_predictions":
         return {
           label: "Engine B Grounded",
-          badgeStyle: "bg-amber-50 text-amber-700 border-amber-200/80",
+          badgeStyle: "bg-amber-950/80 text-amber-300 border-amber-700/60",
           icon: Zap,
         };
       case "intervention_outcomes":
         return {
           label: "Engine D Grounded",
-          badgeStyle: "bg-emerald-50 text-emerald-700 border-emerald-200/80",
+          badgeStyle: "bg-teal-950/80 text-teal-300 border-teal-700/60",
           icon: ShieldAlert,
         };
       default:
         return {
           label: "Telemetry Grounded",
-          badgeStyle: "bg-slate-100 text-slate-700 border-slate-200",
+          badgeStyle: "bg-slate-800 text-slate-300 border-slate-700",
           icon: Database,
         };
     }
@@ -60,32 +60,32 @@ export function CitationCard({ citation, index }: CitationCardProps) {
     <div
       tabIndex={0}
       aria-label={`Citation ${index + 1}: ${badgeConfig.label} from ${citation.source_table}`}
-      className="group relative flex flex-col justify-between rounded-lg border border-slate-200/90 bg-white/95 p-3.5 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-300 hover:shadow focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+      className="group relative flex flex-col justify-between rounded-xl border border-white/15 bg-black/25 p-3.5 shadow-md backdrop-blur-md transition-all duration-200 hover:border-white/30 hover:bg-black/35 focus:outline-none focus:ring-2 focus:ring-white/40"
     >
       {/* Top Header: Engine Badge & Table Name */}
       <div className="flex items-center justify-between gap-2 mb-2">
         <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold border ${badgeConfig.badgeStyle}`}
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${badgeConfig.badgeStyle}`}
         >
-          <BadgeIcon className="h-3.5 w-3.5 shrink-0" />
+          <BadgeIcon className="h-3 w-3 shrink-0" />
           {badgeConfig.label}
         </span>
-        <span className="font-mono text-[11px] text-slate-400 uppercase tracking-wider">
+        <span className="font-mono text-[10px] text-emerald-200/70 uppercase tracking-wider">
           {citation.source_table}
         </span>
       </div>
 
       {/* Snippet Content */}
-      <p className="text-sm leading-relaxed text-slate-700 mb-3">
+      <p className="text-xs leading-relaxed text-slate-100 mb-3 font-normal">
         {citation.metric_snippet}
       </p>
 
       {/* Footer: Monospace Record ID and Copy Action */}
-      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+      <div className="flex items-center justify-between pt-2 border-t border-white/10 text-xs">
         <div className="flex items-center gap-1.5 overflow-hidden">
-          <span className="text-[11px] text-slate-400 font-medium shrink-0">ID:</span>
+          <span className="text-[10px] text-emerald-300/80 font-medium shrink-0">REC ID:</span>
           <span
-            className="font-mono text-[11px] text-slate-500 truncate select-all"
+            className="font-mono text-[10px] text-emerald-100/90 truncate select-all"
             title={citation.record_id}
           >
             {citation.record_id}
@@ -97,12 +97,12 @@ export function CitationCard({ citation, index }: CitationCardProps) {
           onClick={handleCopyRecordId}
           aria-label="Copy record ID"
           title="Copy record UUID"
-          className="ml-2 inline-flex items-center justify-center rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="ml-2 inline-flex items-center justify-center rounded p-1 text-emerald-200/80 hover:bg-white/15 hover:text-white transition-colors focus:outline-none focus:ring-1 focus:ring-white"
         >
           {copied ? (
-            <Check className="h-3.5 w-3.5 text-emerald-600" />
+            <Check className="h-3 w-3 text-emerald-300" />
           ) : (
-            <Copy className="h-3.5 w-3.5" />
+            <Copy className="h-3 w-3" />
           )}
         </button>
       </div>

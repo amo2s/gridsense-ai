@@ -46,6 +46,7 @@ export interface AssistantState {
   setActiveFeederId: (feederId: string | null) => void;
   addMessage: (message: ChatMessage) => void;
   setChatHistory: (history: ChatMessage[]) => void;
+  deleteMessage: (index: number) => void;
   setIsThinking: (thinking: boolean, statusMessage?: string | null) => void;
   setLastError: (error: string | null) => void;
   clearChat: () => void;
@@ -131,6 +132,17 @@ export const useAssistantStore = create<AssistantState>()(
         set({
           chatHistory: enforceSlidingWindow(sanitizedHistory),
           lastError: null,
+        });
+      },
+
+      deleteMessage: (indexToDelete: number) => {
+        const currentHistory = get().chatHistory;
+        if (indexToDelete < 0 || indexToDelete >= currentHistory.length) {
+          return;
+        }
+        const updatedHistory = currentHistory.filter((_, idx) => idx !== indexToDelete);
+        set({
+          chatHistory: enforceSlidingWindow(updatedHistory),
         });
       },
 

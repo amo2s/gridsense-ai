@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/assistant", tags=["Assistant"])
 
-# Single shared pipeline instance (holds the HF inference client)
+# Single shared pipeline instance (holds the local BAAI/bge-m3 SentenceTransformer singleton)
 _embedding_pipeline = EmbeddingPipeline()
 
 # ---------------------------------------------------------

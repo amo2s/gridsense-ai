@@ -7,3 +7,6 @@ node_modules/
 generate_token.py
 /test-query.js
 payload.json
+__pycache__/
+*.py[cod]
+*$py.class

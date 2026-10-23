@@ -1,14 +1,25 @@
+import os
+import torch
+
+# 1. Explicitly constrain PyTorch matrix multiplication threading BEFORE importing sentence_transformers
+os.environ["OMP_NUM_THREADS"] = "2"
+os.environ["MKL_NUM_THREADS"] = "2"
+torch.set_num_threads(2)
+
 import asyncio
+import functools
 import json
 import logging
-import os
 from datetime import datetime
-import asyncpg
-from pgvector.asyncpg import register_vector
-from dotenv import load_dotenv
-from huggingface_hub import AsyncInferenceClient
+from typing import List, Optional
 
-# 1. Load environment variables into memory
+import asyncpg
+from dotenv import load_dotenv
+from fastapi import HTTPException, status
+from pgvector.asyncpg import register_vector
+from sentence_transformers import SentenceTransformer
+
+# 2. Load environment variables into memory
 load_dotenv()
 
 # Configure production logging
@@ -18,18 +29,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger("GridSense-Embedding-Pipeline")
 
-# 2. Strict environment read (Raises KeyError if missing)
-DB_DSN = os.environ["DATABASE_URL"]
-HF_TOKEN = os.environ["HF_TOKEN"]
+# Database DSN from environment
+DB_DSN = os.getenv("DATABASE_URL", "")
+
 
 class EmbeddingPipeline:
+    _shared_model: Optional[SentenceTransformer] = None
+
     def __init__(self):
-        logger.info("Initializing Hugging Face Inference client...")
-        # Using the official SDK handles task routing and payload formatting automatically
-        self.hf_client = AsyncInferenceClient(token=HF_TOKEN)
+        # Singleton instantiation: loaded once into RAM during startup lifecycle
+        if EmbeddingPipeline._shared_model is None:
+            logger.info("Initializing local SentenceTransformer BAAI/bge-m3 singleton...")
+            EmbeddingPipeline._shared_model = SentenceTransformer("BAAI/bge-m3")
+            logger.info("Local SentenceTransformer BAAI/bge-m3 singleton initialized successfully.")
+        self.model = EmbeddingPipeline._shared_model
 
     async def connect_db(self):
         """Establish async database connection and register pgvector."""
+        if not DB_DSN:
+            raise KeyError("DATABASE_URL environment variable is missing or empty.")
         conn = await asyncpg.connect(DB_DSN)
         # Explicitly target the extensions schema to match Supabase architecture
         await register_vector(conn, schema='extensions')
@@ -67,38 +85,42 @@ class EmbeddingPipeline:
 
         return ""
 
-    async def get_embedding(self, text: str) -> list[float]:
-        """Fetches the 1024-dimensional vector from HF Serverless API with retry logic."""
-        for attempt in range(5):
-            try:
-                # The SDK automatically targets the feature-extraction pipeline
-                response = await self.hf_client.feature_extraction(
-                    text, 
-                    model="BAAI/bge-m3"
-                )
-                
-                # The response is typically a numpy-like list of floats
-                # If it's nested (batch processing format), extract the flat list
-                if isinstance(response, list) and len(response) > 0 and isinstance(response[0], list):
-                    return response[0]
-                return response
-                
-            except Exception as e:
-                # Check if it's a cold start / 503 error
-                error_str = str(e).lower()
-                if "503" in error_str or "loading" in error_str:
-                    wait_time = 2 ** attempt
-                    logger.warning(f"HF Model loading. Retrying in {wait_time}s...")
-                    await asyncio.sleep(wait_time)
-                    continue
-                
-                logger.error(f"HF API Error: {str(e)}")
-                raise e
-                
-        raise RuntimeError("Failed to fetch embedding from cloud API after 5 attempts.")
+    async def get_embedding(self, query: str = None, text: str = None) -> list[float]:
+        """
+        Computes 1024-dimensional normalized vector embeddings using the local BAAI/bge-m3 model.
+        Offloads synchronous CPU-bound PyTorch matrix operations to a separate thread pool
+        via loop.run_in_executor to avoid blocking FastAPI's asyncio event loop.
+        """
+        target_text = query if query is not None else text
+        if not target_text:
+            return []
+
+        try:
+            loop = asyncio.get_running_loop()
+            func = functools.partial(self.model.encode, target_text, normalize_embeddings=True)
+            embedding_array = await loop.run_in_executor(None, func)
+
+            if hasattr(embedding_array, "tolist"):
+                vector = embedding_array.tolist()
+            elif isinstance(embedding_array, list):
+                vector = embedding_array
+            else:
+                vector = list(embedding_array)
+
+            # Flatten if nested (e.g. batch-like output [[...]])
+            if isinstance(vector, list) and len(vector) > 0 and isinstance(vector[0], list):
+                return vector[0]
+            return vector
+
+        except Exception as exc:
+            logger.error(f"Local embedding generation failed for input: {exc}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Local embedding generation failed: {str(exc)}"
+            )
 
     async def process_record(self, conn, table: str, record_id: str):
-        """Fetches the record, generates the semantic vector via API, and commits it back."""
+        """Fetches the record, generates the semantic vector via local model, and commits it back."""
         query = f"""
             SELECT t.*, f.name AS feeder_name 
             FROM {table} t
@@ -116,11 +138,11 @@ class EmbeddingPipeline:
         if not context_text:
             return
 
-        # 2. Compute 1024-dimension BGE-M3 embedding (Cloud API)
+        # 2. Compute 1024-dimension BGE-M3 embedding (Local In-Memory Model)
         try:
             embedding = await self.get_embedding(context_text)
         except Exception as e:
-            logger.error(f"Skipping record {record_id} due to API failure: {e}")
+            logger.error(f"Skipping record {record_id} due to embedding failure: {e}")
             return
 
         # 3. Commit vector and tsvector back to the database
@@ -135,7 +157,7 @@ class EmbeddingPipeline:
 
     async def run_backfill(self):
         """Scans for legacy rows without embeddings and processes them."""
-        logger.info("Initiating database backfill for missing embeddings via Cloud API...")
+        logger.info("Initiating database backfill for missing embeddings via local BAAI/bge-m3...")
         tables = ["anomalies", "outage_events", "risk_predictions", "fault_events", "intervention_outcomes", "alerts"]
 
         conn = await self.connect_db()
@@ -146,8 +168,7 @@ class EmbeddingPipeline:
                     logger.info(f"Found {len(records)} unvectorized rows in {table}.")
                     for record in records:
                         await self.process_record(conn, table, record['id'])
-                        # 0.5s delay protects against hitting the free tier API rate limits during heavy backfills
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(0.05)
         finally:
             await conn.close()
         logger.info("Backfill complete.")
@@ -176,7 +197,7 @@ class EmbeddingPipeline:
         finally:
             await conn.remove_listener("grid_embedding_channel", notification_handler)
             await conn.close()
-            # AsyncInferenceClient doesn't require explicit aclose() like httpx
+
 
 async def main():
     pipeline = EmbeddingPipeline()
@@ -186,6 +207,7 @@ async def main():
 
     # 2. Transition into real-time listening mode
     await pipeline.listen_for_notifications()
+
 
 if __name__ == "__main__":
     try:

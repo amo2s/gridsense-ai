@@ -40,7 +40,7 @@ func NewAssistantClient(baseURL, serviceKey string) *AssistantClient {
 		serviceKey: serviceKey,
 		httpClient: &http.Client{
 			// LLM Inference requires a significantly higher per-attempt timeout than Engine A
-			Timeout: 30 * time.Second,
+			Timeout: 60 * time.Second,
 			Transport: &http.Transport{
 				MaxIdleConns:        100,
 				MaxIdleConnsPerHost: 20,

@@ -1,10 +1,10 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import UUID4
 import asyncpg
 
 async def execute_hybrid_search(
     conn: asyncpg.Connection,
-    feeder_id: UUID4,
+    feeder_id: Optional[UUID4],
     query_text: str,
     query_embedding: List[float],
     limit: int = 5,
@@ -23,7 +23,7 @@ async def execute_hybrid_search(
             metric_snippet,
             ROW_NUMBER() OVER (ORDER BY embedding <=> $1::vector) AS rank
         FROM grid_document_store
-        WHERE feeder_id = $2
+        WHERE ($2::uuid IS NULL OR feeder_id = $2)
         ORDER BY embedding <=> $1::vector
         LIMIT 20
     ),
@@ -34,7 +34,7 @@ async def execute_hybrid_search(
             metric_snippet,
             ROW_NUMBER() OVER (ORDER BY ts_rank(fts_vector, websearch_to_tsquery('english', $3)) DESC) AS rank
         FROM grid_document_store
-        WHERE feeder_id = $2 
+        WHERE ($2::uuid IS NULL OR feeder_id = $2) 
           AND fts_vector @@ websearch_to_tsquery('english', $3)
         ORDER BY rank
         LIMIT 20

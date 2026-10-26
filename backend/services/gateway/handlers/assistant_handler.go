@@ -124,8 +124,8 @@ func NewAssistantHandler(repo AssistantAuditRepository, aiClient AssistantBridge
 // HandleQuery processes incoming operator queries from the Next.js frontend, routes them
 // to the Python Assistant microservice, and writes audit telemetry to PostgreSQL.
 func (h *AssistantHandler) HandleQuery(w http.ResponseWriter, r *http.Request) {
-	// Generous 30s timeout budget to account for upstream LLM inference and hybrid RRF search
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	// Generous 60s timeout budget to account for upstream LLM inference and hybrid RRF search
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
 	ctx, span := assistantTracer.Start(ctx, "HTTP.HandleQuery")

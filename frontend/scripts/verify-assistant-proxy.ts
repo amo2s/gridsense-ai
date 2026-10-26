@@ -20,7 +20,7 @@ async function runProxyTests() {
   }
 
   // TEST 1: Runtime Configuration Constants
-  assert(maxDuration === 35, "maxDuration exported and set to exactly 35 seconds");
+  assert(maxDuration === 60, "maxDuration exported and set to exactly 60 seconds");
   assert(dynamic === "force-dynamic", "dynamic exported and set to 'force-dynamic'");
 
   // TEST 2: Unauthenticated Request Rejection (401 Unauthorized)

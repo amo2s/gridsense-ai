@@ -3,29 +3,28 @@ import { cookies } from "next/headers";
 
 /**
  * ============================================================================
- * GRIDSENSE AI ASSISTANT: DEDICATED 35-SECOND PROXY ROUTE (PHASE 4)
+ * GRIDSENSE AI ASSISTANT: DEDICATED 60-SECOND PROXY ROUTE
  * ============================================================================
  * Routes conversational queries from the Next.js frontend to the upstream
  * Go API Gateway on /api/v1/assistant/query.
  *
  * Operational Mandates:
- * 1. Explicit 35-second Node.js execution budget (bypassing generic 10s proxy limit).
- * 2. Strict HTTP-only cookie extraction (auth_token) converted to Bearer header.
+ * 1. Explicit 60-second Node.js execution budget aligning with Gateway & RRF search.
+ * 2. Strict HTTP-only cookie extraction (auth_token or gridsense_session) converted to Bearer header.
  * 3. Inbound client payload sanitization enforcing exact snake_case schema.
  * 4. Resilient AbortController timeout handling with deterministic HTTP 504.
  * 5. Transparent error relaying for upstream Go Gateway / Python microservice responses.
  * ============================================================================
  */
 
-export const maxDuration = 35;
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 const GATEWAY_URL =
   process.env.GATEWAY_URL ||
-  process.env.BACKEND_API_URL ||
-  "https://sliverboy-heal-her-backend.hf.space";
+  "http://localhost:8080";
 
-const ASSISTANT_TIMEOUT_MS = 35_000;
+const ASSISTANT_TIMEOUT_MS = 60_000;
 
 interface InboundChatMessage {
   role?: string;
@@ -47,7 +46,7 @@ export async function POST(req: NextRequest) {
   // 1. Diagnostic Simulation Hooks for verification & automated testing
   const simulateHeader = req.headers.get("x-simulate-response");
   if (simulateHeader === "timeout") {
-    await new Promise((resolve) => setTimeout(resolve, 36_000));
+    await new Promise((resolve) => setTimeout(resolve, 61_000));
   }
   if (simulateHeader === "503") {
     return NextResponse.json(
@@ -76,6 +75,14 @@ export async function POST(req: NextRequest) {
     const match = rawCookie.match(/(?:^|;\s*)(?:auth_token|gridsense_session)=([^;]+)/);
     if (match) {
       authToken = decodeURIComponent(match[1]);
+    }
+  }
+
+  // Authorization Header fallback
+  if (!authToken) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+      authToken = authHeader.slice(7).trim();
     }
   }
 
@@ -157,14 +164,14 @@ export async function POST(req: NextRequest) {
     feeder_id: feederId,
   };
 
-  // 5. Build Upstream Headers (Forwarding Bearer Token Only, Never Raw Cookies)
+  // 5. Build Upstream Headers (Forwarding Bearer Token Only)
   const forwardHeaders: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
     Authorization: `Bearer ${authToken}`,
   };
 
-  // 6. Execute Upstream Invocation with 35-Second AbortController Budget
+  // 6. Execute Upstream Invocation with 60-Second AbortController Budget
   const controller = new AbortController();
   const timeoutTimer = setTimeout(() => controller.abort(), ASSISTANT_TIMEOUT_MS);
 
@@ -214,7 +221,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: "Gateway Timeout",
-          message: "The AI Assistant inference engines timed out after 35 seconds.",
+          message: "The AI Assistant inference engines timed out after 60 seconds.",
         },
         { status: 504 }
       );
